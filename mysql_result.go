@@ -37,6 +37,15 @@ func (res *MySQLResult) FetchRow() []string {
  * Fetch a map of the current row
  */
 func (res *MySQLResult) FetchMap() map[string] string {
+	if len(res.Rows) > res.pointer {
+		row := res.Rows[res.pointer].Data
+		rowMap := make(map[string] string)
+		for key, val := range row {
+			rowMap[res.Fields[key].Name] = val
+		}
+		res.pointer ++
+		return rowMap
+	}
 	return nil
 }
 
