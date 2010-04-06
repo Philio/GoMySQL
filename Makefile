@@ -1,0 +1,6 @@
+include $(GOROOT)/src/Make.$(GOARCH)
+ 
+TARG=mysql
+GOFILES=mysql.go mysql_const.go mysql_error.go mysql_packet.go mysql_result.go
+ 
+include $(GOROOT)/src/Make.pkg 
