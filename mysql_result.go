@@ -17,6 +17,27 @@ type MySQLResult struct {
 	Rows		[]*MySQLRow
 	RowCount	uint64
 	rowsEOF		bool
+	
+	pointer		int
+}
+
+/**
+ * Fetch the current row (as an array)
+ */
+func (res *MySQLResult) FetchRow() []string {
+	if len(res.Rows) > res.pointer {
+		row := res.Rows[res.pointer].Data
+		res.pointer ++
+		return row
+	}
+	return nil
+}
+
+/**
+ * Fetch a map of the current row
+ */
+func (res *MySQLResult) FetchMap() map[string] string {
+	return nil
 }
 
 /**
