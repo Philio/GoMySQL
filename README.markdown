@@ -24,6 +24,7 @@ Create a new MySQL instance, with or without logging enabled.
 Logging displays all packets sent to/from the server, useful for debugging.
 
 Example:
+
 `db := mysql.New(false)`
 
 MySQL.Connect(host string, username string, password string, dbname string, port int, socket string)
@@ -37,6 +38,7 @@ The socket will default to /var/run/mysql/mysql.sock (Debian/Ubuntu).
 Returns true on success or false on failure, error number and description can be retrieved for failure description (see error handling section)
 
 Example:
+
 `connected := db.Connect("localhost", "user", "password", "database", 0, "")`
 
 MySQL.Close()
@@ -46,6 +48,7 @@ Closes the connection to the database.
 Returns true on success or false on failure, error number and description can be retrieved for failure description (see error handling section)
 
 Example:
+
 `closed = db.Close()`
 
 MySQL.Query(sql string)
@@ -54,6 +57,7 @@ Perform an SQL query
 Returns a MySQLResult object on success or nil on failure, data contained within result object varies depending on query type.
 
 Example:
+
 `res := db.Query("SELECT * FROM table")`
 
 MySQLResult.FetchRow()
