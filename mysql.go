@@ -52,7 +52,7 @@ type MySQLServerInfo struct {
 /**
  * Create a new instance of the package
  */
-func Create(logging bool) (mysql *MySQL) {
+func New(logging bool) (mysql *MySQL) {
 	// Create and return a new instance of MySQL
 	mysql = new(MySQL)
 	if (logging) {
@@ -122,6 +122,8 @@ func (mysql *MySQL) Close() (closed bool) {
 
 /**
  * Perform SQL query
+ * @todo multiple queries work, but resulting packets are not read correctly
+ * and end up appended to the message field of the first OK packet
  */
 func (mysql *MySQL) Query(sql string) *MySQLResult {
 	if mysql == nil { return nil }
@@ -134,7 +136,7 @@ func (mysql *MySQL) Query(sql string) *MySQLResult {
 		return nil
 	}
 	if (mysql.Logging) { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent query command to server") }
-	// Get result packet
+	// Get result packet(s)
 	mysql.getResult(false)
 	if mysql.Errno != 0 {
 		return nil
