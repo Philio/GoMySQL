@@ -125,21 +125,21 @@ func (mysql *MySQL) Close() bool {
  * @todo multiple queries work, but resulting packets are not read correctly
  * and end up appended to the message field of the first OK packet
  */
-func (mysql *MySQL) Query(sql string) (*MySQLResult, bool) {
-	if !mysql.connected { return nil, false }
+func (mysql *MySQL) Query(sql string) *MySQLResult {
+	if !mysql.connected { return nil }
 	if mysql.Logging { log.Stdout("Query called") }
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send query command
 	mysql.command(COM_QUERY, sql)
 	if mysql.Errno != 0 {
-		return nil, false
+		return nil
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent query command to server") }
 	// Get result packet(s)
 	mysql.getResult(false)
 	if mysql.Errno != 0 {
-		return nil, false
+		return nil
 	}
 	// Check if result set returned
 	if mysql.result != nil {
@@ -149,7 +149,7 @@ func (mysql *MySQL) Query(sql string) (*MySQLResult, bool) {
 				if mysql.result.rowsEOF != true {
 					mysql.getResult(false)
 					if mysql.Errno != 0 {
-						return nil, false
+						return nil
 					}
 				} else {
 					break
@@ -157,7 +157,7 @@ func (mysql *MySQL) Query(sql string) (*MySQLResult, bool) {
 			}
 		}
 	}
-	return mysql.result, true
+	return mysql.result
 }
 
 /**
