@@ -6,6 +6,8 @@ About
 
 A MySQL client library written in Go. The aim of this project is to provide a library with a high level of usability and interal error handling to allow the calling program the option to decide what to do in the event of an error and implement retry logic where required.
 
+* GoMySQL is still in development, some features may not work as expected! This is my first project in Go, feedback/comments/suggestion are appreciated. *
+
 
 Compatability
 -------------
