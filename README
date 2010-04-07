@@ -5,6 +5,11 @@ About:
 A MySQL client library written in Go. The aim of this project is to provide a library with a high level of usability and interal error handling to allow the calling program the option to decide what to do in the event of an error and implement retry logic where required.
 
 
+Compatability:
+
+Implements the MySQL protocol version 4.1 so should work with MySQL server versions 4.1, 5.0, 5.1 and future releases.
+
+
 Supported functions:
 
 MySQL.New(logging bool)
@@ -26,7 +31,7 @@ The socket will default to /var/run/mysql/mysql.sock (Debian/Ubuntu).
 Returns true on success or false on failure, error number and description can be retrieved for failure description (see error handling section)
 
 Example:
-connected := db.Connect("localhost", "test", "test", "test", 0, "")
+connected := db.Connect("localhost", "user", "password", "database", 0, "")
 
 MySQL.Close()
 
@@ -69,3 +74,4 @@ Error handling:
 Almost all errors are handled internally and populate the Errno and Error properties of MySQL.
 Connect errors populate ConnectErrno and ConnectError rather than Errno and Error.
 Generated errors attempt to follow MySQL protocol/specifications as closely as possible.
+Following any other operation the ConnectErrno or Errno can be checked to see if an error occured.
