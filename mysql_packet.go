@@ -204,6 +204,7 @@ func (pkt *PacketAuth) write(writer *bufio.Writer) (err os.Error) {
  * The OK packet (received after an operation completed successfully)
  */
 type PacketOK struct {
+	header		*PacketHeader
 	FieldCount	uint8
 	AffectedRows	uint64
 	InsertId	uint64
@@ -216,16 +217,19 @@ type PacketOK struct {
  * Read the OK packet from the buffer
  */
 func (pkt *PacketOK) read(reader *bufio.Reader) (err os.Error) {
+	var n, bytes int
 	// Read field count
 	c, err := reader.ReadByte()
 	if err != nil { return err }
 	pkt.FieldCount = uint8(c)
 	// Read affected rows
-	pkt.AffectedRows, _, err = readLengthCodedBinary(reader)
+	pkt.AffectedRows, n, err = readLengthCodedBinary(reader)
 	if err != nil { return err }
+	bytes = n
 	// Read insert id
-	pkt.InsertId, _, err = readLengthCodedBinary(reader)
+	pkt.InsertId, n, err = readLengthCodedBinary(reader)
 	if err != nil { return err }
+	bytes += n
 	// Read server status
 	num, err := readNumber(reader, 2)
 	if err != nil { return err }
@@ -235,8 +239,9 @@ func (pkt *PacketOK) read(reader *bufio.Reader) (err os.Error) {
 	if err != nil { return err }
 	pkt.WarningCount = uint16(num)
 	// Read message
-	if reader.Buffered() > 0 {
-		msg := make([]byte, reader.Buffered())
+	bytes += 5
+	if int(pkt.header.Length) > bytes {
+		msg := make([]byte, int(pkt.header.Length) - bytes)
 		_, err = reader.Read(msg)
 		if err != nil { return err }
 		pkt.Message = string(msg)
@@ -248,6 +253,7 @@ func (pkt *PacketOK) read(reader *bufio.Reader) (err os.Error) {
  * Error packet (received after an operation failed)
  */
 type PacketError struct {
+	header		*PacketHeader
 	FieldCount	uint8
 	Errno		uint16
 	State		string
@@ -258,6 +264,7 @@ type PacketError struct {
  * Read error packet from the buffer
  */
 func (pkt *PacketError) read(reader *bufio.Reader) (err os.Error) {
+	var bytes int
 	// Read field count
 	c, err := reader.ReadByte()
 	if err != nil { return err }
@@ -276,14 +283,18 @@ func (pkt *PacketError) read(reader *bufio.Reader) (err os.Error) {
 		_, err = reader.Read(state)
 		if err != nil { return err }
 		pkt.State = string(state)
+		bytes = 9
 	} else {
 		reader.UnreadByte()
+		bytes = 3
 	}
 	// Read message
-	msg := make([]byte, reader.Buffered())
-	_, err = reader.Read(msg)
-	if err != nil { return err }
-	pkt.Error = string(msg)
+	if int(pkt.header.Length) > bytes {
+		msg := make([]byte, int(pkt.header.Length) - bytes)
+		_, err = reader.Read(msg)
+		if err != nil { return err }
+		pkt.Error = string(msg)
+	}
 	return nil
 }
 
@@ -461,6 +472,7 @@ func (pkt *PacketRowData) read(reader *bufio.Reader) (err os.Error) {
  * End of file packet (received as a marker for end of packet type within a result set)
  */
 type PacketEOF struct {
+	header		*PacketHeader
 	FieldCount	uint8
 	WarningCount	uint16
 	ServerStatus	uint16
