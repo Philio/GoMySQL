@@ -181,6 +181,28 @@ func (mysql *MySQL) MultiQuery(sql string) []*MySQLResult {
 }
 
 /**
+ * Change database
+ */
+func (mysql *MySQL) ChangeDb(dbname string) bool {
+	if !mysql.connected { return false }
+	if mysql.Logging { log.Stdout("ChangeDb called") }
+	// Reset error/sequence vars
+	mysql.reset()
+	// Send command
+	mysql.command(COM_INIT_DB, dbname)
+	if mysql.Errno != 0 {
+		return false
+	}
+	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent change db command to server") }
+	// Get result packet
+	mysql.getResult(false)
+	if mysql.Errno != 0 {
+		return false
+	}
+	return true
+}
+
+/**
  * Clear error status, sequence number and result from previous command
  */
 func (mysql *MySQL) reset() {
@@ -486,7 +508,7 @@ func (mysql *MySQL) command(command byte, arg string) {
 	var err os.Error
 	// Send command
 	switch command {
-		case COM_QUIT, COM_QUERY:
+		case COM_QUIT, COM_QUERY, COM_INIT_DB:
 			pkt := new(PacketCommand)
 			pkt.Command = command
 			pkt.Arg = arg
