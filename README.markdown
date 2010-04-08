@@ -1,5 +1,12 @@
-GoMySQL Version 0.1
-===================
+GoMySQL Version 0.1.1
+=====================
+
+Revision History
+----------------
+
+* 0.1   - Initial release, supporting connect, close and query functions
+* 0.1.1 - Added support for multiple queries in a single command
+
 
 About
 -----
@@ -53,8 +60,8 @@ Example:
 
 MySQL.Query(sql string)
 
-Perform an SQL query
-Returns a MySQLResult object on success or nil on failure, data contained within result object varies depending on query type.
+Perform an SQL query, as of 0.1.1 supports multiple statements.
+Returns a MySQLResult object on success or nil on failure, data contained within result object varies depending on query type. If query contains multiple statements then the first result set is returned.
 
 Example:
 
