@@ -75,9 +75,9 @@ Returns an array of MySQLResult objects or nil on failure.
 
 Example:
 
-'resArray := db.MultiQuery("UPDATE t1 SET a = 1; UPDATE t2 SET b = 2")`
+`resArray := db.MultiQuery("UPDATE t1 SET a = 1; UPDATE t2 SET b = 2")`
 
-resArray[0] contains result of UPDATE t1 SET a = 1
+resArray[0] contains result of UPDATE t1 SET a = 1  
 resArray[1] contains result of UPDATE t2 SET b = 2
 
 MySQLResult.FetchRow()
