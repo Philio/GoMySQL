@@ -37,11 +37,11 @@ Example:
 
 MySQL.Connect(host string, username string, password string, dbname string, port int, socket string)
 
-Connect to database defined by host.
-The minimum required params to connect are host and username, dependant on server settings.
-If the host provide is localhost or 127.0.0.1 then a socket connection will be made, otherwise TCP will be used.
-The port will default to 3306.
-The socket will default to /var/run/mysql/mysql.sock (Debian/Ubuntu).
+Connect to database defined by host.  
+The minimum required params to connect are host and username, dependant on server settings.  
+If the host provide is localhost or 127.0.0.1 then a socket connection will be made, otherwise TCP will be used.  
+The port will default to 3306.  
+The socket will default to /var/run/mysql/mysql.sock (Debian/Ubuntu).  
 
 Returns true on success or false on failure, error number and description can be retrieved for failure description (see error handling section)
 
@@ -51,8 +51,7 @@ Example:
 
 MySQL.Close()
 
-Closes the connection to the database.
-
+Closes the connection to the database.  
 Returns true on success or false on failure, error number and description can be retrieved for failure description (see error handling section)
 
 Example:
@@ -61,7 +60,7 @@ Example:
 
 MySQL.Query(sql string)
 
-Perform an SQL query, as of 0.1.1 supports multiple statements.
+Perform an SQL query, as of 0.1.1 supports multiple statements.  
 Returns a MySQLResult object on success or nil on failure, data contained within result object varies depending on query type. If query contains multiple statements then the first result set is returned.
 
 Example:
@@ -70,7 +69,7 @@ Example:
 
 MySQL.MultiQuery(sql string)
 
-Identical in function to MySQL.Query, intended for use with multiple statements.
+Identical in function to MySQL.Query, intended for use with multiple statements.  
 Returns an array of MySQLResult objects or nil on failure.
 
 Example:
@@ -82,7 +81,7 @@ resArray[1] contains result of UPDATE t2 SET b = 2
 
 MySQLResult.FetchRow()
 
-Get the next row in the resut set.
+Get the next row in the resut set.  
 Returns a string array or nil if there are no more rows.
 
 Example:
@@ -91,7 +90,7 @@ Example:
 
 MySQLResult.FetchMap()
 
-Get the next row in the resut set as a map.
+Get the next row in the resut set as a map.  
 Returns a map or nil if there are no more rows.
 
 Example:
@@ -102,7 +101,7 @@ Example:
 Error handling
 --------------
 
-Almost all errors are handled internally and populate the Errno and Error properties of MySQL.
-Connect errors populate ConnectErrno and ConnectError rather than Errno and Error.
-Generated errors attempt to follow MySQL protocol/specifications as closely as possible.
+Almost all errors are handled internally and populate the Errno and Error properties of MySQL.  
+Connect errors populate ConnectErrno and ConnectError rather than Errno and Error.  
+Generated errors attempt to follow MySQL protocol/specifications as closely as possible.  
 Following any other operation the ConnectErrno or Errno can be checked to see if an error occured.
