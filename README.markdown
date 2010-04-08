@@ -6,6 +6,7 @@ Revision History
 
 * 0.1   - Initial release, supporting connect, close and query functions
 * 0.1.1 - Added support for multiple queries in a single command
+* 0.1.2 - Added MultiQuery function to return mutliple result sets as an array
 
 
 About
@@ -66,6 +67,18 @@ Returns a MySQLResult object on success or nil on failure, data contained within
 Example:
 
 `res := db.Query("SELECT * FROM table")`
+
+MySQL.MultiQuery(sql string)
+
+Identical in function to MySQL.Query, intended for use with multiple statements.
+Returns an array of MySQLResult objects or nil on failure.
+
+Example:
+
+'resArray := db.MultiQuery("UPDATE t1 SET a = 1; UPDATE t2 SET b = 2")`
+
+resArray[0] contains result of UPDATE t1 SET a = 1
+resArray[1] contains result of UPDATE t2 SET b = 2
 
 MySQLResult.FetchRow()
 

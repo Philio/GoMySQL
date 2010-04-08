@@ -124,8 +124,6 @@ func (mysql *MySQL) Close() bool {
 
 /**
  * Perform SQL query
- * @todo multiple queries work, but resulting packets are not read correctly
- * and end up appended to the message field of the first OK packet
  */
 func (mysql *MySQL) Query(sql string) *MySQLResult {
 	if !mysql.connected { return nil }
@@ -151,6 +149,35 @@ func (mysql *MySQL) Query(sql string) *MySQLResult {
 		}
 	}
 	return mysql.result[0]
+}
+
+/**
+ * Perform SQL query with multiple result sets
+ */
+func (mysql *MySQL) MultiQuery(sql string) []*MySQLResult {
+	if !mysql.connected { return nil }
+	if mysql.Logging { log.Stdout("MultiQuery called") }
+	// Reset error/sequence vars
+	mysql.reset()
+	// Send query command
+	mysql.command(COM_QUERY, sql)
+	if mysql.Errno != 0 {
+		return nil
+	}
+	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent query command to server") }
+	// Get result packet(s)
+	for {
+		// Get result packet
+		mysql.getResult(false)
+		if mysql.Errno != 0 {
+			return nil
+		}
+		// If buffer is empty break loop
+		if mysql.reader.Buffered() == 0 {
+			break;
+		}
+	}
+	return mysql.result
 }
 
 /**
