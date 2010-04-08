@@ -1,4 +1,4 @@
-GoMySQL Version 0.1.2
+GoMySQL Version 0.1.3
 =====================
 
 Revision History
@@ -7,6 +7,7 @@ Revision History
 * 0.1   - Initial release, supporting connect, close and query functions
 * 0.1.1 - Added support for multiple queries in a single command
 * 0.1.2 - Added MultiQuery function to return mutliple result sets as an array
+* 0.1.3 - Added ChangeDb function to change the active database
 
 
 About
@@ -78,6 +79,15 @@ Example:
 
 resArray[0] contains result of UPDATE t1 SET a = 1  
 resArray[1] contains result of UPDATE t2 SET b = 2
+
+MySQL.ChangeDb(dbname string)
+
+Change the currently active database.  
+Returns true on success of false on failure.
+
+Example:  
+
+`changed := db.ChangeDb("my_database")`
 
 MySQLResult.FetchRow()
 
