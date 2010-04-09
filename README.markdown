@@ -35,7 +35,7 @@ There are too methods to install GoMySQL
 
 The library will be installed in the same path locally so the import must be the same:
 
-`import "github.com/Philio/GoMySQL`
+`import "github.com/Philio/GoMySQL"`
 
 2. Via make:
 
@@ -45,9 +45,9 @@ Clone the git repository:
 
 Build / install:
 
-`cd GoMySQL  
-make  
-make install`
+`cd GoMySQL`
+`make`
+`make install`
 
 This installs the package as 'mysql' so can be importated as so:
 
