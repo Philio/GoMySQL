@@ -45,8 +45,8 @@ Clone the git repository:
 
 Build / install:
 
-`cd GoMySQL`
-`make`
+`cd GoMySQL`  
+`make`  
 `make install`
 
 This installs the package as 'mysql' so can be importated as so:
