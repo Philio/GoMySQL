@@ -24,6 +24,36 @@ Compatability
 Implements the MySQL protocol version 4.1 so should work with MySQL server versions 4.1, 5.0, 5.1 and future releases.
 
 
+Installation
+------------
+
+There are too methods to install GoMySQL
+
+1. Via goinstall:
+
+`goinstall github.com/Philio/GoMySQL`
+
+The library will be installed in the same path locally so the import must be the same:
+
+`import "github.com/Philio/GoMySQL`
+
+2. Via make:
+
+Clone the git repository:
+
+`git clone git://github.com/Philio/GoMySQL.git`
+
+Build / install:
+
+`cd GoMySQL
+make
+make install`
+
+This installs the package as 'mysql' so can be importated as so:
+
+`import "mysql"`
+
+
 Supported functions
 -------------------
 
