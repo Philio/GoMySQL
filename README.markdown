@@ -8,6 +8,7 @@ Revision History
 * 0.1.1 - Added support for multiple queries in a single command
 * 0.1.2 - Added MultiQuery function to return mutliple result sets as an array
 * 0.1.3 - Added ChangeDb function to change the active database
+* 0.1.4 - Connect now uses ...interface{} for parameters to remove (or reduce) 'junk' required params to call the function
 
 
 About
@@ -66,11 +67,12 @@ Example:
 
 `db := mysql.New(false)`
 
-MySQL.Connect(host string, username string, password string, dbname string, port int, socket string)
+MySQL.Connect(host string, username string, [password string, [dbname string, [port int || socket string]]])
 
 Connect to database defined by host.  
 The minimum required params to connect are host and username, dependant on server settings.  
-If the host provide is localhost or 127.0.0.1 then a socket connection will be made, otherwise TCP will be used.  
+If the host provided is localhost or 127.0.0.1 then a socket connection will be made, otherwise TCP will be used.
+The fifth parameter can either be an integer value which will be assigned as the port number, or a string which will be assigned as the socket. In versions prior to 0.1.4 it was nescessary to specify both, however as both are never required together this has been changed.
 The port will default to 3306.  
 The socket will default to /var/run/mysql/mysql.sock (Debian/Ubuntu).  
 
@@ -78,7 +80,7 @@ Returns true on success or false on failure, error number and description can be
 
 Example:
 
-`connected := db.Connect("localhost", "user", "password", "database", 0, "")`
+`connected := db.Connect("localhost", "user", "password", "database")`
 
 MySQL.Close()
 

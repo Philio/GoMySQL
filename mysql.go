@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"os"
 	"log"
+	"reflect"
 )
 
 const (
@@ -66,18 +67,18 @@ func New(logging bool) (mysql *MySQL) {
 /**
  * Connect to a server
  */
-func (mysql *MySQL) Connect(host, username, password, dbname string, port int, socket string) bool {
+func (mysql *MySQL) Connect(params ...interface{}) bool {
 	if mysql.connected { return false }
 	if mysql.Logging { log.Stdout("Connect called") }
 	// Reset error/sequence vars
 	mysql.reset()
+	// Check min number of params
+	if len(params) < 2 {
+		return false
+	}
+	// Parse params
+	host, username, password, dbname, port, socket := mysql.parseParams(params)
 	// Connect to server
-	if port == 0 {
-		port = DefaultPort
-	}
-	if socket == "" {
-		socket = DefaultSock
-	}
 	mysql.connect(host, port, socket)
 	if mysql.ConnectErrno != 0 {
 		return false
@@ -214,6 +215,36 @@ func (mysql *MySQL) reset() {
 	mysql.tmpres = nil
 	mysql.result = nil
 	mysql.pointer = 0
+}
+
+/**
+ * Parse params given to Connect()
+ */
+func (mysql *MySQL) parseParams(p []interface{}) (host, username, password, dbname string, port int, socket string) {
+	// Assign default values
+	port   = DefaultPort
+	socket = DefaultSock
+	// Host / username are required
+	host = p[0].(string)
+	username = p[1].(string)
+	// 3rd param should be a password
+	if len(p) > 2 {
+		password = p[2].(string)
+	}
+	// 4th param should be a database name
+	if len(p) > 3 {
+		dbname = p[3].(string)
+	}
+	// Reflect 5th param to determine if it is port or socket
+	if len(p) > 4 {
+		v := reflect.NewValue(p[4])
+		if v.Type().Name() == "int" {
+			port = v.Interface().(int)
+		} else if v.Type().Name() == "string" {
+			socket = v.Interface().(string)
+		}
+	}
+	return
 }
 
 /**
