@@ -1,9 +1,10 @@
-GoMySQL Version 0.1.6
+GoMySQL Version 0.1.7
 =====================
 
 Revision History
 ----------------
 
+* 0.1.7 - Added prepared statement support (in progress)
 * 0.1.6 - Added Ping function
 * 0.1.5 - Clean up packet visibility all should have been private, add packet handlers for prepare/execute and related packets
 * 0.1.4 - Connect now uses ...interface{} for parameters to remove (or reduce) 'junk' required params to call the function
