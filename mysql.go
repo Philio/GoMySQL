@@ -35,7 +35,7 @@ type MySQL struct {
 	
 	serverInfo	*MySQLServerInfo
 	
-	tmpres		*MySQLResult
+	curRes		*MySQLResult
 	result		[]*MySQLResult
 	pointer		int
 }
@@ -212,7 +212,7 @@ func (mysql *MySQL) reset() {
 	mysql.Errno = 0
 	mysql.Error = ""
 	mysql.sequence = 0
-	mysql.tmpres = nil
+	mysql.curRes = nil
 	mysql.result = nil
 	mysql.pointer = 0
 }
@@ -280,20 +280,20 @@ func (mysql *MySQL) connect(host string, port int, socket string) {
 func (mysql *MySQL) init() {
 	var err os.Error
 	// Get header
-	hdr := new(PacketHeader)
+	hdr := new(packetHeader)
 	err = hdr.read(mysql.reader)
 	// Check for read errors or incorrect sequence
-	if err != nil || hdr.Sequence != mysql.sequence {
+	if err != nil || hdr.sequence != mysql.sequence {
 		mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR, true)
 		return
 	}
 	// Check read buffer size matches header length
-	if int(hdr.Length) != mysql.reader.Buffered() {
+	if int(hdr.length) != mysql.reader.Buffered() {
 		mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, true)
 		return
 	}
 	// Get packet
-	pkt := new(PacketInit)
+	pkt := new(packetInit)
 	err = pkt.read(mysql.reader)
 	if err != nil {
 		mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR, true)
@@ -302,12 +302,12 @@ func (mysql *MySQL) init() {
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received init packet from server") }
 	// Populate server info
 	mysql.serverInfo = new(MySQLServerInfo)
-	mysql.serverInfo.serverVersion	 = pkt.ServerVersion
-	mysql.serverInfo.protocolVersion = pkt.ProtocolVersion
-	mysql.serverInfo.scrambleBuff	 = pkt.ScrambleBuff
-	mysql.serverInfo.capabilities	 = pkt.ServerCapabilities
-	mysql.serverInfo.language	 = pkt.ServerLanguage
-	mysql.serverInfo.status		 = pkt.ServerStatus
+	mysql.serverInfo.serverVersion	 = pkt.serverVersion
+	mysql.serverInfo.protocolVersion = pkt.protocolVersion
+	mysql.serverInfo.scrambleBuff	 = pkt.scrambleBuff
+	mysql.serverInfo.capabilities	 = pkt.serverCaps
+	mysql.serverInfo.language	 = pkt.serverLanguage
+	mysql.serverInfo.status		 = pkt.serverStatus
 	// Increment sequence
 	mysql.sequence ++
 }
@@ -317,30 +317,30 @@ func (mysql *MySQL) init() {
  */
 func (mysql *MySQL) authenticate(username, password, dbname string) {
 	var err os.Error
-	pkt := new(PacketAuth)
+	pkt := new(packetAuth)
 	// Set client flags
-	pkt.ClientFlags = CLIENT_LONG_PASSWORD
+	pkt.clientFlags = CLIENT_LONG_PASSWORD
 	if len(dbname) > 0 {
-		pkt.ClientFlags += CLIENT_CONNECT_WITH_DB
+		pkt.clientFlags += CLIENT_CONNECT_WITH_DB
 	}
-	pkt.ClientFlags += CLIENT_PROTOCOL_41
-	pkt.ClientFlags += CLIENT_TRANSACTIONS
-	pkt.ClientFlags += CLIENT_SECURE_CONNECTION
-	pkt.ClientFlags += CLIENT_MULTI_STATEMENTS
-	pkt.ClientFlags += CLIENT_MULTI_RESULTS
+	pkt.clientFlags += CLIENT_PROTOCOL_41
+	pkt.clientFlags += CLIENT_TRANSACTIONS
+	pkt.clientFlags += CLIENT_SECURE_CONN
+	pkt.clientFlags += CLIENT_MULTI_STATEMENTS
+	pkt.clientFlags += CLIENT_MULTI_RESULTS
 	// Set max packet size
-	pkt.MaxPacketSize = MaxPacketSize
+	pkt.maxPacketSize = MaxPacketSize
 	// Set charset
-	pkt.CharsetNumber = mysql.serverInfo.language
+	pkt.charsetNumber = mysql.serverInfo.language
 	// Set username 
-	pkt.User = username
+	pkt.user = username
 	// Set password
 	if len(password) > 0 {
 		// Encrypt password
 		pkt.encrypt(password, mysql.serverInfo.scrambleBuff)
 	}
 	// Set database name
-	pkt.DatabaseName = dbname
+	pkt.database = dbname
 	// Write packet
 	err = pkt.write(mysql.writer)
 	if err != nil {
@@ -357,7 +357,7 @@ func (mysql *MySQL) authenticate(username, password, dbname string) {
 func (mysql *MySQL) getResult(connect bool) {
 	var err os.Error
 	// Get header and validate header info
-	hdr := new(PacketHeader)
+	hdr := new(packetHeader)
 	err = hdr.read(mysql.reader)
 	// Read error
 	if err != nil {
@@ -371,12 +371,12 @@ func (mysql *MySQL) getResult(connect bool) {
 		return
 	}
 	// Check data length
-	if int(hdr.Length) > mysql.reader.Buffered() {
+	if int(hdr.length) > mysql.reader.Buffered() {
 		mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
 		return
 	}
 	// Check sequence number
-	if hdr.Sequence != mysql.sequence {
+	if hdr.sequence != mysql.sequence {
 		mysql.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR, connect)
 		return
 	}
@@ -388,7 +388,7 @@ func (mysql *MySQL) getResult(connect bool) {
 			if mysql.Logging { log.Stdout("Received unknown packet from server") }
 		// OK Packet 00
 		case c == ResultPacketOK:
-			pkt := new(PacketOK)
+			pkt := new(packetOK)
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
@@ -397,21 +397,21 @@ func (mysql *MySQL) getResult(connect bool) {
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received ok packet from server") }
 			// Create result
-			mysql.tmpres = new(MySQLResult)
-			mysql.tmpres.AffectedRows = pkt.AffectedRows
-			mysql.tmpres.InsertId 	  = pkt.InsertId
-			mysql.tmpres.WarningCount = pkt.WarningCount
-			mysql.tmpres.Message	  = pkt.Message
+			mysql.curRes = new(MySQLResult)
+			mysql.curRes.AffectedRows = pkt.affectedRows
+			mysql.curRes.InsertId 	  = pkt.insertId
+			mysql.curRes.WarningCount = pkt.warningCount
+			mysql.curRes.Message	  = pkt.message
 			mysql.addResult()
 		// Error Packet ff
 		case c == ResultPacketError:
-			pkt := new(PacketError)
+			pkt := new(packetError)
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
 				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
 			} else {
-				mysql.error(int(pkt.Errno), pkt.Error, connect)
+				mysql.error(int(pkt.errno), pkt.error, connect)
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received error packet from server") }
 		// Result Set Packet 1-250 (first byte of Length-Coded Binary)
@@ -420,8 +420,8 @@ func (mysql *MySQL) getResult(connect bool) {
 		case c >= 0x01 && c <= 0xfa:
 			switch {
 				// If result = nil then this is result set packet
-				case mysql.tmpres == nil:
-					pkt := new(PacketResultSet)
+				case mysql.curRes == nil:
+					pkt := new(packetResultSet)
 					pkt.header = hdr
 					err = pkt.read(mysql.reader)
 					if err != nil {
@@ -430,12 +430,12 @@ func (mysql *MySQL) getResult(connect bool) {
 					}
 					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received result set packet from server") }
 					// Create result
-					mysql.tmpres = new(MySQLResult)
-					mysql.tmpres.FieldCount = pkt.FieldCount
-					mysql.tmpres.Fields     = make([]*MySQLField, pkt.FieldCount)
+					mysql.curRes = new(MySQLResult)
+					mysql.curRes.FieldCount = pkt.fieldCount
+					mysql.curRes.Fields     = make([]*MySQLField, pkt.fieldCount)
 				// If fields EOF not reached then this is field packet
-				case mysql.tmpres.fieldsEOF != true:
-					pkt := new(PacketField)
+				case mysql.curRes.fieldsEOF != true:
+					pkt := new(packetField)
 					pkt.header = hdr
 					err = pkt.read(mysql.reader)
 					if err != nil {
@@ -444,21 +444,21 @@ func (mysql *MySQL) getResult(connect bool) {
 					}
 					// Populate field data (ommiting anything which doesnt seam useful at time of writing)
 					field := new(MySQLField)
-					field.Name	    = pkt.Name
-					field.Length	    = pkt.Length
-					field.Type	    = pkt.Type
-					field.Decimals	    = pkt.Decimals
+					field.Name	    = pkt.name
+					field.Length	    = pkt.length
+					field.Type	    = pkt.fieldType
+					field.Decimals	    = pkt.decimals
 					field.Flags 	    = new(MySQLFieldFlags)
-					field.Flags.process(pkt.Flags)
-					mysql.tmpres.Fields[mysql.tmpres.fieldsRead] = field
+					field.Flags.process(pkt.flags)
+					mysql.curRes.Fields[mysql.curRes.fieldsRead] = field
 					// Increment fields read count
-					mysql.tmpres.fieldsRead ++
+					mysql.curRes.fieldsRead ++
 					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received field packet from server") }
 				// If rows EOF not reached then this is row packet
-				case mysql.tmpres.rowsEOF != true:
-					pkt := new(PacketRowData)
+				case mysql.curRes.rowsEOF != true:
+					pkt := new(packetRowData)
 					pkt.header = hdr
-					pkt.FieldCount = mysql.tmpres.FieldCount
+					pkt.fieldCount = mysql.curRes.FieldCount
 					err = pkt.read(mysql.reader)
 					if err != nil {
 						mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
@@ -466,25 +466,25 @@ func (mysql *MySQL) getResult(connect bool) {
 					}
 					// Create row
 					row := new(MySQLRow)
-					row.Data = pkt.Values
-					if mysql.tmpres.RowCount == 0 {
-						mysql.tmpres.Rows = make([]*MySQLRow, 1)
-						mysql.tmpres.Rows[0] = row
+					row.Data = pkt.values
+					if mysql.curRes.RowCount == 0 {
+						mysql.curRes.Rows = make([]*MySQLRow, 1)
+						mysql.curRes.Rows[0] = row
 					} else {
-						curRows := mysql.tmpres.Rows
-						mysql.tmpres.Rows = make([]*MySQLRow, mysql.tmpres.RowCount + 1)
+						curRows := mysql.curRes.Rows
+						mysql.curRes.Rows = make([]*MySQLRow, mysql.curRes.RowCount + 1)
 						for key, val := range curRows {
-							mysql.tmpres.Rows[key] = val
+							mysql.curRes.Rows[key] = val
 						}
-						mysql.tmpres.Rows[mysql.tmpres.RowCount] = row
+						mysql.curRes.Rows[mysql.curRes.RowCount] = row
 					}
 					// Increment row count
-					mysql.tmpres.RowCount ++
+					mysql.curRes.RowCount ++
 					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received row data packet from server") }
 			}
 		// EOF Packet fe
 		case c == ResultPacketEOF:
-			pkt := new(PacketEOF)
+			pkt := new(packetEOF)
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
@@ -493,15 +493,15 @@ func (mysql *MySQL) getResult(connect bool) {
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received eof packet from server") }
 			// Change EOF flag in result
-			if mysql.tmpres == nil {
+			if mysql.curRes == nil {
 				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
 				return
 			}
-			if mysql.tmpres.fieldsEOF != true {
-				mysql.tmpres.fieldsEOF = true
+			if mysql.curRes.fieldsEOF != true {
+				mysql.curRes.fieldsEOF = true
 				if mysql.Logging { log.Stdout("End of field packets") }
-			} else if mysql.tmpres.rowsEOF != true {
-				mysql.tmpres.rowsEOF = true
+			} else if mysql.curRes.rowsEOF != true {
+				mysql.curRes.rowsEOF = true
 				if mysql.Logging { log.Stdout("End of row data packets") }
 				mysql.addResult()
 			}
@@ -516,18 +516,18 @@ func (mysql *MySQL) getResult(connect bool) {
 func (mysql *MySQL) addResult() {
 	if mysql.pointer == 0 {
 		mysql.result = make([]*MySQLResult, 1)
-		mysql.result[0] = mysql.tmpres
+		mysql.result[0] = mysql.curRes
 	} else {
 		curRes := mysql.result
 		mysql.result = make([]*MySQLResult, mysql.pointer + 1)
 		for key, val := range curRes {
 			mysql.result[key] = val
 		}
-		mysql.result[mysql.pointer] = mysql.tmpres
+		mysql.result[mysql.pointer] = mysql.curRes
 	}
 	if mysql.Logging { log.Stdout("Current result set saved") }
 	// Reset temp result
-	mysql.tmpres = nil
+	mysql.curRes = nil
 	// Increment pointer
 	mysql.pointer ++
 }
@@ -539,10 +539,10 @@ func (mysql *MySQL) command(command byte, arg string) {
 	var err os.Error
 	// Send command
 	switch command {
-		case COM_QUIT, COM_QUERY, COM_INIT_DB:
-			pkt := new(PacketCommand)
-			pkt.Command = command
-			pkt.Arg = arg
+		case COM_QUIT, COM_INIT_DB, COM_QUERY, COM_STMT_PREPARE:
+			pkt := new(packetCommand)
+			pkt.command = command
+			pkt.arg = arg
 			err = pkt.write(mysql.writer)
 	}
 	if err != nil {

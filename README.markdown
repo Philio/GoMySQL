@@ -1,4 +1,4 @@
-GoMySQL Version 0.1.3
+GoMySQL Version 0.1.5
 =====================
 
 Revision History
@@ -9,6 +9,7 @@ Revision History
 * 0.1.2 - Added MultiQuery function to return mutliple result sets as an array
 * 0.1.3 - Added ChangeDb function to change the active database
 * 0.1.4 - Connect now uses ...interface{} for parameters to remove (or reduce) 'junk' required params to call the function
+* 0.1.5 - Clean up packet visibility all should have been private, add packet handlers for prepare/execute and related packets
 
 
 About
