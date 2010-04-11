@@ -226,6 +226,18 @@ func (mysql *MySQL) Ping() bool {
 }
 
 /**
+ * Initialise a new statement
+ */
+func (mysql *MySQL) StatementInit() *MySQLStatement {
+	if !mysql.connected { return nil }
+	if mysql.Logging { log.Stdout("Initialise statement called") }
+	// Create new statement and prepare query
+	stmt := new(MySQLStatement)
+	stmt.mysql = mysql
+	return stmt
+}
+
+/**
  * Clear error status, sequence number and result from previous command
  */
 func (mysql *MySQL) reset() {
@@ -321,7 +333,7 @@ func (mysql *MySQL) init() {
 		mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR, true)
 		return
 	}
-	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received init packet from server") }
+	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received init packet from server") }
 	// Populate server info
 	mysql.serverInfo = new(MySQLServerInfo)
 	mysql.serverInfo.serverVersion	 = pkt.serverVersion
@@ -368,7 +380,7 @@ func (mysql *MySQL) authenticate(username, password, dbname string) {
 	if err != nil {
 		mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR, true)
 	}
-	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Sent auth packet to server") }
+	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Sent auth packet to server") }
 	// Increment sequence
 	mysql.sequence ++
 }
@@ -406,8 +418,11 @@ func (mysql *MySQL) getResult(connect bool) {
 	c, err := mysql.reader.ReadByte()
 	mysql.reader.UnreadByte()
 	switch {
+		// Unknown packet, remove it from the buffer
 		default:
-			if mysql.Logging { log.Stdout("Received unknown packet from server") }
+			bytes := make([]byte, hdr.length)
+			mysql.reader.Read(bytes)
+			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server") }
 		// OK Packet 00
 		case c == ResultPacketOK:
 			pkt := new(packetOK)
@@ -417,7 +432,7 @@ func (mysql *MySQL) getResult(connect bool) {
 				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
 				return
 			}
-			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received ok packet from server") }
+			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received ok packet from server") }
 			// Create result
 			mysql.curRes = new(MySQLResult)
 			mysql.curRes.AffectedRows = pkt.affectedRows
@@ -435,7 +450,7 @@ func (mysql *MySQL) getResult(connect bool) {
 			} else {
 				mysql.error(int(pkt.errno), pkt.error, connect)
 			}
-			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received error packet from server") }
+			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server") }
 		// Result Set Packet 1-250 (first byte of Length-Coded Binary)
 		// Field Packet 1-250 ("")
 		// Row Data Packet 1-250 ("")
@@ -450,7 +465,7 @@ func (mysql *MySQL) getResult(connect bool) {
 						mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
 						return
 					}
-					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received result set packet from server") }
+					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server") }
 					// Create result
 					mysql.curRes = new(MySQLResult)
 					mysql.curRes.FieldCount = pkt.fieldCount
@@ -475,7 +490,7 @@ func (mysql *MySQL) getResult(connect bool) {
 					mysql.curRes.Fields[mysql.curRes.fieldsRead] = field
 					// Increment fields read count
 					mysql.curRes.fieldsRead ++
-					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received field packet from server") }
+					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server") }
 				// If rows EOF not reached then this is row packet
 				case mysql.curRes.rowsEOF != true:
 					pkt := new(packetRowData)
@@ -502,7 +517,7 @@ func (mysql *MySQL) getResult(connect bool) {
 					}
 					// Increment row count
 					mysql.curRes.RowCount ++
-					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received row data packet from server") }
+					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received row data packet from server") }
 			}
 		// EOF Packet fe
 		case c == ResultPacketEOF:
@@ -513,7 +528,7 @@ func (mysql *MySQL) getResult(connect bool) {
 				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
 				return
 			}
-			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] " + "Received eof packet from server") }
+			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server") }
 			// Change EOF flag in result
 			if mysql.curRes == nil {
 				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
