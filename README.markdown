@@ -4,7 +4,7 @@ GoMySQL Version 0.1.5
 Revision History
 ----------------
 
-* 0.1   - Initial release, supporting connect, close and query functions
+* 0.1.0 - Initial release, supporting connect, close and query functions
 * 0.1.1 - Added support for multiple queries in a single command
 * 0.1.2 - Added MultiQuery function to return mutliple result sets as an array
 * 0.1.3 - Added ChangeDb function to change the active database
@@ -29,7 +29,7 @@ Implements the MySQL protocol version 4.1 so should work with MySQL server versi
 Installation
 ------------
 
-There are too methods to install GoMySQL
+There are 2 methods to install GoMySQL
 
 1. Via goinstall:
 
