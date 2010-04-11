@@ -146,7 +146,7 @@ func (mysql *MySQL) Query(sql string) *MySQLResult {
 		}
 		// If buffer is empty break loop
 		if mysql.reader.Buffered() == 0 {
-			break;
+			break
 		}
 	}
 	return mysql.result[0]
@@ -175,7 +175,7 @@ func (mysql *MySQL) MultiQuery(sql string) []*MySQLResult {
 		}
 		// If buffer is empty break loop
 		if mysql.reader.Buffered() == 0 {
-			break;
+			break
 		}
 	}
 	return mysql.result
@@ -195,6 +195,28 @@ func (mysql *MySQL) ChangeDb(dbname string) bool {
 		return false
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent change db command to server") }
+	// Get result packet
+	mysql.getResult(false)
+	if mysql.Errno != 0 {
+		return false
+	}
+	return true
+}
+
+/**
+ * Ping server
+ */
+func (mysql *MySQL) Ping() bool {
+	if !mysql.connected { return false }
+	if mysql.Logging { log.Stdout("Ping called") }
+	// Reset error/sequence vars
+	mysql.reset()
+	// Send command
+	mysql.command(COM_PING, "")
+	if mysql.Errno != 0 {
+		return false
+	}
+	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent ping command to server") }
 	// Get result packet
 	mysql.getResult(false)
 	if mysql.Errno != 0 {
@@ -539,7 +561,7 @@ func (mysql *MySQL) command(command byte, arg string) {
 	var err os.Error
 	// Send command
 	switch command {
-		case COM_QUIT, COM_INIT_DB, COM_QUERY, COM_STMT_PREPARE:
+		case COM_QUIT, COM_INIT_DB, COM_QUERY, COM_PING, COM_STMT_PREPARE:
 			pkt := new(packetCommand)
 			pkt.command = command
 			pkt.arg = arg

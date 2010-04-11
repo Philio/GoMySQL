@@ -4,12 +4,13 @@ GoMySQL Version 0.1.5
 Revision History
 ----------------
 
-* 0.1.0 - Initial release, supporting connect, close and query functions
-* 0.1.1 - Added support for multiple queries in a single command
-* 0.1.2 - Added MultiQuery function to return mutliple result sets as an array
-* 0.1.3 - Added ChangeDb function to change the active database
-* 0.1.4 - Connect now uses ...interface{} for parameters to remove (or reduce) 'junk' required params to call the function
+* 0.1.6 - Added Ping function
 * 0.1.5 - Clean up packet visibility all should have been private, add packet handlers for prepare/execute and related packets
+* 0.1.4 - Connect now uses ...interface{} for parameters to remove (or reduce) 'junk' required params to call the function
+* 0.1.3 - Added ChangeDb function to change the active database
+* 0.1.2 - Added MultiQuery function to return mutliple result sets as an array
+* 0.1.1 - Added support for multiple queries in a single command
+* 0.1.0 - Initial release, supporting connect, close and query functions
 
 
 About
@@ -116,11 +117,20 @@ resArray[1] contains result of UPDATE t2 SET b = 2
 MySQL.ChangeDb(dbname string)
 
 Change the currently active database.  
-Returns true on success of false on failure.
+Returns true on success or false on failure.
 
 Example:  
 
-`changed := db.ChangeDb("my_database")`
+`ok := db.ChangeDb("my_database")`
+
+MySQL.Ping()
+
+Ping the server.  
+Returns true on success or false on failure.  
+
+Example:
+
+`ok := db.Ping()`
 
 MySQLResult.FetchRow()
 
