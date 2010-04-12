@@ -212,7 +212,7 @@ func (mysql *MySQL) Ping() bool {
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send command
-	mysql.command(COM_PING, "")
+	mysql.command(COM_PING)
 	if mysql.Errno != 0 {
 		return false
 	}
@@ -566,16 +566,12 @@ func (mysql *MySQL) addResult() {
 /**
  * Send a command to the server
  */
-func (mysql *MySQL) command(command byte, arg string) {
+func (mysql *MySQL) command(command byte, args ...interface{}) {
 	var err os.Error
-	// Send command
-	switch command {
-		case COM_QUIT, COM_INIT_DB, COM_QUERY, COM_PING, COM_STMT_PREPARE:
-			pkt := new(packetCommand)
-			pkt.command = command
-			pkt.argStr = arg
-			err = pkt.write(mysql.writer)
-	}
+	pkt := new(packetCommand)
+	pkt.command = command
+	pkt.args = args
+	err = pkt.write(mysql.writer)
 	if err != nil {
 		mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, false)
 		return

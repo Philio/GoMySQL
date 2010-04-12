@@ -50,6 +50,54 @@ func (stmt *MySQLStatement) Prepare(sql string) bool {
 }
 
 /**
+ * Execute statement
+ */
+func (stmt *MySQLStatement) Execute() {
+	if stmt.mysql.Logging { log.Stdout("Execute statement called") }
+	// Reset error/sequence vars
+	stmt.mysql.reset()	
+}
+
+/**
+ * Send long data packet
+ */
+func (stmt *MySQLStatement) SendLongData() {
+	
+}
+
+/**
+ * Close statement
+ */
+func (stmt *MySQLStatement) Close() bool {
+	if stmt.mysql.Logging { log.Stdout("Close statement called") }
+	// Reset error/sequence vars
+	stmt.mysql.reset()
+	// Send command
+	stmt.mysql.command(COM_STMT_CLOSE, stmt.StatementId)
+	if stmt.mysql.Errno != 0 {
+		return false
+	}
+	if stmt.mysql.Logging { log.Stdout("[" + fmt.Sprint(stmt.mysql.sequence - 1) + "] Sent close statement command to server") }
+	return true
+}
+
+/**
+ * Reset statement
+ */
+func (stmt *MySQLStatement) Reset() bool {
+	if stmt.mysql.Logging { log.Stdout("Reset statement called") }
+	// Reset error/sequence vars
+	stmt.mysql.reset()
+	// Send command
+	stmt.mysql.command(COM_STMT_RESET, stmt.StatementId)
+	if stmt.mysql.Errno != 0 {
+		return false
+	}
+	if stmt.mysql.Logging { log.Stdout("[" + fmt.Sprint(stmt.mysql.sequence - 1) + "] Sent reset statement command to server") }
+	return true
+}
+
+/**
  * Function to read statement result packets
  */
 func (stmt *MySQLStatement) getResult() {

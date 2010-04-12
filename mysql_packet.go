@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"os"
 	"crypto/sha1"
+	"reflect"
 )
 
 /**
@@ -301,14 +302,12 @@ func (pkt *packetError) read(reader *bufio.Reader) (err os.Error) {
 }
 
 /**
- * Standard command packet (tells the server to do something defined by args)
+ * Command packet (send command + optional args)
  */
 type packetCommand struct {
 	header		*packetHeader
 	command		byte
-	argInt		uint64
-	argIntLen	uint8
-	argStr		string
+	args		[]interface{}
 }
 
 /**
@@ -317,21 +316,47 @@ type packetCommand struct {
 func (pkt *packetCommand) write(writer *bufio.Writer) (err os.Error) {
 	// Construct packet header
 	pkt.header = new(packetHeader)
-	pkt.header.length = 1 + uint32(pkt.argIntLen) + uint32(len(pkt.argStr))
+	pkt.header.length = 1
+	// Calculate packet length
+	var v reflect.Value
+	for i := 0; i < len(pkt.args); i ++ {
+		v = reflect.NewValue(pkt.args[i])
+		switch v.Type().Name() {
+			default:
+				return os.ErrorString("Unsupported type")
+			case "string":
+				pkt.header.length += uint32(len(v.Interface().(string)))
+			case "uint8":
+				pkt.header.length += 1
+			case "uint16":
+				pkt.header.length += 2
+			case "uint32":
+				pkt.header.length += 4
+			case "uint64":
+				pkt.header.length += 8
+		}
+	}
 	pkt.header.sequence = 0
 	err = pkt.header.write(writer)
 	if err != nil { return err }
 	// Write command
 	err = writer.WriteByte(byte(pkt.command))
 	if err != nil { return err }
-	// Write argInt
-	if pkt.argIntLen > 0 {
-		err = writeNumber(writer, pkt.argInt, pkt.argIntLen)
-		if err != nil { return err }
-	}
-	// Write argStr
-	if len(pkt.argStr) > 0 {
-		_, err = writer.WriteString(pkt.argStr)
+	// Write params
+	for i := 0; i < len(pkt.args); i ++ {
+		v = reflect.NewValue(pkt.args[i])
+		switch v.Type().Name() {
+			case "string":
+				_, err = writer.WriteString(v.Interface().(string))
+			case "uint8":
+				err = writeNumber(writer, uint64(v.Interface().(uint8)), 1)
+			case "uint16":
+				err = writeNumber(writer, uint64(v.Interface().(uint16)), 2)
+			case "uint32":
+				err = writeNumber(writer, uint64(v.Interface().(uint32)), 4)
+			case "uint64":
+				err = writeNumber(writer, uint64(v.Interface().(uint64)), 8)
+		}
 		if err != nil { return err }
 	}
 	// Flush
