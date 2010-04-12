@@ -301,12 +301,14 @@ func (pkt *packetError) read(reader *bufio.Reader) (err os.Error) {
 }
 
 /**
- * Standard command packet (tells the server to do something defined by arg)
+ * Standard command packet (tells the server to do something defined by args)
  */
 type packetCommand struct {
 	header		*packetHeader
 	command		byte
-	arg		string
+	argInt		uint64
+	argIntLen	uint8
+	argStr		string
 }
 
 /**
@@ -315,16 +317,21 @@ type packetCommand struct {
 func (pkt *packetCommand) write(writer *bufio.Writer) (err os.Error) {
 	// Construct packet header
 	pkt.header = new(packetHeader)
-	pkt.header.length = 1 + uint32(len(pkt.arg))
+	pkt.header.length = 1 + uint32(pkt.argIntLen) + uint32(len(pkt.argStr))
 	pkt.header.sequence = 0
 	err = pkt.header.write(writer)
 	if err != nil { return err }
 	// Write command
 	err = writer.WriteByte(byte(pkt.command))
 	if err != nil { return err }
-	// Write arg
-	if len(pkt.arg) > 0 {
-		_, err = writer.WriteString(pkt.arg)
+	// Write argInt
+	if pkt.argIntLen > 0 {
+		err = writeNumber(writer, pkt.argInt, pkt.argIntLen)
+		if err != nil { return err }
+	}
+	// Write argStr
+	if len(pkt.argStr) > 0 {
+		_, err = writer.WriteString(pkt.argStr)
 		if err != nil { return err }
 	}
 	// Flush

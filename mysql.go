@@ -573,7 +573,7 @@ func (mysql *MySQL) command(command byte, arg string) {
 		case COM_QUIT, COM_INIT_DB, COM_QUERY, COM_PING, COM_STMT_PREPARE:
 			pkt := new(packetCommand)
 			pkt.command = command
-			pkt.arg = arg
+			pkt.argStr = arg
 			err = pkt.write(mysql.writer)
 	}
 	if err != nil {
