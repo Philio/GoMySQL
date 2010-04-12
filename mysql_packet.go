@@ -556,22 +556,9 @@ type packetParameter struct {
  * Read parameter packet
  */
 func (pkt *packetParameter) read(reader *bufio.Reader) (err os.Error) {
-	// Read param type
-	pkt.paramType = make([]byte, 2)
-	_, err = reader.Read(pkt.paramType)
-	if err != nil { return err }
-	// Read flags
-	num, err := readNumber(reader, 2)
-	if err != nil { return err }
-	pkt.flags = uint16(num)
-	// Read decimals
-	c, err := reader.ReadByte()
-	if err != nil { return err }
-	pkt.decimals = uint8(c)
-	// Read length
-	num, err = readNumber(reader, 4)
-	if err != nil { return err }
-	pkt.length = uint32(num)
+	// Skip this packet, documentation is incorrect and it is also ignored in MySQL code!
+	bytes := make([]byte, pkt.header.length)
+	reader.Read(bytes)
 	return
 }
 

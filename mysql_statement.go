@@ -11,7 +11,11 @@ import (
  */
 type MySQLStatement struct {
 	StatementId	uint32
+
+	Params		[]*MySQLParam
 	ParamCount	uint16
+	paramsRead	uint64
+	paramsEOF	bool
 	
 	mysql		*MySQL
 	MySQLResult
@@ -92,6 +96,9 @@ func (stmt *MySQLStatement) getResult() {
 			stmt.FieldCount   = uint64(pkt.columnCount)
 			stmt.ParamCount   = pkt.paramCount
 			stmt.WarningCount = pkt.warningCount
+			// Initialise params/fields
+			stmt.Params = make([]*MySQLParam, pkt.paramCount)
+			stmt.Fields = make([]*MySQLField, pkt.columnCount)
 		// Error Packet ff
 		case c == ResultPacketError:
 			pkt := new(packetError)
@@ -103,7 +110,73 @@ func (stmt *MySQLStatement) getResult() {
 				stmt.mysql.error(int(pkt.errno), pkt.error, false)
 			}
 			if stmt.mysql.Logging { log.Stdout("[" + fmt.Sprint(stmt.mysql.sequence) + "] Received error packet from server") }
+		// Making assumption that statement packets follow similar format to result packets
+		// If param count > 0 then first will get parameter packets following EOF
+		// After this should get standard field packets followed by EOF
+		// Parameter packet
+		case c >= 0x01 && c <= 0xfa && stmt.ParamCount > 0 && !stmt.paramsEOF:
+			// This packet simply reads the number of bytes in the buffer per header length param
+			// The packet specification for these packets is wrong also within MySQL code it states:
+			// skip parameters data: we don't support it yet (in libmysql/libmysql.c)
+			pkt := new(packetParameter)
+			pkt.header = hdr
+			err = pkt.read(stmt.mysql.reader)
+			if err != nil {
+				stmt.mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, false)
+			}
+			// Increment params read
+			stmt.paramsRead ++
+			if stmt.mysql.Logging { log.Stdout("[" + fmt.Sprint(stmt.mysql.sequence) + "] Received param packet from server (ignored)") }
+		// Field packet
+		case c >= 0x01 && c <= 0xfa && stmt.FieldCount > 0 && !stmt.fieldsEOF:
+			pkt := new(packetField)
+			pkt.header = hdr
+			err = pkt.read(stmt.mysql.reader)
+			if err != nil {
+				stmt.mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, false)
+				return
+			}
+			// Populate field data (ommiting anything which doesnt seam useful at time of writing)
+			field := new(MySQLField)
+			field.Name	    = pkt.name
+			field.Length	    = pkt.length
+			field.Type	    = pkt.fieldType
+			field.Decimals	    = pkt.decimals
+			field.Flags 	    = new(MySQLFieldFlags)
+			field.Flags.process(pkt.flags)
+			stmt.Fields[stmt.fieldsRead] = field
+			// Increment fields read count
+			stmt.fieldsRead ++
+			if stmt.mysql.Logging { log.Stdout("[" + fmt.Sprint(stmt.mysql.sequence) + "] Received field packet from server") }
+		// EOF Packet fe
+		case c == ResultPacketEOF:
+			pkt := new(packetEOF)
+			pkt.header = hdr
+			err = pkt.read(stmt.mysql.reader)
+			if err != nil {
+				stmt.mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, false)
+				return
+			}
+			if stmt.mysql.Logging { log.Stdout("[" + fmt.Sprint(stmt.mysql.sequence) + "] Received eof packet from server") }
+			// Change EOF flag
+			if stmt.ParamCount > 0 && !stmt.paramsEOF {
+				stmt.paramsEOF = true
+				if stmt.mysql.Logging { log.Stdout("End of param packets") }
+			} else if stmt.fieldsEOF != true {
+				stmt.fieldsEOF = true
+				if stmt.mysql.Logging { log.Stdout("End of field packets") }
+			}
 	}
 	// Increment sequence
 	stmt.mysql.sequence ++
+}
+
+/**
+ * Param definition
+ */
+type MySQLParam struct {
+	Type		[]byte
+	Flags		uint16
+	Decimals	uint8
+	Length		uint32
 }

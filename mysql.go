@@ -452,73 +452,67 @@ func (mysql *MySQL) getResult(connect bool) {
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server") }
 		// Result Set Packet 1-250 (first byte of Length-Coded Binary)
-		// Field Packet 1-250 ("")
-		// Row Data Packet 1-250 ("")
-		case c >= 0x01 && c <= 0xfa:
-			switch {
-				// If result = nil then this is result set packet
-				case mysql.curRes == nil:
-					pkt := new(packetResultSet)
-					pkt.header = hdr
-					err = pkt.read(mysql.reader)
-					if err != nil {
-						mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
-						return
-					}
-					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server") }
-					// Create result
-					mysql.curRes = new(MySQLResult)
-					mysql.curRes.FieldCount = pkt.fieldCount
-					mysql.curRes.Fields     = make([]*MySQLField, pkt.fieldCount)
-				// If fields EOF not reached then this is field packet
-				case mysql.curRes.fieldsEOF != true:
-					pkt := new(packetField)
-					pkt.header = hdr
-					err = pkt.read(mysql.reader)
-					if err != nil {
-						mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
-						return
-					}
-					// Populate field data (ommiting anything which doesnt seam useful at time of writing)
-					field := new(MySQLField)
-					field.Name	    = pkt.name
-					field.Length	    = pkt.length
-					field.Type	    = pkt.fieldType
-					field.Decimals	    = pkt.decimals
-					field.Flags 	    = new(MySQLFieldFlags)
-					field.Flags.process(pkt.flags)
-					mysql.curRes.Fields[mysql.curRes.fieldsRead] = field
-					// Increment fields read count
-					mysql.curRes.fieldsRead ++
-					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server") }
-				// If rows EOF not reached then this is row packet
-				case mysql.curRes.rowsEOF != true:
-					pkt := new(packetRowData)
-					pkt.header = hdr
-					pkt.fieldCount = mysql.curRes.FieldCount
-					err = pkt.read(mysql.reader)
-					if err != nil {
-						mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
-						return
-					}
-					// Create row
-					row := new(MySQLRow)
-					row.Data = pkt.values
-					if mysql.curRes.RowCount == 0 {
-						mysql.curRes.Rows = make([]*MySQLRow, 1)
-						mysql.curRes.Rows[0] = row
-					} else {
-						curRows := mysql.curRes.Rows
-						mysql.curRes.Rows = make([]*MySQLRow, mysql.curRes.RowCount + 1)
-						for key, val := range curRows {
-							mysql.curRes.Rows[key] = val
-						}
-						mysql.curRes.Rows[mysql.curRes.RowCount] = row
-					}
-					// Increment row count
-					mysql.curRes.RowCount ++
-					if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received row data packet from server") }
+		case c >= 0x01 && c <= 0xfa && mysql.curRes == nil:
+			pkt := new(packetResultSet)
+			pkt.header = hdr
+			err = pkt.read(mysql.reader)
+			if err != nil {
+				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
+				return
 			}
+			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server") }
+			// Create result
+			mysql.curRes = new(MySQLResult)
+			mysql.curRes.FieldCount = pkt.fieldCount
+			mysql.curRes.Fields     = make([]*MySQLField, pkt.fieldCount)
+		// Field Packet 1-250 ("")
+		case c >= 0x01 && c <= 0xfa && !mysql.curRes.fieldsEOF:
+			pkt := new(packetField)
+			pkt.header = hdr
+			err = pkt.read(mysql.reader)
+			if err != nil {
+				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
+				return
+			}
+			// Populate field data (ommiting anything which doesnt seam useful at time of writing)
+			field := new(MySQLField)
+			field.Name	    = pkt.name
+			field.Length	    = pkt.length
+			field.Type	    = pkt.fieldType
+			field.Decimals	    = pkt.decimals
+			field.Flags 	    = new(MySQLFieldFlags)
+			field.Flags.process(pkt.flags)
+			mysql.curRes.Fields[mysql.curRes.fieldsRead] = field
+			// Increment fields read count
+			mysql.curRes.fieldsRead ++
+			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server") }
+		// Row Data Packet 1-250 ("")
+		case c >= 0x01 && c <= 0xfa && !mysql.curRes.rowsEOF:
+			pkt := new(packetRowData)
+			pkt.header = hdr
+			pkt.fieldCount = mysql.curRes.FieldCount
+			err = pkt.read(mysql.reader)
+			if err != nil {
+				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR, connect)
+				return
+			}
+			// Create row
+			row := new(MySQLRow)
+			row.Data = pkt.values
+			if mysql.curRes.RowCount == 0 {
+				mysql.curRes.Rows = make([]*MySQLRow, 1)
+				mysql.curRes.Rows[0] = row
+			} else {
+				curRows := mysql.curRes.Rows
+				mysql.curRes.Rows = make([]*MySQLRow, mysql.curRes.RowCount + 1)
+				for key, val := range curRows {
+					mysql.curRes.Rows[key] = val
+				}
+				mysql.curRes.Rows[mysql.curRes.RowCount] = row
+			}
+			// Increment row count
+			mysql.curRes.RowCount ++
+			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received row data packet from server") }
 		// EOF Packet fe
 		case c == ResultPacketEOF:
 			pkt := new(packetEOF)
