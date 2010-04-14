@@ -11,6 +11,8 @@ const (
 	CR_SERVER_LOST		= 2013
 	CR_COMMANDS_OUT_OF_SYNC = 2014
 	CR_MALFORMED_PACKET	= 2027
+	CR_NO_PREPARE_STMT	= 2030
+	CR_PARAMS_NOT_BOUND	= 2031
 )
 
 type ErrorStr string
@@ -24,4 +26,6 @@ const (
 	CR_SERVER_LOST_STR		= "Lost connection to MySQL server during query"
 	CR_COMMANDS_OUT_OF_SYNC_STR	= "Commands out of sync; you can't run this command now"
 	CR_MALFORMED_PACKET_STR		= "Malformed Packet"
+	CR_NO_PREPARE_STMT_STR		= "Statement not prepared"
+	CR_PARAMS_NOT_BOUND_STR		= "No data supplied for parameters in prepared statement"
 )
