@@ -29,6 +29,7 @@ type MySQLStatement struct {
 	paramsRebound	bool
 
 	result		*MySQLResult
+	resExecuted	bool
 }
 
 /**
@@ -341,7 +342,7 @@ func (stmt *MySQLStatement) getExecuteResult() {
 			mysql.reader.Read(bytes)
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c)) }
 		// OK Packet 00
-		case c == ResultPacketOK && stmt.result == nil:
+		case c == ResultPacketOK && !stmt.resExecuted:
 			pkt := new(packetOK)
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
@@ -356,6 +357,7 @@ func (stmt *MySQLStatement) getExecuteResult() {
 			stmt.result.InsertId 	 = pkt.insertId
 			stmt.result.WarningCount = pkt.warningCount
 			stmt.result.Message	 = pkt.message
+			stmt.resExecuted = true
 		// Error Packet ff
 		case c == ResultPacketError:
 			pkt := new(packetError)
@@ -367,6 +369,64 @@ func (stmt *MySQLStatement) getExecuteResult() {
 				mysql.error(int(pkt.errno), pkt.error)
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server") }
+		// Result Set Packet 1-250 (first byte of Length-Coded Binary)
+		case c >= 0x01 && c <= 0xfa && !stmt.resExecuted:
+			pkt := new(packetResultSet)
+			pkt.header = hdr
+			err = pkt.read(mysql.reader)
+			if err != nil {
+				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				return
+			}
+			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server") }
+			// If fields sent again re-read incase for some reason something changed
+			if pkt.fieldCount > 0 {
+				stmt.result.FieldCount = pkt.fieldCount
+				stmt.result.Fields     = make([]*MySQLField, pkt.fieldCount)
+				stmt.result.fieldsRead = 0
+				stmt.result.fieldsEOF  = false
+			}
+			stmt.resExecuted = true
+		// Field Packet 1-250 ("")
+		case c >= 0x01 && c <= 0xfa && stmt.result.FieldCount > stmt.result.fieldsRead && !stmt.result.fieldsEOF:
+			pkt := new(packetField)
+			pkt.header = hdr
+			err = pkt.read(mysql.reader)
+			if err != nil {
+				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				return
+			}
+			// Populate field data (ommiting anything which doesnt seam useful at time of writing)
+			field := new(MySQLField)
+			field.Name	    = pkt.name
+			field.Length	    = pkt.length
+			field.Type	    = pkt.fieldType
+			field.Decimals	    = pkt.decimals
+			field.Flags 	    = new(MySQLFieldFlags)
+			field.Flags.process(pkt.flags)
+			stmt.result.Fields[stmt.result.fieldsRead] = field
+			// Increment fields read count
+			stmt.result.fieldsRead ++
+			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server") }
+		// Binary row packets appear to always start 00
+		// EOF Packet fe
+		case c == ResultPacketEOF:
+			pkt := new(packetEOF)
+			pkt.header = hdr
+			err = pkt.read(mysql.reader)
+			if err != nil {
+				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				return
+			}
+			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server") }
+			// Change EOF flag
+			if stmt.result.FieldCount > 0 && !stmt.result.fieldsEOF {
+				stmt.result.fieldsEOF = true
+				if mysql.Logging { log.Stdout("End of field packets") }
+			} else if !stmt.result.rowsEOF {
+				stmt.result.rowsEOF = true
+				if mysql.Logging { log.Stdout("End of row packets") }
+			}
 	}
 	// Increment sequence
 	mysql.sequence ++
