@@ -524,10 +524,10 @@ func (mysql *MySQL) getResult() {
 				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 				return
 			}
-			if mysql.curRes.fieldsEOF != true {
+			if !mysql.curRes.fieldsEOF {
 				mysql.curRes.fieldsEOF = true
 				if mysql.Logging { log.Stdout("End of field packets") }
-			} else if mysql.curRes.rowsEOF != true {
+			} else if !mysql.curRes.rowsEOF {
 				mysql.curRes.rowsEOF = true
 				if mysql.Logging { log.Stdout("End of row data packets") }
 				mysql.addResult()
