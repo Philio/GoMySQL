@@ -11,6 +11,7 @@ import (
  * The packet header, always at the start of every packet
  */
 type packetHeader struct {
+	packetFunctions
 	length		uint32
 	sequence	uint8
 }
@@ -20,7 +21,7 @@ type packetHeader struct {
  */
 func (hdr *packetHeader) read(reader *bufio.Reader) (err os.Error) {
 	// Read length
-	num, err := readNumber(reader, 3)
+	num, err := hdr.readNumber(reader, 3)
 	if err != nil { return err }
 	hdr.length = uint32(num)
 	// Read sequence
@@ -35,7 +36,7 @@ func (hdr *packetHeader) read(reader *bufio.Reader) (err os.Error) {
  */
 func (hdr *packetHeader) write(writer *bufio.Writer) (err os.Error) {
 	// Write length
-	err = writeNumber(writer, uint64(hdr.length), 3)
+	err = hdr.writeNumber(writer, uint64(hdr.length), 3)
 	if err != nil { return err }
 	// Write sequence
 	err = writer.WriteByte(byte(hdr.sequence))
@@ -47,6 +48,7 @@ func (hdr *packetHeader) write(writer *bufio.Writer) (err os.Error) {
  * The initialisation packet (sent from server to client immediately following new connection
  */
 type packetInit struct {
+	packetFunctions
 	header		*packetHeader
 	protocolVersion	uint8
 	serverVersion	string
@@ -70,7 +72,7 @@ func (pkt *packetInit) read(reader *bufio.Reader) (err os.Error) {
 	if err != nil { return err }
 	pkt.serverVersion = line
 	// Thread id
-	num, err := readNumber(reader, 4)
+	num, err := pkt.readNumber(reader, 4)
 	if err != nil { return err }
 	pkt.threadId = uint32(num)
 	// Scramble buffer (first part)
@@ -78,10 +80,10 @@ func (pkt *packetInit) read(reader *bufio.Reader) (err os.Error) {
 	_, err = reader.Read(pkt.scrambleBuff[0:8])
 	if err != nil { return err }
 	// Skip next byte
-	err = readFill(reader, 1);
+	err = pkt.readFill(reader, 1);
 	if err != nil { return err }
 	// Server capabilities
-	num, err = readNumber(reader, 2)
+	num, err = pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.serverCaps = uint16(num)
 	// Server language
@@ -89,17 +91,17 @@ func (pkt *packetInit) read(reader *bufio.Reader) (err os.Error) {
 	if err != nil { return err }
 	pkt.serverLanguage = uint8(c)
 	// Server status
-	num, err = readNumber(reader, 2)
+	num, err = pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.serverStatus = uint16(num)
 	// Skip next 13 bytes
-	err = readFill(reader, 13);
+	err = pkt.readFill(reader, 13);
 	if err != nil { return err }
 	// Scramble buffer (second part)
 	_, err = reader.Read(pkt.scrambleBuff[8:20])
 	if err != nil { return err }
 	// Read final byte
-	err = readFill(reader, 1);
+	err = pkt.readFill(reader, 1);
 	if err != nil { return err }
 	return
 }
@@ -108,6 +110,7 @@ func (pkt *packetInit) read(reader *bufio.Reader) (err os.Error) {
  * The authentication packet (sent from client to server following the initialisation packet)
  */
 type packetAuth struct {
+	packetFunctions
 	header		*packetHeader
 	clientFlags	uint32
 	maxPacketSize	uint32
@@ -165,28 +168,28 @@ func (pkt *packetAuth) write(writer *bufio.Writer) (err os.Error) {
 	err = pkt.header.write(writer)
 	if err != nil { return err }
 	// Write the client flags
-	err = writeNumber(writer, uint64(pkt.clientFlags), 4)
+	err = pkt.writeNumber(writer, uint64(pkt.clientFlags), 4)
 	if err != nil { return err }
 	// Write max packet size
-	err = writeNumber(writer, uint64(pkt.maxPacketSize), 4)
+	err = pkt.writeNumber(writer, uint64(pkt.maxPacketSize), 4)
 	if err != nil { return err }
 	// Write charset
 	err = writer.WriteByte(byte(pkt.charsetNumber))
 	if err != nil { return err }
 	// Filler 23 x 0x00
-	err = writeFill(writer, 23)
+	err = pkt.writeFill(writer, 23)
 	if err != nil { return err }
 	// Write username
 	_, err = writer.WriteString(pkt.user)
 	if err != nil { return err }
 	// Terminate string with 0x00
-	err = writeFill(writer, 1)
+	err = pkt.writeFill(writer, 1)
 	if err != nil { return err }
 	// Write Scramble buffer of filler 1 x 0x00
 	if len(pkt.scrambleBuff) > 0 {
 		_, err = writer.Write(pkt.scrambleBuff)
 	} else {
-		err = writeFill(writer, 1)
+		err = pkt.writeFill(writer, 1)
 	}
 	if err != nil { return err }
 	// Write database name
@@ -194,7 +197,7 @@ func (pkt *packetAuth) write(writer *bufio.Writer) (err os.Error) {
 		_, err = writer.WriteString(pkt.database)
 		if err != nil { return err }
 		// Terminate string with 0x00
-		err = writeFill(writer, 1)
+		err = pkt.writeFill(writer, 1)
 		if err != nil { return err }
 	}
 	// Flush
@@ -207,6 +210,7 @@ func (pkt *packetAuth) write(writer *bufio.Writer) (err os.Error) {
  * The OK packet (received after an operation completed successfully)
  */
 type packetOK struct {
+	packetFunctions
 	header		*packetHeader
 	fieldCount	uint8
 	affectedRows	uint64
@@ -226,19 +230,19 @@ func (pkt *packetOK) read(reader *bufio.Reader) (err os.Error) {
 	if err != nil { return err }
 	pkt.fieldCount = uint8(c)
 	// Read affected rows
-	pkt.affectedRows, n, err = readlengthCodedBinary(reader)
+	pkt.affectedRows, n, err = pkt.readlengthCodedBinary(reader)
 	if err != nil { return err }
 	bytes = n
 	// Read insert id
-	pkt.insertId, n, err = readlengthCodedBinary(reader)
+	pkt.insertId, n, err = pkt.readlengthCodedBinary(reader)
 	if err != nil { return err }
 	bytes += n
 	// Read server status
-	num, err := readNumber(reader, 2)
+	num, err := pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.serverStatus = uint16(num)
 	// Read warning count
-	num, err = readNumber(reader, 2)
+	num, err = pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.warningCount = uint16(num)
 	// Read message
@@ -256,6 +260,7 @@ func (pkt *packetOK) read(reader *bufio.Reader) (err os.Error) {
  * Error packet (received after an operation failed)
  */
 type packetError struct {
+	packetFunctions
 	header		*packetHeader
 	fieldCount	uint8
 	errno		uint16
@@ -273,7 +278,7 @@ func (pkt *packetError) read(reader *bufio.Reader) (err os.Error) {
 	if err != nil { return err }
 	pkt.fieldCount = uint8(c)
 	// Read error code
-	num, err := readNumber(reader, 2)
+	num, err := pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.errno = uint16(num)
 	// Read # byte
@@ -305,6 +310,7 @@ func (pkt *packetError) read(reader *bufio.Reader) (err os.Error) {
  * Command packet (send command + optional args)
  */
 type packetCommand struct {
+	packetFunctions
 	header		*packetHeader
 	command		byte
 	args		[]interface{}
@@ -349,13 +355,13 @@ func (pkt *packetCommand) write(writer *bufio.Writer) (err os.Error) {
 			case "string":
 				_, err = writer.WriteString(v.Interface().(string))
 			case "uint8":
-				err = writeNumber(writer, uint64(v.Interface().(uint8)), 1)
+				err = pkt.writeNumber(writer, uint64(v.Interface().(uint8)), 1)
 			case "uint16":
-				err = writeNumber(writer, uint64(v.Interface().(uint16)), 2)
+				err = pkt.writeNumber(writer, uint64(v.Interface().(uint16)), 2)
 			case "uint32":
-				err = writeNumber(writer, uint64(v.Interface().(uint32)), 4)
+				err = pkt.writeNumber(writer, uint64(v.Interface().(uint32)), 4)
 			case "uint64":
-				err = writeNumber(writer, uint64(v.Interface().(uint64)), 8)
+				err = pkt.writeNumber(writer, uint64(v.Interface().(uint64)), 8)
 		}
 		if err != nil { return err }
 	}
@@ -369,6 +375,7 @@ func (pkt *packetCommand) write(writer *bufio.Writer) (err os.Error) {
  * The result set packet (used only to identify a result set)
  */
 type packetResultSet struct {
+	packetFunctions
 	header		*packetHeader
 	fieldCount	uint64
 	extra		uint64
@@ -380,11 +387,11 @@ type packetResultSet struct {
 func (pkt *packetResultSet) read(reader *bufio.Reader) (err os.Error) {
 	var n int
 	// Read field count
-	pkt.fieldCount, n, err = readlengthCodedBinary(reader)
+	pkt.fieldCount, n, err = pkt.readlengthCodedBinary(reader)
 	if err != nil { return err }
 	// Read extra
 	if n < int(pkt.header.length) {
-		pkt.extra, _, err = readlengthCodedBinary(reader)
+		pkt.extra, _, err = pkt.readlengthCodedBinary(reader)
 		if err != nil { return err }
 	}
 	return nil
@@ -394,6 +401,7 @@ func (pkt *packetResultSet) read(reader *bufio.Reader) (err os.Error) {
  * Field packet
  */
 type packetField struct {
+	packetFunctions
 	header		*packetHeader
 	catalog		string
 	database	string
@@ -415,45 +423,45 @@ type packetField struct {
 func (pkt *packetField) read(reader *bufio.Reader) (err os.Error) {
 	var n, bytes int
 	// Read catalog
-	pkt.catalog, n, err = readlengthCodedString(reader)
+	pkt.catalog, n, err = pkt.readlengthCodedString(reader)
 	if err != nil { return err }
 	bytes = n
 	// Read database name
-	pkt.database, n, err = readlengthCodedString(reader)
+	pkt.database, n, err = pkt.readlengthCodedString(reader)
 	if err != nil { return err }
 	bytes += n
 	// Read table name
-	pkt.table, n, err = readlengthCodedString(reader)
+	pkt.table, n, err = pkt.readlengthCodedString(reader)
 	if err != nil { return err }
 	bytes += n
 	// Read original table name
-	pkt.orgtable, n, err = readlengthCodedString(reader)
+	pkt.orgtable, n, err = pkt.readlengthCodedString(reader)
 	if err != nil { return err }
 	bytes += n
 	// Read name
-	pkt.name, n, err = readlengthCodedString(reader)
+	pkt.name, n, err = pkt.readlengthCodedString(reader)
 	if err != nil { return err }
 	bytes += n
 	// Read original name
-	pkt.orgName, n, err = readlengthCodedString(reader)
+	pkt.orgName, n, err = pkt.readlengthCodedString(reader)
 	if err != nil { return err }
 	bytes += n
 	// Filler 1 x 0x00
-	err = readFill(reader, 1)
+	err = pkt.readFill(reader, 1)
 	if err != nil { return err }
 	// Read charset
-	num, err := readNumber(reader, 2)
+	num, err := pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.charsetNumber = uint16(num)
 	// Read length
-	num, err = readNumber(reader, 4)
+	num, err = pkt.readNumber(reader, 4)
 	if err != nil { return err }
 	pkt.length = uint32(num)
 	// Read type
 	pkt.fieldType, err = reader.ReadByte()
 	if err != nil { return err }
 	// Read flags
-	num, err = readNumber(reader, 2)
+	num, err = pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.flags = uint16(num)
 	// Read decimals
@@ -461,12 +469,12 @@ func (pkt *packetField) read(reader *bufio.Reader) (err os.Error) {
 	if err != nil { return err }
 	pkt.decimals = uint8(c)
 	// Filler 2 x 0x00
-	err = readFill(reader, 2)
+	err = pkt.readFill(reader, 2)
 	if err != nil { return err }
 	bytes += 13
 	// Read default if set
 	if int(pkt.header.length) > bytes {
-		pkt.fieldDefault, _, err = readlengthCodedBinary(reader)
+		pkt.fieldDefault, _, err = pkt.readlengthCodedBinary(reader)
 		if err != nil { return err }
 	}
 	return
@@ -476,6 +484,7 @@ func (pkt *packetField) read(reader *bufio.Reader) (err os.Error) {
  * Row data packet
  */
 type packetRowData struct {
+	packetFunctions
 	header		*packetHeader
 	fieldCount	uint64
 	nullBitMap	byte
@@ -497,7 +506,7 @@ func (pkt *packetRowData) read(reader *bufio.Reader) (err os.Error) {
 	// Read field values
 	pkt.values = make([]string, pkt.fieldCount)
 	for i := 0; i < int(pkt.fieldCount); i ++ {
-		pkt.values[i], _, err = readlengthCodedString(reader)
+		pkt.values[i], _, err = pkt.readlengthCodedString(reader)
 		if err != nil { return err }
 	}
 	return nil
@@ -507,6 +516,7 @@ func (pkt *packetRowData) read(reader *bufio.Reader) (err os.Error) {
  * End of file packet (received as a marker for end of packet type within a result set)
  */
 type packetEOF struct {
+	packetFunctions
 	header		*packetHeader
 	fieldCount	uint8
 	warningCount	uint16
@@ -522,11 +532,11 @@ func (pkt *packetEOF) read(reader *bufio.Reader) (err os.Error) {
 	if err != nil { return err }
 	pkt.fieldCount = uint8(c)
 	// Read warning count
-	num, err := readNumber(reader, 2)
+	num, err := pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.warningCount = uint16(num)
 	// Read server status
-	num, err = readNumber(reader, 2)
+	num, err = pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.serverStatus = uint16(num)
 	return
@@ -536,6 +546,7 @@ func (pkt *packetEOF) read(reader *bufio.Reader) (err os.Error) {
  * Ok packet for prepared statements
  */
 type packetOKPrepared struct {
+	packetFunctions
 	header		*packetHeader
 	fieldCount	uint8
 	statementId	uint32
@@ -552,22 +563,22 @@ func (pkt *packetOKPrepared) read(reader *bufio.Reader) (err os.Error) {
 	if err != nil { return err }
 	pkt.fieldCount = uint8(c)
 	// Read statement id
-	num, err := readNumber(reader, 4)
+	num, err := pkt.readNumber(reader, 4)
 	if err != nil { return err }
 	pkt.statementId = uint32(num)
 	// Read column count
-	num, err = readNumber(reader, 2)
+	num, err = pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.columnCount = uint16(num)
 	// Read param count
-	num, err = readNumber(reader, 2)
+	num, err = pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.paramCount = uint16(num)
 	// Read filler 1 x 0x00
-	err = readFill(reader, 1)
+	err = pkt.readFill(reader, 1)
 	if err != nil { return err }
 	// Read warning count
-	num, err = readNumber(reader, 2)
+	num, err = pkt.readNumber(reader, 2)
 	if err != nil { return err }
 	pkt.warningCount = uint16(num)
 	return
@@ -577,6 +588,7 @@ func (pkt *packetOKPrepared) read(reader *bufio.Reader) (err os.Error) {
  * Parameter packet
  */
 type packetParameter struct {
+	packetFunctions
 	header		*packetHeader
 	paramType	[]byte
 	flags		uint16
@@ -598,6 +610,7 @@ func (pkt *packetParameter) read(reader *bufio.Reader) (err os.Error) {
  * Long data packet
  */
 type packetLongData struct {
+	packetFunctions
 	header		*packetHeader
 	sequence	uint8	
 	statementId	uint32
@@ -617,10 +630,10 @@ func (pkt *packetLongData) write(writer *bufio.Writer) (err os.Error) {
 	err = pkt.header.write(writer)
 	if err != nil { return err }
 	// Write statement id
-	err = writeNumber(writer, uint64(pkt.statementId), 4)
+	err = pkt.writeNumber(writer, uint64(pkt.statementId), 4)
 	if err != nil { return err }
 	// Write param number
-	err = writeNumber(writer, uint64(pkt.paramNumber), 2)
+	err = pkt.writeNumber(writer, uint64(pkt.paramNumber), 2)
 	if err != nil { return err }
 	// Write param type
 	_, err = writer.Write(pkt.paramType)
@@ -638,6 +651,7 @@ func (pkt *packetLongData) write(writer *bufio.Writer) (err os.Error) {
  * Execute packet
  */
 type packetExecute struct {
+	packetFunctions
 	header		*packetHeader
 	command		byte
 	statementId	uint32
@@ -646,6 +660,100 @@ type packetExecute struct {
 	nullBitMap	[]byte
 	newParamBound	uint8
 	paramType	[][]byte
+	paramData	[][]byte
+	paramLength	uint32
+}
+
+/**
+ * Create null bit map
+ */
+func (pkt *packetExecute) encodeNullBits(params []interface{}) {
+	pkt.nullBitMap = make([]byte, (len(params) + 7) / 8)
+	var v reflect.Value
+	var bitMap uint64 = 0
+	// Check if params are null (nil)
+	for i := 0; i < len(params); i ++ {
+		v = reflect.NewValue(params[i])
+		if reflect.Indirect(v) == nil {
+			bitMap += 1 << uint(i)
+		}
+	}
+	// Convert the uint64 value into bytes
+	for i := 0; i < len(pkt.nullBitMap); i ++ {
+		pkt.nullBitMap[i] = byte(bitMap >> uint(i * 8))
+	}
+}
+
+/**
+ * Compile param types
+ */
+func (pkt *packetExecute) encodeParams(params []interface{}) {
+	pkt.paramType = make([][]byte, len(params))
+	pkt.paramData = make([][]byte, len(params))
+	// Add all param types
+	for i := 0; i < len(params); i ++ {
+		var v reflect.Value
+		var n uint16
+		// Reflect param
+		v = reflect.NewValue(params[i])
+		// Check for nils (NULL)
+		if reflect.Indirect(v) == nil {
+			n = uint16(FIELD_TYPE_NULL)
+			pkt.paramData[i] = make([]byte, 1)
+			pkt.paramData[i][0] = byte(251)
+			pkt.paramLength ++
+		} else {
+			// Match go types to MySQL types
+			switch v.Type().Name() {
+				default:
+				// Strings should be length coded binary
+				case "string":
+					n = uint16(FIELD_TYPE_STRING)
+					bytes, length := pkt.packString(v.Interface().(string))
+					pkt.paramData[i] = bytes
+					pkt.paramLength += uint32(length)
+				// Unsigned ints simple binary encoded
+				case "uint8":
+					n = uint16(FIELD_TYPE_TINY)
+					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(uint8)), 1)
+					pkt.paramLength ++
+				case "uint16":
+					n = uint16(FIELD_TYPE_SHORT)
+					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(uint16)), 2)
+					pkt.paramLength += 2
+				case "uint32":
+					n = uint16(FIELD_TYPE_LONG)
+					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(uint32)), 4)
+					pkt.paramLength += 4
+				case "uint64":
+					n = uint16(FIELD_TYPE_LONGLONG)
+					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(uint64)), 8)
+					pkt.paramLength += 8
+				// Signed ints also encoded as uint as server 'should' determine their sign based on field type
+				case "int8":
+					n = uint16(FIELD_TYPE_TINY)
+					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(int8)), 1)
+					pkt.paramLength ++
+				case "int16":
+					n = uint16(FIELD_TYPE_SHORT)
+					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(int16)), 2)
+					pkt.paramLength += 2
+				case "int32":
+					n = uint16(FIELD_TYPE_LONG)
+					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(int32)), 4)
+					pkt.paramLength += 4
+				case "int64":
+					n = uint16(FIELD_TYPE_LONGLONG)
+					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(int64)), 8)
+					pkt.paramLength += 8
+				// Floats @todo
+			}
+		}
+		// Add types
+		pkt.paramType[i] = make([]byte, 2)
+		pkt.paramType[i][0] = byte(n)
+		pkt.paramType[i][1] = byte(n >> 8)
+	}
 }
 
 /**
@@ -654,20 +762,20 @@ type packetExecute struct {
 func (pkt *packetExecute) write(writer *bufio.Writer) (err os.Error) {
 	// Construct packet header
 	pkt.header = new(packetHeader)
-	pkt.header.length = 11 + uint32(len(pkt.nullBitMap)) + uint32(len(pkt.paramType) * 2)
+	pkt.header.length = 11 + uint32(len(pkt.nullBitMap)) + uint32(len(pkt.paramType) * 2) + pkt.paramLength
 	pkt.header.sequence = 0
 	err = pkt.header.write(writer)
 	// Write command
 	err = writer.WriteByte(byte(pkt.command))
 	if err != nil { return err }
 	// Write statement id
-	err = writeNumber(writer, uint64(pkt.statementId), 4)
+	err = pkt.writeNumber(writer, uint64(pkt.statementId), 4)
 	if err != nil { return err }
 	// Write flags
 	err = writer.WriteByte(byte(pkt.flags))
 	if err != nil { return err }
 	// Write iteration count
-	err = writeNumber(writer, uint64(pkt.iterationCount), 4)
+	err = pkt.writeNumber(writer, uint64(pkt.iterationCount), 4)
 	if err != nil { return err }
 	// Write null bit map
 	_, err = writer.Write(pkt.nullBitMap)
@@ -682,16 +790,25 @@ func (pkt *packetExecute) write(writer *bufio.Writer) (err os.Error) {
 			if err != nil { return err }
 		}
 	}
+	// Write param data
+	if len(pkt.paramData) > 0 {
+		for _, paramData := range pkt.paramData {
+			_, err = writer.Write(paramData)
+			if err != nil { return err }
+		}
+	}
 	// Flush
 	err = writer.Flush()
 	if err != nil { return err }
 	return
 }
 
+type packetFunctions struct {}
+
 /**
  * Read a number from the buffer that is n bytes long
  */
-func readNumber(reader *bufio.Reader, n uint8) (num uint64, err os.Error) {
+func (pkt *packetFunctions) readNumber(reader *bufio.Reader, n uint8) (num uint64, err os.Error) {
 	p := make([]byte, n)
 	_, err = reader.Read(p)
 	if err != nil { return 0, err }
@@ -705,7 +822,7 @@ func readNumber(reader *bufio.Reader, n uint8) (num uint64, err os.Error) {
 /**
  * Read n 0x00 bytes from the buffer
  */
-func readFill(reader *bufio.Reader, n int) (err os.Error) {
+func (pkt *packetFunctions) readFill(reader *bufio.Reader, n int) (err os.Error) {
 	p := make([]byte, n)
 	_, err = reader.Read(p)
 	return
@@ -714,7 +831,7 @@ func readFill(reader *bufio.Reader, n int) (err os.Error) {
 /**
  * Read a length coded bunary number from the buffer
  */
-func readlengthCodedBinary(reader *bufio.Reader) (num uint64, n int, err os.Error) {
+func (pkt *packetFunctions) readlengthCodedBinary(reader *bufio.Reader) (num uint64, n int, err os.Error) {
 	// Read first byte
 	c, err := reader.ReadByte()
 	if err != nil { return 0, 0, err }
@@ -730,15 +847,15 @@ func readlengthCodedBinary(reader *bufio.Reader) (num uint64, n int, err os.Erro
 			n = 1
 		// 252 following 2 = value of following 16-bit word
 		case uint8(c) == 252:
-			num, err = readNumber(reader, 2)
+			num, err = pkt.readNumber(reader, 2)
 			n = 3
 		// 253 following 3 = value of following 24-bit word
 		case uint8(c) == 253:
-			num, err = readNumber(reader, 3)
+			num, err = pkt.readNumber(reader, 3)
 			n = 4
 		// 254 following 8 = value of following 64-bit word
 		case uint8(c) == 254:
-			num, err = readNumber(reader, 8)
+			num, err = pkt.readNumber(reader, 8)
 			n = 9
 	}
 	return
@@ -747,9 +864,9 @@ func readlengthCodedBinary(reader *bufio.Reader) (num uint64, n int, err os.Erro
 /**
  * Read a length coded bunary string from the buffer
  */
-func readlengthCodedString(reader *bufio.Reader) (str string, n int, err os.Error) {
+func (pkt *packetFunctions) readlengthCodedString(reader *bufio.Reader) (str string, n int, err os.Error) {
 	// Get string length
-	strlen, n, err := readlengthCodedBinary(reader)
+	strlen, n, err := pkt.readlengthCodedBinary(reader)
 	if err != nil { return "", 0, err }
 	// Total bytes read = n + strlen
 	n += int(strlen)
@@ -764,7 +881,7 @@ func readlengthCodedString(reader *bufio.Reader) (str string, n int, err os.Erro
 /**
  * Write a number to the buffer using n bytes
  */
-func writeNumber(writer *bufio.Writer, num uint64, n uint8) (err os.Error) {
+func (pkt *packetFunctions) writeNumber(writer *bufio.Writer, num uint64, n uint8) (err os.Error) {
 	p := make([]byte, n)
 	for i := uint8(0); i < n; i ++ {
 		p[i] = byte(num >> (i * 8))
@@ -776,8 +893,55 @@ func writeNumber(writer *bufio.Writer, num uint64, n uint8) (err os.Error) {
 /**
  * Write n 0x00 bytes to the buffer
  */
-func writeFill(writer *bufio.Writer, n int) (err os.Error) {
+func (pkt *packetFunctions) writeFill(writer *bufio.Writer, n int) (err os.Error) {
 	p := make([]byte, n)
 	_, err = writer.Write(p)
+	return
+}
+
+/**
+ * Pack an unsigned int into binary format
+ */
+func (pkt *packetFunctions) packNumber(num uint64, n uint8) (p []byte) {
+	p = make([]byte, n)
+	for i := uint8(0); i < n; i ++ {
+		p[i] = byte(num >> (i * 8))
+	}
+	return
+}
+
+/**
+ * Pack an string into length coded binary format
+ */
+func (pkt *packetFunctions) packString(str string) (p []byte, n int)  {
+	switch {
+		// <= 250 = 1 byte
+		case len(str) <= 250:
+			p = make([]byte, len(str) + 1)
+			p[0] = byte(len(str))
+			n = 1
+		// <= 0xffff = 252 + 2 bytes
+		case len(str) <= 0xffff:
+			p = make([]byte, len(str) + 3)
+			p[0] = byte(252)
+			p[1] = byte(len(str))
+			p[2] = byte(len(str) >> 8)
+			n = 3
+		// <= 0xffffff = 253 + 3 bytes
+		case len(str) <= 0xffffff:
+			p = make([]byte, len(str) + 4)
+			p[0] = byte(253)
+			p[1] = byte(len(str))
+			p[2] = byte(len(str) >> 8)
+			p[3] = byte(len(str) >> 16)
+			n = 4
+		// 0xffffff = 16M (max packet size) hence 64 bit word not required
+	}
+	// Convert string to bytes
+	bytes := []byte(str)
+	for i := 0; i < len(str); i ++ {
+		p[i + n] = bytes[i]
+	}
+	n += len(str)
 	return
 }

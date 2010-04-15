@@ -4,7 +4,7 @@ GoMySQL Version 0.1.7
 Revision History
 ----------------
 
-* 0.1.7 - Added prepared statement support (in progress)
+* 0.1.7 - Added prepared statement support (good progress)
 * 0.1.6 - Added Ping function
 * 0.1.5 - Clean up packet visibility all should have been private, add packet handlers for prepare/execute and related packets
 * 0.1.4 - Connect now uses ...interface{} for parameters to remove (or reduce) 'junk' required params to call the function
@@ -12,6 +12,14 @@ Revision History
 * 0.1.2 - Added MultiQuery function to return mutliple result sets as an array
 * 0.1.1 - Added support for multiple queries in a single command
 * 0.1.0 - Initial release, supporting connect, close and query functions
+
+
+To Do
+-----
+
+* Reading prepared statement result sets and binary row data (select queries)
+* Add greater type support to execute command packets (floats, doubles)
+* Add support for long data packets (long strings / blobs)
 
 
 About
@@ -155,7 +163,6 @@ Example:
 Error handling
 --------------
 
-Almost all errors are handled internally and populate the Errno and Error properties of MySQL.  
-Connect errors populate ConnectErrno and ConnectError rather than Errno and Error.  
+Almost all errors are handled internally and populate the Errno and Error properties of MySQL, as of 0.1.7 this includes connect errors.
 Generated errors attempt to follow MySQL protocol/specifications as closely as possible.  
-Following any other operation the ConnectErrno or Errno can be checked to see if an error occured.
+If a function returns a negative value (e.g. false or nil) the Errno and Error properties can be checked for details of the error.
