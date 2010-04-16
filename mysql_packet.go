@@ -707,6 +707,16 @@ func (pkt *packetExecute) encodeParams(params []interface{}) {
 					pkt.paramData[i] = bytes
 					pkt.paramLength += uint32(length)
 				// Unsigned ints simple binary encoded
+				case "uint":
+					if strconv.IntSize == 32 {
+						n = uint16(FIELD_TYPE_LONG)
+						pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(uint)), 4)
+						pkt.paramLength += 4
+					} else {
+						n = uint16(FIELD_TYPE_LONGLONG)
+						pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(uint)), 8)
+						pkt.paramLength += 8
+					}
 				case "uint8":
 					n = uint16(FIELD_TYPE_TINY)
 					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(uint8)), 1)
@@ -724,6 +734,16 @@ func (pkt *packetExecute) encodeParams(params []interface{}) {
 					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(uint64)), 8)
 					pkt.paramLength += 8
 				// Signed ints also encoded as uint as server 'should' determine their sign based on field type
+				case "int":
+					if strconv.IntSize == 32 {
+						n = uint16(FIELD_TYPE_LONG)
+						pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(int)), 4)
+						pkt.paramLength += 4
+					} else {
+						n = uint16(FIELD_TYPE_LONGLONG)
+						pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(int)), 8)
+						pkt.paramLength += 8
+					}
 				case "int8":
 					n = uint16(FIELD_TYPE_TINY)
 					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(int8)), 1)
