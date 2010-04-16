@@ -1,3 +1,9 @@
+/**
+ * GoMySQL - A MySQL client library for Go
+ * Copyright 2010 Phil Bayfield
+ * This software is licensed under a Creative Commons Attribution-Share Alike 2.0 UK: England & Wales License
+ * Further information on this license can be found here: http://creativecommons.org/licenses/by-sa/2.0/uk/
+ */
 package mysql
 
 import (
@@ -409,6 +415,10 @@ func (stmt *MySQLStatement) getExecuteResult() {
 			stmt.result.fieldsRead ++
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server") }
 		// Binary row packets appear to always start 00
+		case c == ResultPacketOK && stmt.resExecuted:
+			for _, val := range stmt.result.Fields {
+				log.Stdout(val)
+			}
 		// EOF Packet fe
 		case c == ResultPacketEOF:
 			pkt := new(packetEOF)
