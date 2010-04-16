@@ -416,9 +416,27 @@ func (stmt *MySQLStatement) getExecuteResult() {
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server") }
 		// Binary row packets appear to always start 00
 		case c == ResultPacketOK && stmt.resExecuted:
-			for _, val := range stmt.result.Fields {
-				log.Stdout(val)
+			pkt := new(packetBinaryRowData)
+			pkt.header = hdr
+			pkt.fields = stmt.result.Fields
+			pkt.read(mysql.reader)
+			// Create row
+			row := new(MySQLRow)
+			row.Data = pkt.values
+			if stmt.result.RowCount == 0 {
+				stmt.result.Rows = make([]*MySQLRow, 1)
+				stmt.result.Rows[0] = row
+			} else {
+				curRows := stmt.result.Rows
+				stmt.result.Rows = make([]*MySQLRow, stmt.result.RowCount + 1)
+				for key, val := range curRows {
+					stmt.result.Rows[key] = val
+				}
+				stmt.result.Rows[stmt.result.RowCount] = row
 			}
+			// Increment row count
+			stmt.result.RowCount ++
+			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received binary row data packet from server") }
 		// EOF Packet fe
 		case c == ResultPacketEOF:
 			pkt := new(packetEOF)

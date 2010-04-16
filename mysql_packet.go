@@ -11,6 +11,7 @@ import (
 	"os"
 	"crypto/sha1"
 	"reflect"
+	"strconv"
 )
 
 /**
@@ -55,7 +56,6 @@ func (hdr *packetHeader) write(writer *bufio.Writer) (err os.Error) {
  */
 type packetInit struct {
 	packetFunctions
-	header		*packetHeader
 	protocolVersion	uint8
 	serverVersion	string
 	threadId	uint32
@@ -117,7 +117,6 @@ func (pkt *packetInit) read(reader *bufio.Reader) (err os.Error) {
  */
 type packetAuth struct {
 	packetFunctions
-	header		*packetHeader
 	clientFlags	uint32
 	maxPacketSize	uint32
 	charsetNumber	uint8
@@ -217,7 +216,6 @@ func (pkt *packetAuth) write(writer *bufio.Writer) (err os.Error) {
  */
 type packetOK struct {
 	packetFunctions
-	header		*packetHeader
 	fieldCount	uint8
 	affectedRows	uint64
 	insertId	uint64
@@ -267,7 +265,6 @@ func (pkt *packetOK) read(reader *bufio.Reader) (err os.Error) {
  */
 type packetError struct {
 	packetFunctions
-	header		*packetHeader
 	fieldCount	uint8
 	errno		uint16
 	state		string
@@ -317,7 +314,6 @@ func (pkt *packetError) read(reader *bufio.Reader) (err os.Error) {
  */
 type packetCommand struct {
 	packetFunctions
-	header		*packetHeader
 	command		byte
 	args		[]interface{}
 }
@@ -382,7 +378,6 @@ func (pkt *packetCommand) write(writer *bufio.Writer) (err os.Error) {
  */
 type packetResultSet struct {
 	packetFunctions
-	header		*packetHeader
 	fieldCount	uint64
 	extra		uint64
 }
@@ -408,7 +403,6 @@ func (pkt *packetResultSet) read(reader *bufio.Reader) (err os.Error) {
  */
 type packetField struct {
 	packetFunctions
-	header		*packetHeader
 	catalog		string
 	database	string
 	table		string
@@ -491,7 +485,6 @@ func (pkt *packetField) read(reader *bufio.Reader) (err os.Error) {
  */
 type packetRowData struct {
 	packetFunctions
-	header		*packetHeader
 	fieldCount	uint64
 	nullBitMap	byte
 	values		[]string
@@ -523,7 +516,6 @@ func (pkt *packetRowData) read(reader *bufio.Reader) (err os.Error) {
  */
 type packetEOF struct {
 	packetFunctions
-	header		*packetHeader
 	fieldCount	uint8
 	warningCount	uint16
 	serverStatus	uint16
@@ -553,7 +545,6 @@ func (pkt *packetEOF) read(reader *bufio.Reader) (err os.Error) {
  */
 type packetOKPrepared struct {
 	packetFunctions
-	header		*packetHeader
 	fieldCount	uint8
 	statementId	uint32
 	columnCount	uint16
@@ -595,7 +586,6 @@ func (pkt *packetOKPrepared) read(reader *bufio.Reader) (err os.Error) {
  */
 type packetParameter struct {
 	packetFunctions
-	header		*packetHeader
 	paramType	[]byte
 	flags		uint16
 	decimals	uint8
@@ -617,7 +607,6 @@ func (pkt *packetParameter) read(reader *bufio.Reader) (err os.Error) {
  */
 type packetLongData struct {
 	packetFunctions
-	header		*packetHeader
 	sequence	uint8	
 	statementId	uint32
 	paramNumber	uint16
@@ -658,7 +647,6 @@ func (pkt *packetLongData) write(writer *bufio.Writer) (err os.Error) {
  */
 type packetExecute struct {
 	packetFunctions
-	header		*packetHeader
 	command		byte
 	statementId	uint32
 	flags		uint8
@@ -809,7 +797,86 @@ func (pkt *packetExecute) write(writer *bufio.Writer) (err os.Error) {
 	return
 }
 
-type packetFunctions struct {}
+type packetBinaryRowData struct {
+	packetFunctions
+	fields		[]*MySQLField
+	values		[]string
+}
+
+func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
+	// Skip first 2 bytes which appear to always be 0
+	err = pkt.readFill(reader, 2)
+	if err != nil { return err }
+	// Allocate memory
+	pkt.values = make([]string, len(pkt.fields))
+	// Read data for each field
+	for i, field := range pkt.fields {
+		switch field.Type {
+			// Bigint (64 bit int unsigned or signed)
+			case FIELD_TYPE_LONGLONG:
+				num, err := pkt.readNumber(reader, 8)
+				if err != nil { return err }
+				if field.Flags.Unsigned {
+					pkt.values[i] = strconv.Uitoa64(num)
+				} else {
+					pkt.values[i] = strconv.Itoa64(int64(num))
+				}
+			// Strings, all length coded binary strings
+			case FIELD_TYPE_BLOB, FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING:
+				str, _, err := pkt.readlengthCodedString(reader)
+				if err != nil { return err }
+				pkt.values[i] = str
+			// Date/Datetime/Timestamp YYYY-MM-DD HH:MM:SS (From libmysql/libmysql.c read_binary_datetime)
+			case FIELD_TYPE_DATE, FIELD_TYPE_TIMESTAMP, FIELD_TYPE_DATETIME:
+				num, _, err := pkt.readlengthCodedBinary(reader)
+				if err != nil { return err }
+				// Year
+				year, err := pkt.readNumber(reader, 2)
+				if err != nil { return err }
+				// Month
+				c, err := reader.ReadByte()
+				if err != nil { return err }
+				month := uint64(c)
+				// Day
+				c, err = reader.ReadByte()
+				if err != nil { return err }
+				day := uint64(c)
+				pkt.values[i] = strconv.Uitoa64(year) + "-"
+				if month < 10 {
+					pkt.values[i] += "0"
+				}
+				pkt.values[i] += strconv.Uitoa64(month) + "-" + strconv.Uitoa64(day)
+				if num > 4 {
+					// Hour
+					c, err = reader.ReadByte()
+					if err != nil { return err }
+					hour := uint64(c)
+					// Minute
+					c, err = reader.ReadByte()
+					if err != nil { return err }
+					mins := uint64(c)
+					// Seconds
+					c, err = reader.ReadByte()
+					if err != nil { return err }
+					secs := uint64(c)
+					pkt.values[i] += " " + strconv.Uitoa64(hour) + ":" + strconv.Uitoa64(mins) + ":" + strconv.Uitoa64(secs)
+				}
+				if num > 7 {
+					err = pkt.readFill(reader, int(num - 7))
+					if err != nil { return err }
+				}
+					
+		}
+	}
+	return
+}
+
+/**
+ * Generic packet fucntions, used by all/most packets
+ */
+type packetFunctions struct {
+	header		*packetHeader
+}
 
 /**
  * Read a number from the buffer that is n bytes long
