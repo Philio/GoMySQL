@@ -11,7 +11,9 @@ import (
 	"os"
 	"crypto/sha1"
 	"reflect"
+	"strings"
 	"strconv"
+	"math"
 )
 
 /**
@@ -708,6 +710,7 @@ func (pkt *packetExecute) encodeParams(params []interface{}) {
 					pkt.paramLength += uint32(length)
 				// Unsigned ints simple binary encoded
 				case "uint":
+					// uint can be 32 or 64 bits
 					if strconv.IntSize == 32 {
 						n = uint16(FIELD_TYPE_LONG)
 						pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(uint)), 4)
@@ -735,6 +738,7 @@ func (pkt *packetExecute) encodeParams(params []interface{}) {
 					pkt.paramLength += 8
 				// Signed ints also encoded as uint as server 'should' determine their sign based on field type
 				case "int":
+					// int can be 32 or 64 bits
 					if strconv.IntSize == 32 {
 						n = uint16(FIELD_TYPE_LONG)
 						pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(int)), 4)
@@ -824,15 +828,48 @@ type packetBinaryRowData struct {
 }
 
 func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
-	// Skip first 2 bytes which appear to always be 0
-	err = pkt.readFill(reader, 2)
-	if err != nil { return err }
+	// Skip leading 0's
+	for {
+		c, err := reader.ReadByte()
+		if err != nil { return err }
+		if c != 0x00 {
+			reader.UnreadByte()
+			break
+		}
+	}
 	// Allocate memory
 	pkt.values = make([]string, len(pkt.fields))
 	// Read data for each field
 	for i, field := range pkt.fields {
 		switch field.Type {
-			// Bigint (64 bit int unsigned or signed)
+			// Tiny int (8 bit int unsigned or signed)
+			case FIELD_TYPE_TINY:
+				num, err := reader.ReadByte()
+				if err != nil { return err }
+				if field.Flags.Unsigned {
+					pkt.values[i] = strconv.Uitoa64(uint64(num))
+				} else {
+					pkt.values[i] = strconv.Itoa64(int64(int8(num)))
+				}
+			// Small int (16 bit int unsigned or signed)
+			case FIELD_TYPE_SHORT:
+				num, err := pkt.readNumber(reader, 2)
+				if err != nil { return err }
+				if field.Flags.Unsigned {
+					pkt.values[i] = strconv.Uitoa64(uint64(num))
+				} else {
+					pkt.values[i] = strconv.Itoa64(int64(int16(num)))
+				}
+			// Int (32 bit int unsigned or signed)
+			case FIELD_TYPE_LONG:
+				num, err := pkt.readNumber(reader, 4)
+				if err != nil { return err }
+				if field.Flags.Unsigned {
+					pkt.values[i] = strconv.Uitoa64(uint64(num))
+				} else {
+					pkt.values[i] = strconv.Itoa64(int64(int32(num)))
+				}
+			// Big int (64 bit int unsigned or signed)
 			case FIELD_TYPE_LONGLONG:
 				num, err := pkt.readNumber(reader, 8)
 				if err != nil { return err }
@@ -841,8 +878,19 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				} else {
 					pkt.values[i] = strconv.Itoa64(int64(num))
 				}
+			// Floats (Single precision floating point, 32 bit signed)
+			case FIELD_TYPE_FLOAT:
+				num, err := pkt.readNumber(reader, 4)
+				if err != nil { return err }
+				pkt.values[i] = strings.TrimRight(strconv.Ftoa32(math.Float32frombits(uint32(num)), 'f', 5), "0")
+			// Double (Double precision floating point, 64 bit signed)
+			case FIELD_TYPE_DOUBLE:
+				num, err := pkt.readNumber(reader, 8)
+				if err != nil { return err }
+				pkt.values[i] = strings.TrimRight(strconv.Ftoa64(math.Float64frombits(num), 'f', 14), "0")
 			// Strings, all length coded binary strings
-			case FIELD_TYPE_BLOB, FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING:
+			case FIELD_TYPE_VARCHAR, FIELD_TYPE_TINY_BLOB, FIELD_TYPE_MEDIUM_BLOB, FIELD_TYPE_LONG_BLOB,
+			     FIELD_TYPE_BLOB, FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING:
 				str, _, err := pkt.readlengthCodedString(reader)
 				if err != nil { return err }
 				pkt.values[i] = str
@@ -909,7 +957,7 @@ func (pkt *packetFunctions) readNumber(reader *bufio.Reader, n uint8) (num uint6
 	for i := uint8(0); i < n; i ++ {
 		num |= uint64(p[i]) << (i * 8)
 	}
-	return num, nil
+	return
 }
 
 /**
