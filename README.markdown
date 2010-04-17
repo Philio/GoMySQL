@@ -17,7 +17,7 @@ Revision History
 To Do
 -----
 
-* Add greater type support to execute command packets (floats, doubles)
+* Continue to add support for additional binary format options
 * Add support for long data packets (long strings / blobs)
 
 
@@ -65,7 +65,7 @@ This installs the package as 'mysql' so can be importated as so:
 `import "mysql"`
 
 
-Supported functions
+MySQL functions
 -------------------
 
 MySQL.New(logging bool)
@@ -140,6 +140,18 @@ Example:
 
 `ok := db.Ping()`
 
+MySQL.InitStmt()
+
+Create a new prepared statement.
+
+Example:
+
+`stmt := db.InitStmt()`
+
+
+MySQL Result Functions
+----------------------
+
 MySQLResult.FetchRow()
 
 Get the next row in the resut set.  
@@ -157,6 +169,45 @@ Returns a map or nil if there are no more rows.
 Example:
 
 `row := res.FetchMap()`
+
+
+MySQL Statement Functions
+-------------------------
+
+MySQLStatement.Prepare(sql string)
+
+MySQLStatement.BindParams(params)
+
+MySQLStatement.Execute()
+
+MySQLStatement.Reset()
+
+MySQLStatement.Close()
+
+
+Prepared Statement Limitations
+------------------------------
+
+When using prepared statements the data packets sent to/from the server are in binary format (normal queries send results as text).  
+Currently not all MySQL field types have been implemented.  
+
+Supported parameter formats:
+
+Integers: int (int or bigint), uint (unsigned int or big int), int8 (tiny int), uint8 (unsigned tiny int), int16 (small int), uint16 (unsigned small int), int32 (int), uint32 (unsigned int), int64 (big int), uint64 (unsigned big int)
+
+Floats: float (float or double), float32 (float), float64 (double)
+
+Strings: all varchar/text/blob/enum fields should work as text
+
+Supported row formats:
+
+Integers: int (int or bigint), uint (unsigned int or big int), int8 (tiny int), uint8 (unsigned tiny int), int16 (small int), uint16 (unsigned small int), int32 (int), uint32 (unsigned int), int64 (big int), uint64 (unsigned big int)
+
+Floats: float (float or double), float32 (float), float64 (double)
+
+Strings: all
+
+Date/time: date, datetime, timestamp
 
 
 Error handling
