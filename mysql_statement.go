@@ -359,6 +359,7 @@ func (stmt *MySQLStatement) getExecuteResult() {
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received ok packet from server") }
 			// Create result
 			stmt.result = new(MySQLResult)
+			stmt.result.RowCount     = 0
 			stmt.result.AffectedRows = pkt.affectedRows
 			stmt.result.InsertId 	 = pkt.insertId
 			stmt.result.WarningCount = pkt.warningCount

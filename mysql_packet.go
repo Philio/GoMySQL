@@ -701,7 +701,6 @@ func (pkt *packetExecute) encodeParams(params []interface{}) {
 		} else {
 			// Match go types to MySQL types
 			switch v.Type().Name() {
-				default:
 				// Strings should be length coded binary
 				case "string":
 					n = uint16(FIELD_TYPE_STRING)
@@ -764,7 +763,26 @@ func (pkt *packetExecute) encodeParams(params []interface{}) {
 					n = uint16(FIELD_TYPE_LONGLONG)
 					pkt.paramData[i] = pkt.packNumber(uint64(v.Interface().(int64)), 8)
 					pkt.paramLength += 8
-				// Floats @todo
+				// Floats
+				case "float":
+					if strconv.FloatSize == 32 {
+						n = uint16(FIELD_TYPE_FLOAT)
+						pkt.paramData[i] = pkt.packNumber(uint64(math.Float32bits(float32(v.Interface().(float)))), 4)
+						pkt.paramLength += 4
+					} else {
+						n = uint16(FIELD_TYPE_DOUBLE)
+						pkt.paramData[i] = pkt.packNumber(uint64(math.Float64bits(float64(v.Interface().(float)))), 8)
+						pkt.paramLength += 8
+					}
+					
+				case "float32":
+					n = uint16(FIELD_TYPE_FLOAT)
+					pkt.paramData[i] = pkt.packNumber(uint64(math.Float32bits(float32(v.Interface().(float32)))), 4)
+					pkt.paramLength += 4
+				case "float64":
+					n = uint16(FIELD_TYPE_DOUBLE)
+					pkt.paramData[i] = pkt.packNumber(uint64(math.Float64bits(float64(v.Interface().(float64)))), 8)
+					pkt.paramLength += 8
 			}
 		}
 		// Add types

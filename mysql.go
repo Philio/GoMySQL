@@ -231,7 +231,7 @@ func (mysql *MySQL) Ping() bool {
 /**
  * Initialise a new statement
  */
-func (mysql *MySQL) StatementInit() *MySQLStatement {
+func (mysql *MySQL) InitStmt() *MySQLStatement {
 	if !mysql.connected { return nil }
 	if mysql.Logging { log.Stdout("Initialise statement called") }
 	// Create new statement and prepare query

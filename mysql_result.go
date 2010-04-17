@@ -31,10 +31,12 @@ type MySQLResult struct {
  * Fetch the current row (as an array)
  */
 func (res *MySQLResult) FetchRow() []string {
-	if len(res.Rows) > res.pointer {
-		row := res.Rows[res.pointer].Data
-		res.pointer ++
-		return row
+	if res.RowCount > 0 {
+		if len(res.Rows) > res.pointer {
+			row := res.Rows[res.pointer].Data
+			res.pointer ++
+			return row
+		}
 	}
 	return nil
 }
@@ -43,14 +45,16 @@ func (res *MySQLResult) FetchRow() []string {
  * Fetch a map of the current row
  */
 func (res *MySQLResult) FetchMap() map[string] string {
-	if len(res.Rows) > res.pointer {
-		row := res.Rows[res.pointer].Data
-		rowMap := make(map[string] string)
-		for key, val := range row {
-			rowMap[res.Fields[key].Name] = val
+	if res.RowCount > 0 {
+		if len(res.Rows) > res.pointer {
+			row := res.Rows[res.pointer].Data
+			rowMap := make(map[string] string)
+			for key, val := range row {
+				rowMap[res.Fields[key].Name] = val
+			}
+			res.pointer ++
+			return rowMap
 		}
-		res.pointer ++
-		return rowMap
 	}
 	return nil
 }
