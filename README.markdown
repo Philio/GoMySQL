@@ -68,7 +68,7 @@ This installs the package as 'mysql' so can be importated as so:
 MySQL functions
 -------------------
 
-MySQL.New(logging bool)
+**MySQL.New(logging bool)**
 
 Create a new MySQL instance, with or without logging enabled.
 Logging displays all packets sent to/from the server, useful for debugging.
@@ -77,7 +77,7 @@ Example:
 
 `db := mysql.New(false)`
 
-MySQL.Connect(host string, username string, [password string, [dbname string, [port int || socket string]]])
+**MySQL.Connect(host string, username string, [password string, [dbname string, [port int || socket string]]])**
 
 Connect to database defined by host.  
 The minimum required params to connect are host and username, dependant on server settings.  
@@ -92,7 +92,7 @@ Example:
 
 `connected := db.Connect("localhost", "user", "password", "database")`
 
-MySQL.Close()
+**MySQL.Close()**
 
 Closes the connection to the database.  
 Returns true on success or false on failure, error number and description can be retrieved for failure description (see error handling section)
@@ -101,7 +101,7 @@ Example:
 
 `closed = db.Close()`
 
-MySQL.Query(sql string)
+**MySQL.Query(sql string)**
 
 Perform an SQL query, as of 0.1.1 supports multiple statements.  
 Returns a MySQLResult object on success or nil on failure, data contained within result object varies depending on query type. If query contains multiple statements then the first result set is returned.
@@ -110,7 +110,7 @@ Example:
 
 `res := db.Query("SELECT * FROM table")`
 
-MySQL.MultiQuery(sql string)
+**MySQL.MultiQuery(sql string)**
 
 Identical in function to MySQL.Query, intended for use with multiple statements.  
 Returns an array of MySQLResult objects or nil on failure.
@@ -122,7 +122,7 @@ Example:
 resArray[0] contains result of UPDATE t1 SET a = 1  
 resArray[1] contains result of UPDATE t2 SET b = 2
 
-MySQL.ChangeDb(dbname string)
+**MySQL.ChangeDb(dbname string)**
 
 Change the currently active database.  
 Returns true on success or false on failure.
@@ -131,7 +131,7 @@ Example:
 
 `ok := db.ChangeDb("my_database")`
 
-MySQL.Ping()
+**MySQL.Ping()**
 
 Ping the server.  
 Returns true on success or false on failure.  
@@ -140,7 +140,7 @@ Example:
 
 `ok := db.Ping()`
 
-MySQL.InitStmt()
+**MySQL.InitStmt()**
 
 Create a new prepared statement.
 
@@ -152,7 +152,7 @@ Example:
 MySQL Result Functions
 ----------------------
 
-MySQLResult.FetchRow()
+**MySQLResult.FetchRow()**
 
 Get the next row in the resut set.  
 Returns a string array or nil if there are no more rows.
@@ -161,7 +161,7 @@ Example:
 
 `row := res.FetchRow()`
 
-MySQLResult.FetchMap()
+**MySQLResult.FetchMap()**
 
 Get the next row in the resut set as a map.  
 Returns a map or nil if there are no more rows.
@@ -174,15 +174,15 @@ Example:
 MySQL Statement Functions
 -------------------------
 
-MySQLStatement.Prepare(sql string)
+**MySQLStatement.Prepare(sql string)**
 
-MySQLStatement.BindParams(params)
+**MySQLStatement.BindParams(params)**
 
-MySQLStatement.Execute()
+**MySQLStatement.Execute()**
 
-MySQLStatement.Reset()
+**MySQLStatement.Reset()**
 
-MySQLStatement.Close()
+**MySQLStatement.Close()**
 
 
 Prepared Statement Limitations
@@ -191,21 +191,25 @@ Prepared Statement Limitations
 When using prepared statements the data packets sent to/from the server are in binary format (normal queries send results as text).  
 Currently not all MySQL field types have been implemented.  
 
-Supported parameter formats:
+**Supported parameter formats:**
+
+Format of list is Go type (MySQL type)
 
 Integers: int (int or bigint), uint (unsigned int or big int), int8 (tiny int), uint8 (unsigned tiny int), int16 (small int), uint16 (unsigned small int), int32 (int), uint32 (unsigned int), int64 (big int), uint64 (unsigned big int)
 
 Floats: float (float or double), float32 (float), float64 (double)
 
-Strings: all varchar/text/blob/enum fields should work as text
+Strings: all varchar/text/blob/enum/date fields should work when sent as string
 
-Supported row formats:
+**Supported row formats:**
 
-Integers: int (int or bigint), uint (unsigned int or big int), int8 (tiny int), uint8 (unsigned tiny int), int16 (small int), uint16 (unsigned small int), int32 (int), uint32 (unsigned int), int64 (big int), uint64 (unsigned big int)
+Format of list is MySQL type (Go type)
 
-Floats: float (float or double), float32 (float), float64 (double)
+Integers: tiny int (int8), unsigned tiny int (uint8), small int (int16), unsigned small int (uint16), int (int32), unsigned int (uint32), big int (int64), unsigned big int (uint64)
 
-Strings: all
+Floats: float (float32), double (float64)
+
+Strings: varchar, *text, *blob
 
 Date/time: date, datetime, timestamp
 
