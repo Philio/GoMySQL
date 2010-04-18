@@ -47,6 +47,9 @@ type MySQLStatement struct {
 func (stmt *MySQLStatement) Prepare(sql string) bool {
 	mysql := stmt.mysql
 	if mysql.Logging { log.Stdout("Prepare statement called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	stmt.reset()
@@ -114,6 +117,9 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 		return nil
 	}
 	if mysql.Logging { log.Stdout("Execute statement called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	stmt.reset()
@@ -163,6 +169,9 @@ func (stmt *MySQLStatement) Close() bool {
 		return false
 	}
 	if mysql.Logging { log.Stdout("Close statement called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	stmt.reset()
@@ -186,6 +195,9 @@ func (stmt *MySQLStatement) Reset() bool {
 		return false
 	}
 	if mysql.Logging { log.Stdout("Reset statement called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	stmt.reset()
