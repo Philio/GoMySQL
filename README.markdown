@@ -68,6 +68,10 @@ This installs the package as 'mysql' so can be importated as so:
 MySQL functions
 -------------------
 
+**MySQL.Errno** - Error number for last operation.  
+ 
+**MySQL.Error** - Error description for last operation.  
+
 **MySQL.New(logging bool)**
 
 Create a new MySQL instance, with or without logging enabled.
@@ -152,6 +156,22 @@ Example:
 MySQL Result Functions
 ----------------------
 
+**MySQLResult.AffectedRows** - Number of rows affected by the query.  
+
+**MySQLResult.InsertId** - The insert id of the row inserted by the query.  
+
+**MySQLResult.WarningCount** - The number of warnings the server returned.  
+
+**MySQLResult.Message** - The message returned by the server.  
+
+**MySQLResult.Fields** - An array of fields returned by the server.  
+
+**MySQLResult.FieldCount** - The number of fields returned by the server.  
+
+**MySQLResult.Rows** - An array of rows returned by the server.  
+
+**MySQLResult.RowCount** - The number of rows returned by the server.
+
 **MySQLResult.FetchRow()**
 
 Get the next row in the resut set.  
@@ -174,15 +194,15 @@ Example:
 MySQL Statement Functions
 -------------------------
 
-**MySQLStatement.Errno** - Error number for last operation  
+**MySQLStatement.Errno** - Error number for last operation.  
  
-**MySQLStatement.Error** - Error description for last operation  
+**MySQLStatement.Error** - Error description for last operation.  
 
-**MySQLStatement.StatementId** - The statement id
+**MySQLStatement.StatementId** - The statement id.
 
-**MySQLStatement.Params** - Array of param data [not implemented]
+**MySQLStatement.Params** - Array of param data [not implemented].
 
-**MySQLStatement.ParamCount** - Number of params in the current statement
+**MySQLStatement.ParamCount** - Number of params in the current statement.
 
 **MySQLStatement.Prepare(sql string)**
 
