@@ -20,6 +20,9 @@ const (
  * Prepared statement struct
  */
 type MySQLStatement struct {
+	Errno		int
+	Error		string
+
 	mysql		*MySQL
 
 	prepared	bool
@@ -75,7 +78,7 @@ func (stmt *MySQLStatement) BindParams(params ...interface{}) bool {
 	mysql := stmt.mysql
 	// Check statement has been prepared
 	if !stmt.prepared {
-		mysql.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
+		stmt.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
 		return false
 	}
 	if mysql.Logging { log.Stdout("Bind params called") }
@@ -98,12 +101,12 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 	var err os.Error
 	// Check statement has been prepared
 	if !stmt.prepared {
-		mysql.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
+		stmt.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
 		return nil
 	}
 	// Check params are bound
 	if !stmt.paramsBound {
-		mysql.error(CR_PARAMS_NOT_BOUND, CR_PARAMS_NOT_BOUND_STR)
+		stmt.error(CR_PARAMS_NOT_BOUND, CR_PARAMS_NOT_BOUND_STR)
 		return nil
 	}
 	if mysql.Logging { log.Stdout("Execute statement called") }
@@ -124,7 +127,7 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 	pkt.encodeParams(stmt.paramData)
 	err = pkt.write(mysql.writer)
 	if err != nil {
-		mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 		return nil
 	}
 	mysql.sequence ++
@@ -151,7 +154,7 @@ func (stmt *MySQLStatement) Close() bool {
 	mysql := stmt.mysql
 	// Check statement has been prepared
 	if !stmt.prepared {
-		mysql.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
+		stmt.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
 		return false
 	}
 	if mysql.Logging { log.Stdout("Close statement called") }
@@ -173,7 +176,7 @@ func (stmt *MySQLStatement) Reset() bool {
 	mysql := stmt.mysql
 	// Check statement has been prepared
 	if !stmt.prepared {
-		mysql.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
+		stmt.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
 		return false
 	}
 	if mysql.Logging { log.Stdout("Reset statement called") }
@@ -200,17 +203,17 @@ func (stmt *MySQLStatement) getPrepareResult() {
 	// Read error
 	if err != nil {
 		// Assume lost connection to server
-		mysql.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
+		stmt.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
 		return
 	}
 	// Check data length
 	if int(hdr.length) > mysql.reader.Buffered() {
-		mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 		return
 	}
 	// Check sequence number
 	if hdr.sequence != mysql.sequence {
-		mysql.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
+		stmt.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		return
 	}
 	// Read the next byte to identify the type of packet
@@ -228,7 +231,7 @@ func (stmt *MySQLStatement) getPrepareResult() {
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received ok for prepared statement packet from server") }
 			// Save statement info
@@ -247,9 +250,9 @@ func (stmt *MySQLStatement) getPrepareResult() {
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			} else {
-				mysql.error(int(pkt.errno), pkt.error)
+				stmt.error(int(pkt.errno), pkt.error)
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server") }
 		// Making assumption that statement packets follow similar format to result packets
@@ -264,7 +267,7 @@ func (stmt *MySQLStatement) getPrepareResult() {
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			}
 			// Increment params read
 			stmt.paramsRead ++
@@ -275,7 +278,7 @@ func (stmt *MySQLStatement) getPrepareResult() {
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 				return
 			}
 			// Populate field data (ommiting anything which doesnt seam useful at time of writing)
@@ -296,7 +299,7 @@ func (stmt *MySQLStatement) getPrepareResult() {
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 				return
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server") }
@@ -325,17 +328,17 @@ func (stmt *MySQLStatement) getExecuteResult() {
 	// Read error
 	if err != nil {
 		// Assume lost connection to server
-		mysql.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
+		stmt.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
 		return
 	}
 	// Check data length
 	if int(hdr.length) > mysql.reader.Buffered() {
-		mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 		return
 	}
 	// Check sequence number
 	if hdr.sequence != mysql.sequence {
-		mysql.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
+		stmt.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		return
 	}
 	// Read the next byte to identify the type of packet
@@ -353,7 +356,7 @@ func (stmt *MySQLStatement) getExecuteResult() {
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 				return
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received ok packet from server") }
@@ -371,9 +374,9 @@ func (stmt *MySQLStatement) getExecuteResult() {
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			} else {
-				mysql.error(int(pkt.errno), pkt.error)
+				stmt.error(int(pkt.errno), pkt.error)
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server") }
 		// Result Set Packet 1-250 (first byte of Length-Coded Binary)
@@ -382,7 +385,7 @@ func (stmt *MySQLStatement) getExecuteResult() {
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 				return
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server") }
@@ -400,7 +403,7 @@ func (stmt *MySQLStatement) getExecuteResult() {
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 				return
 			}
 			// Populate field data (ommiting anything which doesnt seam useful at time of writing)
@@ -444,7 +447,7 @@ func (stmt *MySQLStatement) getExecuteResult() {
 			pkt.header = hdr
 			err = pkt.read(mysql.reader)
 			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+				stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 				return
 			}
 			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server") }
@@ -459,6 +462,14 @@ func (stmt *MySQLStatement) getExecuteResult() {
 	}
 	// Increment sequence
 	mysql.sequence ++
+}
+
+/**
+ * Populate error variables
+ */
+func (stmt *MySQLStatement) error(errno int, error string) {
+	stmt.Errno = errno
+	stmt.Error = error
 }
 
 /**

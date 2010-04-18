@@ -176,6 +176,9 @@ MySQL Statement Functions
 
 **MySQLStatement.Prepare(sql string)**
 
+Prepare a query
+Returns true on success or false on failure
+
 **MySQLStatement.BindParams(params)**
 
 **MySQLStatement.Execute()**
