@@ -13,6 +13,7 @@ import (
 	"os"
 	"log"
 	"reflect"
+	"sync"
 )
 
 const (
@@ -41,6 +42,8 @@ type MySQL struct {
 	curRes		*MySQLResult
 	result		[]*MySQLResult
 	pointer		int
+
+	mutex		*sync.Mutex
 }
 
 /**
@@ -61,6 +64,7 @@ type MySQLServerInfo struct {
 func New(logging bool) (mysql *MySQL) {
 	// Create and return a new instance of MySQL
 	mysql = new(MySQL)
+	mysql.mutex = new(sync.Mutex)
 	if (logging) {
 		mysql.Logging = true
 	}
@@ -111,6 +115,9 @@ func (mysql *MySQL) Connect(params ...interface{}) bool {
 func (mysql *MySQL) Close() bool {
 	if !mysql.connected { return false }
 	if mysql.Logging { log.Stdout("Close called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send quit command
@@ -132,6 +139,9 @@ func (mysql *MySQL) Close() bool {
 func (mysql *MySQL) Query(sql string) *MySQLResult {
 	if !mysql.connected { return nil }
 	if mysql.Logging { log.Stdout("Query called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send query command
@@ -161,6 +171,9 @@ func (mysql *MySQL) Query(sql string) *MySQLResult {
 func (mysql *MySQL) MultiQuery(sql string) []*MySQLResult {
 	if !mysql.connected { return nil }
 	if mysql.Logging { log.Stdout("MultiQuery called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send query command
@@ -190,6 +203,9 @@ func (mysql *MySQL) MultiQuery(sql string) []*MySQLResult {
 func (mysql *MySQL) ChangeDb(dbname string) bool {
 	if !mysql.connected { return false }
 	if mysql.Logging { log.Stdout("ChangeDb called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send command
@@ -212,6 +228,9 @@ func (mysql *MySQL) ChangeDb(dbname string) bool {
 func (mysql *MySQL) Ping() bool {
 	if !mysql.connected { return false }
 	if mysql.Logging { log.Stdout("Ping called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send command
