@@ -246,8 +246,6 @@ func (mysql *MySQL) InitStmt() *MySQLStatement {
 func (mysql *MySQL) reset() {
 	mysql.Errno = 0
 	mysql.Error = ""
-	mysql.Errno = 0
-	mysql.Error = ""
 	mysql.sequence = 0
 	mysql.curRes = nil
 	mysql.result = nil

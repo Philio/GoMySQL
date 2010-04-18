@@ -49,6 +49,7 @@ func (stmt *MySQLStatement) Prepare(sql string) bool {
 	if mysql.Logging { log.Stdout("Prepare statement called") }
 	// Reset error/sequence vars
 	mysql.reset()
+	stmt.reset()
 	// Send command
 	mysql.command(COM_STMT_PREPARE, sql)
 	if mysql.Errno != 0 {
@@ -82,6 +83,9 @@ func (stmt *MySQLStatement) BindParams(params ...interface{}) bool {
 		return false
 	}
 	if mysql.Logging { log.Stdout("Bind params called") }
+	// Reset error/sequence vars
+	mysql.reset()
+	stmt.reset()
 	// Check param count
 	if uint16(len(params)) != stmt.ParamCount {
 		return false
@@ -112,6 +116,7 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 	if mysql.Logging { log.Stdout("Execute statement called") }
 	// Reset error/sequence vars
 	mysql.reset()
+	stmt.reset()
 	// Construct packet
 	pkt := new(packetExecute)
 	pkt.command        = COM_STMT_EXECUTE
@@ -160,6 +165,7 @@ func (stmt *MySQLStatement) Close() bool {
 	if mysql.Logging { log.Stdout("Close statement called") }
 	// Reset error/sequence vars
 	mysql.reset()
+	stmt.reset()
 	// Send command
 	mysql.command(COM_STMT_CLOSE, stmt.StatementId)
 	if mysql.Errno != 0 {
@@ -182,6 +188,7 @@ func (stmt *MySQLStatement) Reset() bool {
 	if mysql.Logging { log.Stdout("Reset statement called") }
 	// Reset error/sequence vars
 	mysql.reset()
+	stmt.reset()
 	// Send command
 	mysql.command(COM_STMT_RESET, stmt.StatementId)
 	if mysql.Errno != 0 {
@@ -189,6 +196,14 @@ func (stmt *MySQLStatement) Reset() bool {
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] Sent reset statement command to server") }
 	return true
+}
+
+/**
+ * Clear error status
+ */
+func (stmt *MySQLStatement) reset() {
+	stmt.Errno = 0
+	stmt.Error = ""
 }
 
 /**
