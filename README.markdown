@@ -1,17 +1,18 @@
-GoMySQL Version 0.1.7
+GoMySQL Version 0.1.8
 =====================
 
 Revision History
 ----------------
 
-* 0.1.7 - Added prepared statement support
-* 0.1.6 - Added Ping function
-* 0.1.5 - Clean up packet visibility all should have been private, add packet handlers for prepare/execute and related packets
-* 0.1.4 - Connect now uses ...interface{} for parameters to remove (or reduce) 'junk' required params to call the function
-* 0.1.3 - Added ChangeDb function to change the active database
-* 0.1.2 - Added MultiQuery function to return mutliple result sets as an array
-* 0.1.1 - Added support for multiple queries in a single command
-* 0.1.0 - Initial release, supporting connect, close and query functions
+* 0.1.8 - Added internal mutex to make client operations thread safe.
+* 0.1.7 - Added prepared statement support.
+* 0.1.6 - Added Ping function.
+* 0.1.5 - Clean up packet visibility all should have been private, add packet handlers for prepare/execute and related packets.
+* 0.1.4 - Connect now uses ...interface{} for parameters to remove (or reduce) 'junk' required params to call the function.
+* 0.1.3 - Added ChangeDb function to change the active database.
+* 0.1.2 - Added MultiQuery function to return mutliple result sets as an array.
+* 0.1.1 - Added support for multiple queries in a single command.
+* 0.1.0 - Initial release, supporting connect, close and query functions.
 
 
 To Do
@@ -33,6 +34,16 @@ Compatability
 -------------
 
 Implements the MySQL protocol version 4.1 so should work with MySQL server versions 4.1, 5.0, 5.1 and future releases.
+
+
+Thread Safety
+-------------
+
+As of version 0.1.8 all client functions (including statements) should be thread safe.
+At the time of writing this has been tested with the following configurations:
+
+* GOMAXPROCS=1, 2 goroutines, 4 goroutines
+* GOMAXPROCS=2, 2 goroutines, 4 goroutines
 
 
 Installation
