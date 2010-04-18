@@ -174,6 +174,16 @@ Example:
 MySQL Statement Functions
 -------------------------
 
+**MySQLStatement.Errno** - Error number for last operation  
+ 
+**MySQLStatement.Error** - Error description for last operation  
+
+**MySQLStatement.StatementId** - The statement id
+
+**MySQLStatement.Params** - Array of param data [not implemented]
+
+**MySQLStatement.ParamCount** - Number of params in the current statement
+
 **MySQLStatement.Prepare(sql string)**
 
 Prepare a query.  
@@ -253,6 +263,7 @@ Date/time: date, datetime, timestamp
 Error handling
 --------------
 
-Almost all errors are handled internally and populate the Errno and Error properties of MySQL, as of 0.1.7 this includes connect errors.
+Almost all errors are handled internally and populate the Errno and Error properties of MySQL, as of 0.1.7 this includes connect errors. 
+Prepared statements have their own copy of the Errno and Error properties.  
 Generated errors attempt to follow MySQL protocol/specifications as closely as possible.  
 If a function returns a negative value (e.g. false or nil) the Errno and Error properties can be checked for details of the error.
