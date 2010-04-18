@@ -80,12 +80,12 @@ func (stmt *MySQLStatement) Prepare(sql string) bool {
  */
 func (stmt *MySQLStatement) BindParams(params ...interface{}) bool {
 	mysql := stmt.mysql
+	if mysql.Logging { log.Stdout("Bind params called") }
 	// Check statement has been prepared
 	if !stmt.prepared {
 		stmt.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
 		return false
 	}
-	if mysql.Logging { log.Stdout("Bind params called") }
 	// Reset error/sequence vars
 	mysql.reset()
 	stmt.reset()
@@ -105,7 +105,10 @@ func (stmt *MySQLStatement) BindParams(params ...interface{}) bool {
  */
 func (stmt *MySQLStatement) Execute() *MySQLResult {
 	mysql := stmt.mysql
-	var err os.Error
+	if mysql.Logging { log.Stdout("Execute statement called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Check statement has been prepared
 	if !stmt.prepared {
 		stmt.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
@@ -116,10 +119,6 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 		stmt.error(CR_PARAMS_NOT_BOUND, CR_PARAMS_NOT_BOUND_STR)
 		return nil
 	}
-	if mysql.Logging { log.Stdout("Execute statement called") }
-	// Lock mutex and defer unlock
-	mysql.mutex.Lock()
-	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	stmt.reset()
@@ -132,11 +131,11 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 	pkt.encodeNullBits(stmt.paramData)
 	if stmt.paramsRebound {
 		pkt.newParamBound = 1
+		pkt.encodeParams(stmt.paramData)
 	} else {
 		pkt.newParamBound = 0
 	}
-	pkt.encodeParams(stmt.paramData)
-	err = pkt.write(mysql.writer)
+	err := pkt.write(mysql.writer)
 	if err != nil {
 		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 		return nil
@@ -155,6 +154,7 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 			break
 		}
 	}
+	stmt.paramsRebound = false
 	return stmt.result
 }
 
@@ -163,15 +163,15 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
  */
 func (stmt *MySQLStatement) Close() bool {
 	mysql := stmt.mysql
+	if mysql.Logging { log.Stdout("Close statement called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Check statement has been prepared
 	if !stmt.prepared {
 		stmt.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
 		return false
 	}
-	if mysql.Logging { log.Stdout("Close statement called") }
-	// Lock mutex and defer unlock
-	mysql.mutex.Lock()
-	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	stmt.reset()
@@ -189,15 +189,15 @@ func (stmt *MySQLStatement) Close() bool {
  */
 func (stmt *MySQLStatement) Reset() bool {
 	mysql := stmt.mysql
+	if mysql.Logging { log.Stdout("Reset statement called") }
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Check statement has been prepared
 	if !stmt.prepared {
 		stmt.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
 		return false
 	}
-	if mysql.Logging { log.Stdout("Reset statement called") }
-	// Lock mutex and defer unlock
-	mysql.mutex.Lock()
-	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	stmt.reset()
