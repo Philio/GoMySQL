@@ -64,7 +64,9 @@ type MySQLServerInfo struct {
 func New(logging bool) (mysql *MySQL) {
 	// Create and return a new instance of MySQL
 	mysql = new(MySQL)
+	// Setup mutex
 	mysql.mutex = new(sync.Mutex)
+	// Enable/disable logging
 	if (logging) {
 		mysql.Logging = true
 	}
@@ -75,8 +77,9 @@ func New(logging bool) (mysql *MySQL) {
  * Connect to a server
  */
 func (mysql *MySQL) Connect(params ...interface{}) bool {
-	if mysql.connected { return false }
 	if mysql.Logging { log.Stdout("Connect called") }
+	// If already connected return
+	if mysql.connected { return false }
 	// Reset error/sequence vars
 	mysql.reset()
 	// Check min number of params
@@ -113,8 +116,9 @@ func (mysql *MySQL) Connect(params ...interface{}) bool {
  * Close the connection to the server
  */
 func (mysql *MySQL) Close() bool {
-	if !mysql.connected { return false }
 	if mysql.Logging { log.Stdout("Close called") }
+	// If not connected return
+	if !mysql.connected { return false }
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
 	defer mysql.mutex.Unlock()
@@ -137,8 +141,9 @@ func (mysql *MySQL) Close() bool {
  * Perform SQL query
  */
 func (mysql *MySQL) Query(sql string) *MySQLResult {
-	if !mysql.connected { return nil }
 	if mysql.Logging { log.Stdout("Query called") }
+	// If not connected return
+	if !mysql.connected { return nil }
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
 	defer mysql.mutex.Unlock()
@@ -169,8 +174,9 @@ func (mysql *MySQL) Query(sql string) *MySQLResult {
  * Perform SQL query with multiple result sets
  */
 func (mysql *MySQL) MultiQuery(sql string) []*MySQLResult {
-	if !mysql.connected { return nil }
 	if mysql.Logging { log.Stdout("MultiQuery called") }
+	// If not connected return
+	if !mysql.connected { return nil }
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
 	defer mysql.mutex.Unlock()
@@ -201,8 +207,9 @@ func (mysql *MySQL) MultiQuery(sql string) []*MySQLResult {
  * Change database
  */
 func (mysql *MySQL) ChangeDb(dbname string) bool {
-	if !mysql.connected { return false }
 	if mysql.Logging { log.Stdout("ChangeDb called") }
+	// If not connected return
+	if !mysql.connected { return false }
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
 	defer mysql.mutex.Unlock()
@@ -226,8 +233,9 @@ func (mysql *MySQL) ChangeDb(dbname string) bool {
  * Ping server
  */
 func (mysql *MySQL) Ping() bool {
-	if !mysql.connected { return false }
 	if mysql.Logging { log.Stdout("Ping called") }
+	// If not connected return
+	if !mysql.connected { return false }
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
 	defer mysql.mutex.Unlock()
@@ -251,8 +259,9 @@ func (mysql *MySQL) Ping() bool {
  * Initialise a new statement
  */
 func (mysql *MySQL) InitStmt() *MySQLStatement {
-	if !mysql.connected { return nil }
 	if mysql.Logging { log.Stdout("Initialise statement called") }
+	// If not connected return
+	if !mysql.connected { return nil }
 	// Create new statement and prepare query
 	stmt := new(MySQLStatement)
 	stmt.mysql = mysql
