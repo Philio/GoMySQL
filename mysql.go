@@ -505,9 +505,7 @@ func (mysql *MySQL) getResult() {
 			} else {
 				curRows := mysql.curRes.Rows
 				mysql.curRes.Rows = make([]*MySQLRow, mysql.curRes.RowCount + 1)
-				for key, val := range curRows {
-					mysql.curRes.Rows[key] = val
-				}
+				copy(mysql.curRes.Rows, curRows)
 				mysql.curRes.Rows[mysql.curRes.RowCount] = row
 			}
 			// Increment row count
@@ -551,9 +549,7 @@ func (mysql *MySQL) addResult() {
 	} else {
 		curRes := mysql.result
 		mysql.result = make([]*MySQLResult, mysql.pointer + 1)
-		for key, val := range curRes {
-			mysql.result[key] = val
-		}
+		copy(mysql.result, curRes)
 		mysql.result[mysql.pointer] = mysql.curRes
 	}
 	if mysql.Logging { log.Stdout("Current result set saved") }
