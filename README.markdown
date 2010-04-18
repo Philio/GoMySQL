@@ -176,16 +176,49 @@ MySQL Statement Functions
 
 **MySQLStatement.Prepare(sql string)**
 
-Prepare a query
-Returns true on success or false on failure
+Prepare a query.  
+Returns true on success or false on failure.
+
+Example:
+
+`ok := stmt.Prepare("SELECT a, b, c FROM table1 WHERE a > ? OR b < ?)`
 
 **MySQLStatement.BindParams(params)**
 
+Bind params to a query, the number of params should equal the number of ?'s in the query sent to prepare.  
+Returns true on success or false on failure.  
+*Please read limitations section below for supported param types*
+
+Example:
+
+`ok := stmt.BindParams(10, 15)`
+
 **MySQLStatement.Execute()**
+
+Execute the prepared query.  
+Returns a MySQLResult object on success or nil on failure, data contained within result object varies depending on query type.
+
+Example:
+
+`res := stmt.Execute()`
 
 **MySQLStatement.Reset()**
 
+Reset the statement.  
+Returns true on success or false on failure.
+
+Example:
+
+`ok := stmt.Reset()`
+
 **MySQLStatement.Close()**
+
+Close the statement.  
+Returns true on success or false on failure.
+
+Example:
+
+`ok := stmt.Close()`
 
 
 Prepared Statement Limitations
