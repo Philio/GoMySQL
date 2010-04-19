@@ -89,23 +89,24 @@ func (mysql *MySQL) Connect(params ...interface{}) bool {
 	// Parse params
 	host, username, password, dbname, port, socket := mysql.parseParams(params)
 	// Connect to server
-	mysql.connect(host, port, socket)
-	if mysql.Errno != 0 {
+	var err os.Error
+	err = mysql.connect(host, port, socket)
+	if err != nil {
 		return false
 	}
 	// Get init packet from server
-	mysql.init()
-	if mysql.Errno != 0 {
+	err = mysql.init()
+	if err != nil {
 		return false
 	}
 	// Send authenticate packet
-	mysql.authenticate(username, password, dbname)
-	if mysql.Errno != 0 {
+	err = mysql.authenticate(username, password, dbname)
+	if err != nil {
 		return false
 	}
 	// Get result packet
-	mysql.getResult()
-	if mysql.Errno != 0 {
+	err = mysql.getResult()
+	if err != nil {
 		return false
 	}
 	mysql.connected = true
@@ -125,8 +126,9 @@ func (mysql *MySQL) Close() bool {
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send quit command
-	mysql.command(COM_QUIT, "")
-	if mysql.Errno != 0 {
+	var err os.Error
+	err = mysql.command(COM_QUIT, "")
+	if err != nil {
 		return false
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent quit command to server") }
@@ -150,16 +152,17 @@ func (mysql *MySQL) Query(sql string) *MySQLResult {
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send query command
-	mysql.command(COM_QUERY, sql)
-	if mysql.Errno != 0 {
+	var err os.Error
+	err = mysql.command(COM_QUERY, sql)
+	if err != nil {
 		return nil
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent query command to server") }
 	// Get result packet(s)
 	for {
 		// Get result packet
-		mysql.getResult()
-		if mysql.Errno != 0 {
+		err = mysql.getResult()
+		if err != nil {
 			return nil
 		}
 		// If buffer is empty break loop
@@ -183,16 +186,17 @@ func (mysql *MySQL) MultiQuery(sql string) []*MySQLResult {
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send query command
-	mysql.command(COM_QUERY, sql)
-	if mysql.Errno != 0 {
+	var err os.Error
+	err = mysql.command(COM_QUERY, sql)
+	if err != nil {
 		return nil
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent query command to server") }
 	// Get result packet(s)
 	for {
 		// Get result packet
-		mysql.getResult()
-		if mysql.Errno != 0 {
+		err = mysql.getResult()
+		if err != nil {
 			return nil
 		}
 		// If buffer is empty break loop
@@ -216,14 +220,15 @@ func (mysql *MySQL) ChangeDb(dbname string) bool {
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send command
-	mysql.command(COM_INIT_DB, dbname)
-	if mysql.Errno != 0 {
+	var err os.Error
+	err = mysql.command(COM_INIT_DB, dbname)
+	if err != nil {
 		return false
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent change db command to server") }
 	// Get result packet
-	mysql.getResult()
-	if mysql.Errno != 0 {
+	err = mysql.getResult()
+	if err != nil {
 		return false
 	}
 	return true
@@ -242,14 +247,15 @@ func (mysql *MySQL) Ping() bool {
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send command
-	mysql.command(COM_PING)
-	if mysql.Errno != 0 {
+	var err os.Error
+	err = mysql.command(COM_PING)
+	if err != nil {
 		return false
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent ping command to server") }
 	// Get result packet
-	mysql.getResult()
-	if mysql.Errno != 0 {
+	err = mysql.getResult()
+	if err != nil {
 		return false
 	}
 	return true
@@ -313,14 +319,14 @@ func (mysql *MySQL) parseParams(p []interface{}) (host, username, password, dbna
 /**
  * Create connection to server using unix socket or tcp/ip then setup buffered reader/writer
  */
-func (mysql *MySQL) connect(host string, port int, socket string) {
-	var err os.Error
+func (mysql *MySQL) connect(host string, port int, socket string) (err os.Error) {
 	// Connect via unix socket
 	if host == "localhost" || host == "127.0.0.1" {
 		mysql.conn, err = net.Dial("unix", "", socket);
 		// On error set the connect error details
 		if err != nil {
 			mysql.error(CR_CONNECTION_ERROR, fmt.Sprintf(CR_CONNECTION_ERROR_STR, socket))
+			return
 		}
 		if mysql.Logging { log.Stdout("Connected using unix socket") }
 	// Connect via TCP
@@ -329,19 +335,20 @@ func (mysql *MySQL) connect(host string, port int, socket string) {
 		// On error set the connect error details
 		if err != nil {
 			mysql.error(CR_CONN_HOST_ERROR, fmt.Sprintf(CR_CONN_HOST_ERROR_STR, host, port))
+			return
 		}
 		if mysql.Logging { log.Stdout("Connected using TCP/IP") }
 	}
 	// Setup reader and writer
 	mysql.reader = bufio.NewReader(mysql.conn)
 	mysql.writer = bufio.NewWriter(mysql.conn)
+	return nil
 }
 
 /**
  * Read initial packet from server and populate server information
  */
-func (mysql *MySQL) init() {
-	var err os.Error
+func (mysql *MySQL) init() (err os.Error) {
 	// Get header
 	hdr := new(packetHeader)
 	err = hdr.read(mysql.reader)
@@ -373,13 +380,13 @@ func (mysql *MySQL) init() {
 	mysql.serverInfo.status		 = pkt.serverStatus
 	// Increment sequence
 	mysql.sequence ++
+	return nil
 }
 
 /**
  * Send authentication packet to the server
  */
-func (mysql *MySQL) authenticate(username, password, dbname string) {
-	var err os.Error
+func (mysql *MySQL) authenticate(username, password, dbname string) (err os.Error) {
 	pkt := new(packetAuth)
 	// Set client flags
 	pkt.clientFlags = CLIENT_LONG_PASSWORD
@@ -408,17 +415,18 @@ func (mysql *MySQL) authenticate(username, password, dbname string) {
 	err = pkt.write(mysql.writer)
 	if err != nil {
 		mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR)
+		return
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Sent auth packet to server") }
 	// Increment sequence
 	mysql.sequence ++
+	return nil
 }
 
 /**
  * Generic function to determine type of result packet received and process it
  */
-func (mysql *MySQL) getResult() {
-	var err os.Error
+func (mysql *MySQL) getResult() (err os.Error) {
 	// Get header and validate header info
 	hdr := new(packetHeader)
 	err = hdr.read(mysql.reader)
@@ -565,6 +573,7 @@ func (mysql *MySQL) getResult() {
 	}
 	// Increment sequence
 	mysql.sequence ++
+	return nil
 }
 
 /**
@@ -590,8 +599,7 @@ func (mysql *MySQL) addResult() {
 /**
  * Send a command to the server
  */
-func (mysql *MySQL) command(command byte, args ...interface{}) {
-	var err os.Error
+func (mysql *MySQL) command(command byte, args ...interface{}) (err os.Error) {
 	pkt := new(packetCommand)
 	pkt.command = command
 	pkt.args = args
@@ -602,6 +610,7 @@ func (mysql *MySQL) command(command byte, args ...interface{}) {
 	}
 	// Increment sequence
 	mysql.sequence ++
+	return nil
 }
 
 /**
