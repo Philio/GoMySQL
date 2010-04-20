@@ -946,34 +946,50 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				if err != nil { return err }
 				// Year
 				year, err := pkt.readNumber(reader, 2)
+				dateStr := strconv.Uitoa64(year) + "-"
 				if err != nil { return err }
 				// Month
 				c, err := reader.ReadByte()
 				if err != nil { return err }
 				month := uint64(c)
+				if month < 10 {
+					dateStr += "0"
+				}
+				dateStr += strconv.Uitoa64(month) + "-"
 				// Day
 				c, err = reader.ReadByte()
 				if err != nil { return err }
 				day := uint64(c)
-				dateStr := strconv.Uitoa64(year) + "-"
-				if month < 10 {
+				if day < 10 {
 					dateStr += "0"
 				}
-				dateStr += strconv.Uitoa64(month) + "-" + strconv.Uitoa64(day)
+				dateStr += strconv.Uitoa64(day)
 				if num > 4 {
+					dateStr += " "
 					// Hour
 					c, err = reader.ReadByte()
 					if err != nil { return err }
 					hour := uint64(c)
+					if hour < 10 {
+						dateStr += "0"
+					}
+					dateStr += strconv.Uitoa64(hour) + ":"
 					// Minute
 					c, err = reader.ReadByte()
 					if err != nil { return err }
 					mins := uint64(c)
+					if mins < 10 {
+						dateStr += "0"
+					}
+					dateStr += strconv.Uitoa64(mins) + ":"
 					// Seconds
 					c, err = reader.ReadByte()
 					if err != nil { return err }
 					secs := uint64(c)
-					dateStr += " " + strconv.Uitoa64(hour) + ":" + strconv.Uitoa64(mins) + ":" + strconv.Uitoa64(secs)
+					if secs < 10 {
+						dateStr += "0"
+					}
+					dateStr += strconv.Uitoa64(secs)
 				}
 				pkt.values[i] = dateStr
 				if num > 7 {
