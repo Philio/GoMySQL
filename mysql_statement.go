@@ -106,6 +106,7 @@ func (stmt *MySQLStatement) BindParams(params ...interface{}) bool {
 func (stmt *MySQLStatement) Execute() *MySQLResult {
 	mysql := stmt.mysql
 	if mysql.Logging { log.Stdout("Execute statement called") }
+	log.Stdout(mysql.writer.Available())
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
 	defer mysql.mutex.Unlock()

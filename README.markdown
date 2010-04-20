@@ -1,9 +1,10 @@
-GoMySQL Version 0.1.8
+GoMySQL Version 0.1.9
 =====================
 
 Revision History
 ----------------
 
+* 0.1.9 - Small code tweaks, change to execute packets to allow params to contain up to 4096 bytes of data.
 * 0.1.8 - Added internal mutex to make client operations thread safe.
 * 0.1.7 - Added prepared statement support.
 * 0.1.6 - Added Ping function.
@@ -19,7 +20,8 @@ To Do
 -----
 
 * Continue to add support for additional binary format options
-* Add support for long data packets (long strings / blobs)
+* Add support for long data packets (long strings / blobs)Physical Attributes of Columns
+* Packets that are likely to exceed the 4096 byte write buffer need to be split up
 
 
 About

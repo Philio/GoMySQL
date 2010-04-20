@@ -30,7 +30,7 @@ type MySQLResult struct {
 /**
  * Fetch the current row (as an array)
  */
-func (res *MySQLResult) FetchRow() []string {
+func (res *MySQLResult) FetchRow() []interface{} {
 	if res.RowCount > 0 {
 		if len(res.Rows) > res.pointer {
 			row := res.Rows[res.pointer].Data
@@ -44,11 +44,11 @@ func (res *MySQLResult) FetchRow() []string {
 /**
  * Fetch a map of the current row
  */
-func (res *MySQLResult) FetchMap() map[string] string {
+func (res *MySQLResult) FetchMap() map[string] interface{} {
 	if res.RowCount > 0 {
 		if len(res.Rows) > res.pointer {
 			row := res.Rows[res.pointer].Data
-			rowMap := make(map[string] string)
+			rowMap := make(map[string] interface{})
 			for key, val := range row {
 				rowMap[res.Fields[key].Name] = val
 			}
@@ -57,6 +57,13 @@ func (res *MySQLResult) FetchMap() map[string] string {
 		}
 	}
 	return nil
+}
+
+/**
+ * Reset pointer
+ */
+func (res *MySQLResult) Reset() {
+	res.pointer = 0
 }
 
 /**
@@ -153,5 +160,5 @@ func (field *MySQLFieldFlags) process(flags uint16) {
  * Row definition
  */
 type MySQLRow struct {
-	Data		[]string
+	Data		[]interface{}
 }

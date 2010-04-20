@@ -11,7 +11,6 @@ import (
 	"os"
 	"crypto/sha1"
 	"reflect"
-	"strings"
 	"strconv"
 	"math"
 )
@@ -489,7 +488,7 @@ type packetRowData struct {
 	packetFunctions
 	fieldCount	uint64
 	nullBitMap	byte
-	values		[]string
+	values		[]interface{}
 }
 
 /**
@@ -505,7 +504,7 @@ func (pkt *packetRowData) read(reader *bufio.Reader) (err os.Error) {
 		reader.UnreadByte()
 	}
 	// Read field values
-	pkt.values = make([]string, pkt.fieldCount)
+	pkt.values = make([]interface{}, pkt.fieldCount)
 	for i := 0; i < int(pkt.fieldCount); i ++ {
 		pkt.values[i], _, err = pkt.readlengthCodedString(reader)
 		if err != nil { return err }
@@ -826,23 +825,26 @@ func (pkt *packetExecute) write(writer *bufio.Writer) (err os.Error) {
 			if err != nil { return err }
 		}
 	}
+	// Flush prior to sending params
+	err = writer.Flush()
+	if err != nil { return err }
 	// Write param data
 	if len(pkt.paramData) > 0 {
 		for _, paramData := range pkt.paramData {
 			_, err = writer.Write(paramData)
 			if err != nil { return err }
+			// Flush after each param to ensure buffer isn't full
+			err = writer.Flush()
+			if err != nil { return err }
 		}
 	}
-	// Flush
-	err = writer.Flush()
-	if err != nil { return err }
 	return
 }
 
 type packetBinaryRowData struct {
 	packetFunctions
 	fields		[]*MySQLField
-	values		[]string
+	values		[]interface{}
 }
 
 func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
@@ -856,7 +858,7 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 		}
 	}
 	// Allocate memory
-	pkt.values = make([]string, len(pkt.fields))
+	pkt.values = make([]interface{}, len(pkt.fields))
 	// Read data for each field
 	for i, field := range pkt.fields {
 		switch field.Type {
@@ -865,47 +867,47 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				num, err := reader.ReadByte()
 				if err != nil { return err }
 				if field.Flags.Unsigned {
-					pkt.values[i] = strconv.Uitoa64(uint64(num))
+					pkt.values[i] = uint8(num)
 				} else {
-					pkt.values[i] = strconv.Itoa64(int64(int8(num)))
+					pkt.values[i] = int8(num)
 				}
 			// Small int (16 bit int unsigned or signed)
 			case FIELD_TYPE_SHORT:
 				num, err := pkt.readNumber(reader, 2)
 				if err != nil { return err }
 				if field.Flags.Unsigned {
-					pkt.values[i] = strconv.Uitoa64(uint64(num))
+					pkt.values[i] = uint16(num)
 				} else {
-					pkt.values[i] = strconv.Itoa64(int64(int16(num)))
+					pkt.values[i] = int16(num)
 				}
 			// Int (32 bit int unsigned or signed)
 			case FIELD_TYPE_LONG:
 				num, err := pkt.readNumber(reader, 4)
 				if err != nil { return err }
 				if field.Flags.Unsigned {
-					pkt.values[i] = strconv.Uitoa64(uint64(num))
+					pkt.values[i] = uint32(num)
 				} else {
-					pkt.values[i] = strconv.Itoa64(int64(int32(num)))
+					pkt.values[i] = int32(num)
 				}
 			// Big int (64 bit int unsigned or signed)
 			case FIELD_TYPE_LONGLONG:
 				num, err := pkt.readNumber(reader, 8)
 				if err != nil { return err }
 				if field.Flags.Unsigned {
-					pkt.values[i] = strconv.Uitoa64(num)
+					pkt.values[i] = num
 				} else {
-					pkt.values[i] = strconv.Itoa64(int64(num))
+					pkt.values[i] = int64(num)
 				}
 			// Floats (Single precision floating point, 32 bit signed)
 			case FIELD_TYPE_FLOAT:
 				num, err := pkt.readNumber(reader, 4)
 				if err != nil { return err }
-				pkt.values[i] = strings.TrimRight(strconv.Ftoa32(math.Float32frombits(uint32(num)), 'f', 5), "0")
+				pkt.values[i] = math.Float32frombits(uint32(num))
 			// Double (Double precision floating point, 64 bit signed)
 			case FIELD_TYPE_DOUBLE:
 				num, err := pkt.readNumber(reader, 8)
 				if err != nil { return err }
-				pkt.values[i] = strings.TrimRight(strconv.Ftoa64(math.Float64frombits(num), 'f', 14), "0")
+				pkt.values[i] = math.Float64frombits(num)
 			// Strings, all length coded binary strings
 			case FIELD_TYPE_VARCHAR, FIELD_TYPE_TINY_BLOB, FIELD_TYPE_MEDIUM_BLOB, FIELD_TYPE_LONG_BLOB,
 			     FIELD_TYPE_BLOB, FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING:
@@ -927,11 +929,11 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				c, err = reader.ReadByte()
 				if err != nil { return err }
 				day := uint64(c)
-				pkt.values[i] = strconv.Uitoa64(year) + "-"
+				dateStr := strconv.Uitoa64(year) + "-"
 				if month < 10 {
-					pkt.values[i] += "0"
+					dateStr += "0"
 				}
-				pkt.values[i] += strconv.Uitoa64(month) + "-" + strconv.Uitoa64(day)
+				dateStr += strconv.Uitoa64(month) + "-" + strconv.Uitoa64(day)
 				if num > 4 {
 					// Hour
 					c, err = reader.ReadByte()
@@ -945,8 +947,9 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 					c, err = reader.ReadByte()
 					if err != nil { return err }
 					secs := uint64(c)
-					pkt.values[i] += " " + strconv.Uitoa64(hour) + ":" + strconv.Uitoa64(mins) + ":" + strconv.Uitoa64(secs)
+					dateStr += " " + strconv.Uitoa64(hour) + ":" + strconv.Uitoa64(mins) + ":" + strconv.Uitoa64(secs)
 				}
+				pkt.values[i] = dateStr
 				if num > 7 {
 					err = pkt.readFill(reader, int(num - 7))
 					if err != nil { return err }
