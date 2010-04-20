@@ -486,7 +486,7 @@ func (pkt *packetField) read(reader *bufio.Reader) (err os.Error) {
  */
 type packetRowData struct {
 	packetFunctions
-	fieldCount	uint64
+	fields		[]*MySQLField
 	nullBitMap	byte
 	values		[]interface{}
 }
@@ -503,11 +503,37 @@ func (pkt *packetRowData) read(reader *bufio.Reader) (err os.Error) {
 	} else {
 		reader.UnreadByte()
 	}
-	// Read field values
-	pkt.values = make([]interface{}, pkt.fieldCount)
-	for i := 0; i < int(pkt.fieldCount); i ++ {
-		pkt.values[i], _, err = pkt.readlengthCodedString(reader)
+	// Allocate memory
+	pkt.values = make([]interface{}, len(pkt.fields))
+	// Read data for each field
+	for i, field := range pkt.fields {
+		str, _, err := pkt.readlengthCodedString(reader)
 		if err != nil { return err }
+		switch field.Type {
+			// Strings and everythign else, keep as string
+			default:
+				pkt.values[i] = str
+			// Tiny, small + med int convert into (u)int
+			case FIELD_TYPE_TINY, FIELD_TYPE_SHORT, FIELD_TYPE_LONG:
+				if field.Flags.Unsigned {
+					pkt.values[i], _ = strconv.Atoui(str)
+				} else {
+					pkt.values[i], _ = strconv.Atoi(str)
+				}
+			// Big int convert to (u)int64
+			case FIELD_TYPE_LONGLONG:
+				if field.Flags.Unsigned {
+					pkt.values[i], _ = strconv.Atoui64(str)
+				} else {
+					pkt.values[i], _ = strconv.Atoi64(str)
+				}
+			// Floats
+			case FIELD_TYPE_FLOAT:
+				pkt.values[i], _ = strconv.Atof32(str)
+			// Double
+			case FIELD_TYPE_DOUBLE:
+				pkt.values[i], _ = strconv.Atof64(str)
+		}		
 	}
 	return nil
 }

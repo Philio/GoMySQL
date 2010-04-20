@@ -526,7 +526,7 @@ func (mysql *MySQL) getResult() (err os.Error) {
 		case c >= 0x01 && c <= 0xfa && !mysql.curRes.rowsEOF:
 			pkt := new(packetRowData)
 			pkt.header = hdr
-			pkt.fieldCount = mysql.curRes.FieldCount
+			pkt.fields = mysql.curRes.Fields
 			err = pkt.read(mysql.reader)
 			if err != nil {
 				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
