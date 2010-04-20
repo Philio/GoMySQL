@@ -54,7 +54,7 @@ func (stmt *MySQLStatement) Prepare(sql string) bool {
 	mysql.reset()
 	stmt.reset()
 	// Send command
-	err := mysql.command(COM_STMT_PREPARE, sql)
+	err := stmt.command(COM_STMT_PREPARE, sql)
 	if err != nil {
 		return false
 	}
@@ -178,7 +178,7 @@ func (stmt *MySQLStatement) Close() bool {
 	stmt.reset()
 	// Send command
 	var err os.Error
-	err = mysql.command(COM_STMT_CLOSE, stmt.StatementId)
+	err = stmt.command(COM_STMT_CLOSE, stmt.StatementId)
 	if err != nil {
 		return false
 	}
@@ -205,7 +205,7 @@ func (stmt *MySQLStatement) Reset() bool {
 	stmt.reset()
 	// Send command
 	var err os.Error
-	err = mysql.command(COM_STMT_RESET, stmt.StatementId)
+	err = stmt.command(COM_STMT_RESET, stmt.StatementId)
 	if err != nil {
 		return false
 	}
