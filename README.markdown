@@ -189,7 +189,7 @@ MySQL Result Functions
 **MySQLResult.FetchRow()**
 
 Get the next row in the resut set.  
-Returns a string array or nil if there are no more rows.
+Returns an array or nil if there are no more rows.
 
 Example:
 
