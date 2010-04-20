@@ -54,16 +54,16 @@ func (stmt *MySQLStatement) Prepare(sql string) bool {
 	mysql.reset()
 	stmt.reset()
 	// Send command
-	mysql.command(COM_STMT_PREPARE, sql)
-	if mysql.Errno != 0 {
+	err := mysql.command(COM_STMT_PREPARE, sql)
+	if err != nil {
 		return false
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] Sent prepare command to server") }
 	// Get result packet(s)
 	for {
 		// Get result packet
-		stmt.getPrepareResult()
-		if mysql.Errno != 0 {
+		err := stmt.getPrepareResult()
+		if err != nil {
 			return false
 		}
 		// If buffer is empty break loop
@@ -123,6 +123,7 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 	mysql.reset()
 	stmt.reset()
 	// Construct packet
+	var err os.Error
 	pkt := new(packetExecute)
 	pkt.command        = COM_STMT_EXECUTE
 	pkt.statementId    = stmt.StatementId
@@ -135,7 +136,7 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 	} else {
 		pkt.newParamBound = 0
 	}
-	err := pkt.write(mysql.writer)
+	err = pkt.write(mysql.writer)
 	if err != nil {
 		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 		return nil
@@ -145,8 +146,8 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 	// Get result packet(s)
 	for {
 		// Get result packet
-		stmt.getExecuteResult()
-		if mysql.Errno != 0 {
+		err = stmt.getExecuteResult()
+		if err != nil {
 			return nil
 		}
 		// If buffer is empty break loop
@@ -176,8 +177,9 @@ func (stmt *MySQLStatement) Close() bool {
 	mysql.reset()
 	stmt.reset()
 	// Send command
-	mysql.command(COM_STMT_CLOSE, stmt.StatementId)
-	if mysql.Errno != 0 {
+	var err os.Error
+	err = mysql.command(COM_STMT_CLOSE, stmt.StatementId)
+	if err != nil {
 		return false
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] Sent close statement command to server") }
@@ -202,8 +204,9 @@ func (stmt *MySQLStatement) Reset() bool {
 	mysql.reset()
 	stmt.reset()
 	// Send command
-	mysql.command(COM_STMT_RESET, stmt.StatementId)
-	if mysql.Errno != 0 {
+	var err os.Error
+	err = mysql.command(COM_STMT_RESET, stmt.StatementId)
+	if err != nil {
 		return false
 	}
 	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] Sent reset statement command to server") }
@@ -221,9 +224,8 @@ func (stmt *MySQLStatement) reset() {
 /**
  * Function to read prepare result packets
  */
-func (stmt *MySQLStatement) getPrepareResult() {
+func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 	mysql := stmt.mysql
-	var err os.Error
 	// Get header and validate header info
 	hdr := new(packetHeader)
 	err = hdr.read(mysql.reader)
@@ -341,14 +343,14 @@ func (stmt *MySQLStatement) getPrepareResult() {
 	}
 	// Increment sequence
 	mysql.sequence ++
+	return nil
 }
 
 /**
  * Function to read execute result packets
  */
-func (stmt *MySQLStatement) getExecuteResult() {
+func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 	mysql := stmt.mysql
-	var err os.Error
 	// Get header and validate header info
 	hdr := new(packetHeader)
 	err = hdr.read(mysql.reader)
@@ -487,6 +489,25 @@ func (stmt *MySQLStatement) getExecuteResult() {
 	}
 	// Increment sequence
 	mysql.sequence ++
+	return nil
+}
+
+/**
+ * Send a command to the server
+ */
+func (stmt *MySQLStatement) command(command byte, args ...interface{}) (err os.Error) {
+	mysql := stmt.mysql
+	pkt := new(packetCommand)
+	pkt.command = command
+	pkt.args = args
+	err = pkt.write(mysql.writer)
+	if err != nil {
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		return
+	}
+	// Increment sequence
+	mysql.sequence ++
+	return nil
 }
 
 /**
