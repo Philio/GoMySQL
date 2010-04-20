@@ -1,19 +1,20 @@
-GoMySQL Version 0.1.9
-=====================
+GoMySQL Version 0.1.10
+======================
 
 Revision History
 ----------------
 
-* 0.1.9 - Small code tweaks, change to execute packets to allow params to contain up to 4096 bytes of data.
+* 0.1.10 - Changed row data to use interface{} instead of string, so rows contain data of the correct type.
+* 0.1.9 - Small code tweaks, change to execute packets to allow params to contain up to 4096 bytes of data. [not released]
 * 0.1.8 - Added internal mutex to make client operations thread safe.
 * 0.1.7 - Added prepared statement support.
 * 0.1.6 - Added Ping function.
 * 0.1.5 - Clean up packet visibility all should have been private, add packet handlers for prepare/execute and related packets.
-* 0.1.4 - Connect now uses ...interface{} for parameters to remove (or reduce) 'junk' required params to call the function.
-* 0.1.3 - Added ChangeDb function to change the active database.
-* 0.1.2 - Added MultiQuery function to return mutliple result sets as an array.
-* 0.1.1 - Added support for multiple queries in a single command.
-* 0.1.0 - Initial release, supporting connect, close and query functions.
+* 0.1.4 - Connect now uses ...interface{} for parameters to remove (or reduce) 'junk' required params to call the function. [not released]
+* 0.1.3 - Added ChangeDb function to change the active database. [not released]
+* 0.1.2 - Added MultiQuery function to return mutliple result sets as an array. [not released]
+* 0.1.1 - Added support for multiple queries in a single command. [not released]
+* 0.1.0 - Initial release, supporting connect, close and query functions. [not released]
 
 
 To Do
