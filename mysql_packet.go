@@ -996,7 +996,52 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 					err = pkt.readFill(reader, int(num - 7))
 					if err != nil { return err }
 				}
-					
+			// Time  (From libmysql/libmysql.c read_binary_time)
+			case FIELD_TYPE_TIME:
+				var dateStr string
+				num, _, err := pkt.readlengthCodedBinary(reader)
+				// Check if 0 bytes, just return 0 time format
+				if num == 0 {
+					pkt.values[i] = "00:00:00"
+					break
+				}
+				if err != nil { return err }
+				// Ignore first byte, corresponds to tm->neg in libmysql.c, unknown usage
+				err = pkt.readFill(reader, 1)
+				if err != nil { return err }
+				// Read day
+				day, err := pkt.readNumber(reader, 4)
+				if err != nil { return err }
+				// Hour
+				c, err := reader.ReadByte()
+				if err != nil { return err }
+				hour := uint64(c)
+				hour += day * 24
+				if hour < 10 {
+					dateStr += "0"
+				}
+				dateStr += strconv.Uitoa64(hour) + ":"
+				// Minute
+				c, err = reader.ReadByte()
+				if err != nil { return err }
+				mins := uint64(c)
+				if mins < 10 {
+					dateStr += "0"
+				}
+				dateStr += strconv.Uitoa64(mins) + ":"
+				// Seconds
+				c, err = reader.ReadByte()
+				if err != nil { return err }
+				secs := uint64(c)
+				if secs < 10 {
+					dateStr += "0"
+				}
+				dateStr += strconv.Uitoa64(secs)
+				pkt.values[i] = dateStr
+				if num > 8 {
+					err = pkt.readFill(reader, int(num - 8))
+					if err != nil { return err }
+				}
 		}
 	}
 	return
