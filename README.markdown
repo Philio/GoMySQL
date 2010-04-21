@@ -1,9 +1,11 @@
-GoMySQL Version 0.1.10
+GoMySQL Version 0.1.11
 ======================
+
 
 Revision History
 ----------------
 
+* 0.1.11 - Added support for binary time fields, fixed missing zeros in time for datetime/timestamp fields.
 * 0.1.10 - Changed row data to use interface{} instead of string, so rows contain data of the correct type.
 * 0.1.9 - Small code tweaks, change to execute packets to allow params to contain up to 4096 bytes of data. [not released]
 * 0.1.8 - Added internal mutex to make client operations thread safe.
