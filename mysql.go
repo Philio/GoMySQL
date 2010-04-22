@@ -27,10 +27,12 @@ const (
  */
 type MySQL struct {
 	Logging		bool
+	Reconnect	bool
 
 	Errno		int
 	Error		string
 
+	auth		*MySQLAuth
 	conn		net.Conn
 	reader		*bufio.Reader
 	writer		*bufio.Writer
@@ -56,6 +58,18 @@ type MySQLServerInfo struct {
 	capabilities	uint16
 	language	uint8
 	status		uint16
+}
+
+/**
+ * Authentication infomation
+ */
+type MySQLAuth struct {
+	host		string
+	username	string
+	password	string
+	dbname		string
+	port		int
+	socket		string
 }
 
 /**
@@ -87,10 +101,10 @@ func (mysql *MySQL) Connect(params ...interface{}) bool {
 		return false
 	}
 	// Parse params
-	host, username, password, dbname, port, socket := mysql.parseParams(params)
+	mysql.parseParams(params)
 	// Connect to server
 	var err os.Error
-	err = mysql.connect(host, port, socket)
+	err = mysql.connect()
 	if err != nil {
 		return false
 	}
@@ -100,7 +114,7 @@ func (mysql *MySQL) Connect(params ...interface{}) bool {
 		return false
 	}
 	// Send authenticate packet
-	err = mysql.authenticate(username, password, dbname)
+	err = mysql.authenticate()
 	if err != nil {
 		return false
 	}
@@ -289,28 +303,29 @@ func (mysql *MySQL) reset() {
 /**
  * Parse params given to Connect()
  */
-func (mysql *MySQL) parseParams(p []interface{}) (host, username, password, dbname string, port int, socket string) {
+func (mysql *MySQL) parseParams(p []interface{}) {
+	mysql.auth = new(MySQLAuth)
 	// Assign default values
-	port   = DefaultPort
-	socket = DefaultSock
+	mysql.auth.port   = DefaultPort
+	mysql.auth.socket = DefaultSock
 	// Host / username are required
-	host = p[0].(string)
-	username = p[1].(string)
+	mysql.auth.host     = p[0].(string)
+	mysql.auth.username = p[1].(string)
 	// 3rd param should be a password
 	if len(p) > 2 {
-		password = p[2].(string)
+		mysql.auth.password = p[2].(string)
 	}
 	// 4th param should be a database name
 	if len(p) > 3 {
-		dbname = p[3].(string)
+		mysql.auth.dbname = p[3].(string)
 	}
 	// Reflect 5th param to determine if it is port or socket
 	if len(p) > 4 {
 		v := reflect.NewValue(p[4])
 		if v.Type().Name() == "int" {
-			port = v.Interface().(int)
+			mysql.auth.port = v.Interface().(int)
 		} else if v.Type().Name() == "string" {
-			socket = v.Interface().(string)
+			mysql.auth.socket = v.Interface().(string)
 		}
 	}
 	return
@@ -319,22 +334,22 @@ func (mysql *MySQL) parseParams(p []interface{}) (host, username, password, dbna
 /**
  * Create connection to server using unix socket or tcp/ip then setup buffered reader/writer
  */
-func (mysql *MySQL) connect(host string, port int, socket string) (err os.Error) {
+func (mysql *MySQL) connect() (err os.Error) {
 	// Connect via unix socket
-	if host == "localhost" || host == "127.0.0.1" {
-		mysql.conn, err = net.Dial("unix", "", socket);
+	if mysql.auth.host == "localhost" || mysql.auth.host == "127.0.0.1" {
+		mysql.conn, err = net.Dial("unix", "", mysql.auth.socket);
 		// On error set the connect error details
 		if err != nil {
-			mysql.error(CR_CONNECTION_ERROR, fmt.Sprintf(CR_CONNECTION_ERROR_STR, socket))
+			mysql.error(CR_CONNECTION_ERROR, fmt.Sprintf(CR_CONNECTION_ERROR_STR, mysql.auth.socket))
 			return
 		}
 		if mysql.Logging { log.Stdout("Connected using unix socket") }
 	// Connect via TCP
 	} else {
-		mysql.conn, err = net.Dial("tcp", "", fmt.Sprintf("%s:%d", host, port))
+		mysql.conn, err = net.Dial("tcp", "", fmt.Sprintf("%s:%d", mysql.auth.host, mysql.auth.port))
 		// On error set the connect error details
 		if err != nil {
-			mysql.error(CR_CONN_HOST_ERROR, fmt.Sprintf(CR_CONN_HOST_ERROR_STR, host, port))
+			mysql.error(CR_CONN_HOST_ERROR, fmt.Sprintf(CR_CONN_HOST_ERROR_STR, mysql.auth.host, mysql.auth.port))
 			return
 		}
 		if mysql.Logging { log.Stdout("Connected using TCP/IP") }
@@ -386,11 +401,11 @@ func (mysql *MySQL) init() (err os.Error) {
 /**
  * Send authentication packet to the server
  */
-func (mysql *MySQL) authenticate(username, password, dbname string) (err os.Error) {
+func (mysql *MySQL) authenticate() (err os.Error) {
 	pkt := new(packetAuth)
 	// Set client flags
 	pkt.clientFlags = CLIENT_LONG_PASSWORD
-	if len(dbname) > 0 {
+	if len(mysql.auth.dbname) > 0 {
 		pkt.clientFlags += CLIENT_CONNECT_WITH_DB
 	}
 	pkt.clientFlags += CLIENT_PROTOCOL_41
@@ -403,14 +418,14 @@ func (mysql *MySQL) authenticate(username, password, dbname string) (err os.Erro
 	// Set charset
 	pkt.charsetNumber = mysql.serverInfo.language
 	// Set username 
-	pkt.user = username
+	pkt.user = mysql.auth.username
 	// Set password
-	if len(password) > 0 {
+	if len(mysql.auth.password) > 0 {
 		// Encrypt password
-		pkt.encrypt(password, mysql.serverInfo.scrambleBuff)
+		pkt.encrypt(mysql.auth.password, mysql.serverInfo.scrambleBuff)
 	}
 	// Set database name
-	pkt.database = dbname
+	pkt.database = mysql.auth.dbname
 	// Write packet
 	err = pkt.write(mysql.writer)
 	if err != nil {
