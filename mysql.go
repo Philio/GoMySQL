@@ -27,7 +27,6 @@ const (
  */
 type MySQL struct {
 	Logging		bool
-	Reconnect	bool
 
 	Errno		int
 	Error		string
