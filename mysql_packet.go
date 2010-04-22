@@ -943,6 +943,15 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 			// Date/Datetime/Timestamp YYYY-MM-DD HH:MM:SS (From libmysql/libmysql.c read_binary_datetime)
 			case FIELD_TYPE_DATE, FIELD_TYPE_TIMESTAMP, FIELD_TYPE_DATETIME:
 				num, _, err := pkt.readlengthCodedBinary(reader)
+				// Check if 0 bytes, just return 0 date/time format
+				if num == 0 {
+					if field.Type == FIELD_TYPE_DATE {
+						pkt.values[i] = "0000-00-00"
+					} else {
+						pkt.values[i] = "0000-00-00 00:00:00"
+					}
+					break
+				}
 				if err != nil { return err }
 				// Year
 				year, err := pkt.readNumber(reader, 2)
