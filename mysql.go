@@ -75,15 +75,11 @@ type MySQLAuth struct {
 /**
  * Create a new instance of the package
  */
-func New(logging bool) (mysql *MySQL) {
+func New() (mysql *MySQL) {
 	// Create and return a new instance of MySQL
 	mysql = new(MySQL)
 	// Setup mutex
 	mysql.mutex = new(sync.Mutex)
-	// Enable/disable logging
-	if (logging) {
-		mysql.Logging = true
-	}
 	return
 }
 

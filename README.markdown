@@ -1,10 +1,11 @@
-GoMySQL Version 0.1.11
+GoMySQL Version 0.1.12
 ======================
 
 
 Revision History
 ----------------
 
+* 0.1.12 - Added auth struct to store authentication data. Removed logging param for New().
 * 0.1.11 - Added support for binary time fields, fixed missing zeros in time for datetime/timestamp fields.
 * 0.1.10 - Changed row data to use interface{} instead of string, so rows contain data of the correct type.
 * 0.1.9 - Small code tweaks, change to execute packets to allow params to contain up to 4096 bytes of data. [not released]
@@ -84,18 +85,19 @@ This installs the package as 'mysql' so can be importated as so:
 MySQL functions
 -------------------
 
+**MySQL.Logging** - Can be set to true or false to enable or disable logging.
+
 **MySQL.Errno** - Error number for last operation.  
  
 **MySQL.Error** - Error description for last operation.  
 
 **MySQL.New(logging bool)**
 
-Create a new MySQL instance, with or without logging enabled.
-Logging displays all packets sent to/from the server, useful for debugging.
+Create a new MySQL instance.
 
 Example:
 
-`db := mysql.New(false)`
+`db := mysql.New()`
 
 **MySQL.Connect(host string, username string, [password string, [dbname string, [port int || socket string]]])**
 
