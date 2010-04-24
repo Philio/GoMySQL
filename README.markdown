@@ -5,7 +5,7 @@ GoMySQL Version 0.1.12
 Revision History
 ----------------
 
-* 0.1.12 - Added auth struct to store authentication data. Removed logging param from New() in favour of just setting the public var. Added Reconnect() function. Bug fix in Query() causing panic for error packet responses.
+* 0.1.12 - Added auth struct to store authentication data. Removed logging param from New() in favour of just setting the public var. Added Reconnect() function. Bug fix in Query() causing panic for error packet responses. Added a number of examples.
 * 0.1.11 - Added support for binary time fields, fixed missing zeros in time for datetime/timestamp fields.
 * 0.1.10 - Changed row data to use interface{} instead of string, so rows contain data of the correct type.
 * 0.1.9 - Small code tweaks, change to execute packets to allow params to contain up to 4096 bytes of data. [not released]
