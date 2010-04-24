@@ -42,4 +42,6 @@ func main() {
 			fmt.Printf("%s:%v\n", key, value)
 		}
 	}
+	// Close connection
+	db.Close()
 }
