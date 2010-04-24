@@ -5,7 +5,7 @@ GoMySQL Version 0.1.12
 Revision History
 ----------------
 
-* 0.1.12 - Added auth struct to store authentication data. Removed logging param from New() in favour of just setting the public var.
+* 0.1.12 - Added auth struct to store authentication data. Removed logging param from New() in favour of just setting the public var. Added Reconnect() function. Bug fix in Query() causing panic for error packet responses.
 * 0.1.11 - Added support for binary time fields, fixed missing zeros in time for datetime/timestamp fields.
 * 0.1.10 - Changed row data to use interface{} instead of string, so rows contain data of the correct type.
 * 0.1.9 - Small code tweaks, change to execute packets to allow params to contain up to 4096 bytes of data. [not released]
@@ -91,7 +91,7 @@ MySQL functions
  
 **MySQL.Error** - Error description for last operation.  
 
-**MySQL.New(logging bool)**
+**MySQL.New()**
 
 Create a new MySQL instance.
 
@@ -113,6 +113,14 @@ Returns true on success or false on failure, error number and description can be
 Example:
 
 `connected := db.Connect("localhost", "user", "password", "database")`
+
+**MySQL.Reconnect()**
+
+Reconnect to the server using the credentials previously provided to Connect().
+
+Example:
+
+`connected := db.Reconnect()`
 
 **MySQL.Close()**
 
