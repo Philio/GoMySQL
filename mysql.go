@@ -183,7 +183,11 @@ func (mysql *MySQL) Query(sql string) *MySQLResult {
 			break
 		}
 	}
-	return mysql.result[0]
+	// If server sent result return it
+	if len(mysql.result) > 0 {
+		return mysql.result[0]
+	}
+	return nil
 }
 
 /**
@@ -217,6 +221,7 @@ func (mysql *MySQL) MultiQuery(sql string) []*MySQLResult {
 			break
 		}
 	}
+	// If server sent any results return them
 	return mysql.result
 }
 
