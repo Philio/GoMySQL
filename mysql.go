@@ -36,7 +36,7 @@ type MySQL struct {
 	reader		*bufio.Reader
 	writer		*bufio.Writer
 	sequence	uint8
-	connected	bool	
+	connected	bool
 	
 	serverInfo	*MySQLServerInfo
 	
@@ -98,27 +98,31 @@ func (mysql *MySQL) Connect(params ...interface{}) bool {
 	// Parse params
 	mysql.parseParams(params)
 	// Connect to server
-	var err os.Error
-	err = mysql.connect()
+	err := mysql.connect()
 	if err != nil {
 		return false
 	}
-	// Get init packet from server
-	err = mysql.init()
+	return true
+}
+
+/**
+ * Reconnect (if connection droppped etc)
+ */
+func (mysql *MySQL) Reconnect() bool {
+	// Check auth is set
+	if mysql.auth == nil { return false }
+	// Close connection (force down)
+	if mysql.connected {
+		mysql.conn.Close()
+		mysql.connected = false
+	}
+	// Reset error/sequence vars
+	mysql.reset()
+	// Call connect
+	err := mysql.connect()
 	if err != nil {
 		return false
 	}
-	// Send authenticate packet
-	err = mysql.authenticate()
-	if err != nil {
-		return false
-	}
-	// Get result packet
-	err = mysql.getResult()
-	if err != nil {
-		return false
-	}
-	mysql.connected = true
 	return true
 }
 
@@ -352,6 +356,22 @@ func (mysql *MySQL) connect() (err os.Error) {
 	// Setup reader and writer
 	mysql.reader = bufio.NewReader(mysql.conn)
 	mysql.writer = bufio.NewWriter(mysql.conn)
+	// Get init packet from server
+	err = mysql.init()
+	if err != nil {
+		return err
+	}
+	// Send authenticate packet
+	err = mysql.authenticate()
+	if err != nil {
+		return err
+	}
+	// Get result packet
+	err = mysql.getResult()
+	if err != nil {
+		return err
+	}
+	mysql.connected = true
 	return nil
 }
 
@@ -627,6 +647,7 @@ func (mysql *MySQL) command(command byte, args ...interface{}) (err os.Error) {
  * Populate error variables
  */
 func (mysql *MySQL) error(errno int, error string) {
+	// Set err number/string
 	mysql.Errno = errno
-	mysql.Error = error
+	mysql.Error = error	
 }
