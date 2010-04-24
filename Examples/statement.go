@@ -54,6 +54,6 @@ func main() {
 	}
 	// Close statement
 	stmt.Close()
-	// Clsoe connection
+	// Close connection
 	db.Close()
 }
