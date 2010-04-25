@@ -870,23 +870,29 @@ func (pkt *packetExecute) write(writer *bufio.Writer) (err os.Error) {
 type packetBinaryRowData struct {
 	packetFunctions
 	fields		[]*MySQLField
+	nullBitMap	[]byte
 	values		[]interface{}
 }
 
 func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
-	// Skip leading 0's
-	for {
-		c, err := reader.ReadByte()
-		if err != nil { return err }
-		if c != 0x00 {
-			reader.UnreadByte()
-			break
-		}
-	}
+	// Ignore first byte
+	err = pkt.readFill(reader, 1)
+	if err != nil { return err }
+	// Read null bit map
+	nullBytes := (len(pkt.fields) + 9) / 8
+	pkt.nullBitMap = make([]byte, nullBytes)
+	_, err = reader.Read(pkt.nullBitMap)
 	// Allocate memory
 	pkt.values = make([]interface{}, len(pkt.fields))
 	// Read data for each field
 	for i, field := range pkt.fields {
+		// Check if field is null
+		posByte := (i + 2) / 8
+		posBit  := i - (posByte * 8) + 2
+		if pkt.nullBitMap[posByte] & (1 << uint8(posBit)) != 0 {
+			pkt.values[i] = nil
+			continue
+		}
 		switch field.Type {
 			// Tiny int (8 bit int unsigned or signed)
 			case FIELD_TYPE_TINY:
