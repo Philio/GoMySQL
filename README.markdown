@@ -24,7 +24,7 @@ To Do
 -----
 
 * Continue to add support for additional binary format options
-* Add support for long data packets (long strings / blobs)Physical Attributes of Columns
+* Add support for long data packets (long strings / blobs)
 * Packets that are likely to exceed the 4096 byte write buffer need to be split up
 
 
