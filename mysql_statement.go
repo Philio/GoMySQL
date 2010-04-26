@@ -42,6 +42,19 @@ type MySQLStatement struct {
 }
 
 /**
+ * Param definition
+ * Note - this is based on the information in the protocol description documnet
+ * however as the packets are 'broken' these packets are actually being ignored
+ * at some point this may be useful.
+ */
+type MySQLParam struct {
+	Type		[]byte
+	Flags		uint16
+	Decimals	uint8
+	Length		uint32
+}
+
+/**
  * Prepare sql statement
  */
 func (stmt *MySQLStatement) Prepare(sql string) bool {
@@ -115,7 +128,7 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 		return nil
 	}
 	// Check params are bound
-	if !stmt.paramsBound {
+	if stmt.ParamCount > 0 && !stmt.paramsBound {
 		stmt.error(CR_PARAMS_NOT_BOUND, CR_PARAMS_NOT_BOUND_STR)
 		return nil
 	}
@@ -516,14 +529,4 @@ func (stmt *MySQLStatement) command(command byte, args ...interface{}) (err os.E
 func (stmt *MySQLStatement) error(errno int, error string) {
 	stmt.Errno = errno
 	stmt.Error = error
-}
-
-/**
- * Param definition
- */
-type MySQLParam struct {
-	Type		[]byte
-	Flags		uint16
-	Decimals	uint8
-	Length		uint32
 }
