@@ -34,6 +34,7 @@ type MySQLStatement struct {
 	paramsRead	uint64
 	paramsEOF	bool
 	paramData	[]interface{}
+	paramSentLong	[]bool
 	paramsBound	bool
 	paramsRebound	bool
 
@@ -106,10 +107,17 @@ func (stmt *MySQLStatement) BindParams(params ...interface{}) bool {
 	if uint16(len(params)) != stmt.ParamCount {
 		return false
 	}
-	// Save params @todo this should send some packets as long packets
+	// Save params
 	stmt.paramData = params
 	stmt.paramsBound = true
 	stmt.paramsRebound = true
+	return true
+}
+
+/**
+ * Send long data packet
+ */
+func (stmt *MySQLStatement) SendLongData(param int, data string) bool {
 	return true
 }
 
@@ -285,6 +293,7 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 			// Initialise params/fields
 			stmt.Params = make([]*MySQLParam, pkt.paramCount)
 			stmt.paramData = make([]interface{}, pkt.paramCount)
+			stmt.paramSentLong = make([]bool, pkt.paramCount)
 			stmt.result.Fields = make([]*MySQLField, pkt.columnCount)
 		// Error Packet ff
 		case c == ResultPacketError:

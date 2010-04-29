@@ -660,9 +660,34 @@ func (pkt *packetLongData) write(writer *bufio.Writer) (err os.Error) {
 	// Write param type
 	_, err = writer.Write(pkt.paramType)
 	if err != nil { return err }
-	// Write data
-	_, err = writer.WriteString(pkt.data)
+	// Flush
+	err = writer.Flush()
 	if err != nil { return err }
+	// Write data
+	if len(pkt.data) < writer.Available() {
+		_, err = writer.WriteString(pkt.data)
+		if err != nil { return err }
+	} else {
+		bufSize := writer.Available()
+		sent := 0
+		for ; sent < len(pkt.data); {
+			// Get next block of data
+			var tmpStr string
+			if len(pkt.data) - sent < bufSize {
+				tmpStr = pkt.data[sent:len(pkt.data) - sent]
+				sent += len(pkt.data) - sent
+			} else {
+				tmpStr = pkt.data[sent:bufSize]
+				sent += bufSize
+			}
+			// Write data block
+			_, err = writer.WriteString(tmpStr)
+			if err != nil { return err }
+			// Flush
+			err = writer.Flush()
+			if err != nil { return err }
+		}
+	}
 	// Flush
 	err = writer.Flush()
 	if err != nil { return err }
@@ -720,9 +745,6 @@ func (pkt *packetExecute) encodeParams(params []interface{}) {
 		// Check for nils (NULL)
 		if reflect.Indirect(v) == nil {
 			n = uint16(FIELD_TYPE_NULL)
-			pkt.paramData[i] = make([]byte, 1)
-			pkt.paramData[i][0] = byte(251)
-			pkt.paramLength ++
 		} else {
 			// Match go types to MySQL types
 			switch v.Type().Name() {
@@ -857,11 +879,13 @@ func (pkt *packetExecute) write(writer *bufio.Writer) (err os.Error) {
 	// Write param data
 	if len(pkt.paramData) > 0 {
 		for _, paramData := range pkt.paramData {
-			_, err = writer.Write(paramData)
-			if err != nil { return err }
-			// Flush after each param to ensure buffer isn't full
-			err = writer.Flush()
-			if err != nil { return err }
+			if len(paramData) > 0 {
+				_, err = writer.Write(paramData)
+				if err != nil { return err }
+				// Flush after each param to ensure buffer isn't full
+				err = writer.Flush()
+				if err != nil { return err }
+			}
 		}
 	}
 	return
