@@ -634,10 +634,10 @@ func (pkt *packetParameter) read(reader *bufio.Reader) (err os.Error) {
  */
 type packetLongData struct {
 	packetFunctions
-	sequence	uint8	
+	sequence	uint8
+	command		byte
 	statementId	uint32
 	paramNumber	uint16
-	paramType	[]byte
 	data		string
 }
 
@@ -647,18 +647,18 @@ type packetLongData struct {
 func (pkt *packetLongData) write(writer *bufio.Writer) (err os.Error) {
 	// Construct packet header
 	pkt.header = new(packetHeader)
-	pkt.header.length = 8 + uint32(len(pkt.data))
+	pkt.header.length = 7 + uint32(len(pkt.data))
 	pkt.header.sequence = pkt.sequence
 	err = pkt.header.write(writer)
+	if err != nil { return err }
+	// Write command
+	err = writer.WriteByte(byte(pkt.command))
 	if err != nil { return err }
 	// Write statement id
 	err = pkt.writeNumber(writer, uint64(pkt.statementId), 4)
 	if err != nil { return err }
 	// Write param number
 	err = pkt.writeNumber(writer, uint64(pkt.paramNumber), 2)
-	if err != nil { return err }
-	// Write param type
-	_, err = writer.Write(pkt.paramType)
 	if err != nil { return err }
 	// Flush
 	err = writer.Flush()
@@ -898,14 +898,18 @@ type packetBinaryRowData struct {
 }
 
 func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
+	// Keep track of bytes read
+	bytesRead := uint32(0)
 	// Ignore first byte
 	err = pkt.readFill(reader, 1)
 	if err != nil { return err }
+	bytesRead ++
 	// Read null bit map
 	nullBytes := (len(pkt.fields) + 9) / 8
 	nullBitMap := make([]byte, nullBytes)
 	_, err = reader.Read(nullBitMap)
 	if err != nil { return err }
+	bytesRead += uint32(nullBytes)
 	// Allocate memory
 	pkt.values = make([]interface{}, len(pkt.fields))
 	// Read data for each field
@@ -927,6 +931,7 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				} else {
 					pkt.values[i] = int8(num)
 				}
+				bytesRead ++
 			// Small int (16 bit int unsigned or signed)
 			case FIELD_TYPE_SHORT:
 				num, err := pkt.readNumber(reader, 2)
@@ -936,6 +941,7 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				} else {
 					pkt.values[i] = int16(num)
 				}
+				bytesRead += 2
 			// Int (32 bit int unsigned or signed)
 			case FIELD_TYPE_LONG:
 				num, err := pkt.readNumber(reader, 4)
@@ -945,6 +951,7 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				} else {
 					pkt.values[i] = int32(num)
 				}
+				bytesRead += 4
 			// Big int (64 bit int unsigned or signed)
 			case FIELD_TYPE_LONGLONG:
 				num, err := pkt.readNumber(reader, 8)
@@ -954,25 +961,29 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				} else {
 					pkt.values[i] = int64(num)
 				}
+				bytesRead += 8
 			// Floats (Single precision floating point, 32 bit signed)
 			case FIELD_TYPE_FLOAT:
 				num, err := pkt.readNumber(reader, 4)
 				if err != nil { return err }
 				pkt.values[i] = math.Float32frombits(uint32(num))
+				bytesRead += 4
 			// Double (Double precision floating point, 64 bit signed)
 			case FIELD_TYPE_DOUBLE:
 				num, err := pkt.readNumber(reader, 8)
 				if err != nil { return err }
 				pkt.values[i] = math.Float64frombits(num)
+				bytesRead += 8
 			// Strings, all length coded binary strings
 			case FIELD_TYPE_VARCHAR, FIELD_TYPE_TINY_BLOB, FIELD_TYPE_MEDIUM_BLOB, FIELD_TYPE_LONG_BLOB,
 			     FIELD_TYPE_BLOB, FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING:
-				str, _, err := pkt.readlengthCodedString(reader)
+				str, n, err := pkt.readlengthCodedString(reader)
 				if err != nil { return err }
 				pkt.values[i] = str
+				bytesRead += uint32(n)
 			// Date/Datetime/Timestamp YYYY-MM-DD HH:MM:SS (From libmysql/libmysql.c read_binary_datetime)
 			case FIELD_TYPE_DATE, FIELD_TYPE_TIMESTAMP, FIELD_TYPE_DATETIME:
-				num, _, err := pkt.readlengthCodedBinary(reader)
+				num, n, err := pkt.readlengthCodedBinary(reader)
 				// Check if 0 bytes, just return 0 date/time format
 				if num == 0 {
 					if field.Type == FIELD_TYPE_DATE {
@@ -1035,10 +1046,11 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 					err = pkt.readFill(reader, int(num - 7))
 					if err != nil { return err }
 				}
+				bytesRead += uint32(num) + uint32(n)
 			// Time  (From libmysql/libmysql.c read_binary_time)
 			case FIELD_TYPE_TIME:
 				var dateStr string
-				num, _, err := pkt.readlengthCodedBinary(reader)
+				num, n, err := pkt.readlengthCodedBinary(reader)
 				// Check if 0 bytes, just return 0 time format
 				if num == 0 {
 					pkt.values[i] = "00:00:00"
@@ -1081,7 +1093,12 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 					err = pkt.readFill(reader, int(num - 8))
 					if err != nil { return err }
 				}
+				bytesRead += uint32(num) + uint32(n)
 		}
+	}
+	if bytesRead < pkt.header.length {
+		bytes := make([]byte, pkt.header.length - bytesRead)
+		reader.Read(bytes)
 	}
 	return
 }

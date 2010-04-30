@@ -100,9 +100,6 @@ func (stmt *MySQLStatement) BindParams(params ...interface{}) bool {
 		stmt.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
 		return false
 	}
-	// Reset error/sequence vars
-	mysql.reset()
-	stmt.reset()
 	// Check param count
 	if uint16(len(params)) != stmt.ParamCount {
 		return false
@@ -117,7 +114,35 @@ func (stmt *MySQLStatement) BindParams(params ...interface{}) bool {
 /**
  * Send long data packet
  */
-func (stmt *MySQLStatement) SendLongData(param int, data string) bool {
+func (stmt *MySQLStatement) SendLongData(num uint16, data string) bool {
+	mysql := stmt.mysql
+	if mysql.Logging { log.Stdout("Send long data called") }
+	// Check statement has been prepared
+	if !stmt.prepared {
+		stmt.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
+		return false
+	}
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
+	// Reset error/sequence vars
+	mysql.reset()
+	stmt.reset()
+	// Construct packet
+	var err os.Error
+	pkt := new(packetLongData)
+	pkt.sequence = mysql.sequence
+	pkt.command = COM_STMT_SEND_LONG_DATA
+	pkt.statementId = stmt.StatementId
+	pkt.paramNumber = num
+	pkt.data = data
+	err = pkt.write(mysql.writer)
+	if err != nil {
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		return false
+	}
+	mysql.sequence ++
+	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent long data packet to server") }
 	return true
 }
 
@@ -127,9 +152,6 @@ func (stmt *MySQLStatement) SendLongData(param int, data string) bool {
 func (stmt *MySQLStatement) Execute() *MySQLResult {
 	mysql := stmt.mysql
 	if mysql.Logging { log.Stdout("Execute statement called") }
-	// Lock mutex and defer unlock
-	mysql.mutex.Lock()
-	defer mysql.mutex.Unlock()
 	// Check statement has been prepared
 	if !stmt.prepared {
 		stmt.error(CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR)
@@ -140,6 +162,9 @@ func (stmt *MySQLStatement) Execute() *MySQLResult {
 		stmt.error(CR_PARAMS_NOT_BOUND, CR_PARAMS_NOT_BOUND_STR)
 		return nil
 	}
+	// Lock mutex and defer unlock
+	mysql.mutex.Lock()
+	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	stmt.reset()
@@ -254,17 +279,17 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 	if err != nil {
 		// Assume lost connection to server
 		stmt.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
-		return
+		return err
 	}
 	// Check data length
 	if int(hdr.length) > mysql.reader.Buffered() {
 		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-		return
+		return os.NewError("Malformed packet")
 	}
 	// Check sequence number
 	if hdr.sequence != mysql.sequence {
 		stmt.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		return
+		return os.NewError("Commands out of sync")
 	}
 	// Read the next byte to identify the type of packet
 	c, err := mysql.reader.ReadByte()
@@ -380,17 +405,17 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 	if err != nil {
 		// Assume lost connection to server
 		stmt.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
-		return
+		return err
 	}
 	// Check data length
 	if int(hdr.length) > mysql.reader.Buffered() {
 		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-		return
+		return os.NewError("Malformed packet")
 	}
 	// Check sequence number
 	if hdr.sequence != mysql.sequence {
 		stmt.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		return
+		return os.NewError("Commands out of sync")
 	}
 	// Read the next byte to identify the type of packet
 	c, err := mysql.reader.ReadByte()
