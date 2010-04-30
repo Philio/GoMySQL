@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"strconv"
 	"math"
+	"fmt"
 )
 
 /**
@@ -991,6 +992,7 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 					} else {
 						pkt.values[i] = "0000-00-00 00:00:00"
 					}
+					bytesRead += uint32(n)
 					break
 				}
 				if err != nil { return err }
@@ -1054,6 +1056,7 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				// Check if 0 bytes, just return 0 time format
 				if num == 0 {
 					pkt.values[i] = "00:00:00"
+					bytesRead += uint32(n)
 					break
 				}
 				if err != nil { return err }
@@ -1096,9 +1099,13 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				bytesRead += uint32(num) + uint32(n)
 		}
 	}
+	// In some circumstances packets seam to contain extra data, if not all
+	// data has been read, read it and discard it.
 	if bytesRead < pkt.header.length {
 		bytes := make([]byte, pkt.header.length - bytesRead)
 		reader.Read(bytes)
+		fmt.Printf("%#v\n%s\n", bytes, string(bytes))
+		if err != nil { return err }
 	}
 	return
 }
@@ -1167,7 +1174,7 @@ func (pkt *packetFunctions) readlengthCodedBinary(reader *bufio.Reader) (num uin
 }
 
 /**
- * Read a length coded bunary string from the buffer
+ * Read a length coded binary string from the buffer
  */
 func (pkt *packetFunctions) readlengthCodedString(reader *bufio.Reader) (str string, n int, err os.Error) {
 	// Get string length
