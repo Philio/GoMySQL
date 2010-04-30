@@ -1,10 +1,11 @@
-GoMySQL Version 0.1.13
+GoMySQL Version 0.1.14
 ======================
 
 
 Revision History
 ----------------
 
+* 0.1.14 - Added support for long data packets.
 * 0.1.13 - Added proper support for NULL bit map in binary row data packets.
 * 0.1.12 - Added auth struct to store authentication data. Removed logging param from New() in favour of just setting the public var. Added Reconnect() function. Bug fix in Query() causing panic for error packet responses. Added a number of examples.
 * 0.1.11 - Added support for binary time fields, fixed missing zeros in time for datetime/timestamp fields.
@@ -249,6 +250,16 @@ Returns true on success or false on failure.
 Example:
 
 `ok := stmt.BindParams(10, 15)`
+
+**MySQLStatement.SendLongData(num uint16, data string)**
+
+Send paramater as long data.
+Multiple packets can be sent per parameter, each up to the maximum packet size.
+Parameters that are sent as long data should be bound as nil (NULL).
+
+Example:
+
+`ok := stmt.SendLongData(0, "A very long string!")`
 
 **MySQLStatement.Execute()**
 
