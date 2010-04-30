@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"strconv"
 	"math"
-	"fmt"
 )
 
 /**
@@ -1100,11 +1099,11 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 		}
 	}
 	// In some circumstances packets seam to contain extra data, if not all
-	// data has been read, read it and discard it.
+	// data has been read, read it and discard it. In reality this will
+	// probably never happen unless using some very odd queries!
 	if bytesRead < pkt.header.length {
 		bytes := make([]byte, pkt.header.length - bytesRead)
 		reader.Read(bytes)
-		fmt.Printf("%#v\n%s\n", bytes, string(bytes))
 		if err != nil { return err }
 	}
 	return
