@@ -33,7 +33,15 @@ About
 
 A MySQL client library written in Go. The aim of this project is to provide a library with a high level of usability, good interal error handling and to emulate similar libraries available for other languages to provide an easy migration of MySQL based systems into the Go language.
 
-*GoMySQL is still in development, some features may not work as expected! This is my first project in Go, feedback/comments/suggestion are very welcome!*
+As of version 0.1.14 development on the MySQL protocol has been completed and the library is stable in numerous tests, future updates will be more focused on code optimisation and improvements.
+
+Please report bugs via the GitHub issue tracker, also comments and suggestions are very welcome.
+
+
+License
+-------
+
+GoMySQL is licensed under a Creative Commons Attribution-Share Alike 2.0 UK: England & Wales License.
 
 
 Compatability
