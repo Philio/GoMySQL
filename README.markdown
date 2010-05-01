@@ -26,8 +26,6 @@ To Do
 -----
 
 * Continue to add support for additional binary format options
-* Add support for long data packets (long strings / blobs)
-* Packets that are likely to exceed the 4096 byte write buffer need to be split up
 
 
 About
@@ -253,8 +251,8 @@ Example:
 
 **MySQLStatement.SendLongData(num uint16, data string)**
 
-Send paramater as long data.
-Multiple packets can be sent per parameter, each up to the maximum packet size.
+Send paramater as long data.  
+Multiple packets can be sent per parameter, each up to the maximum packet size.  
 Parameters that are sent as long data should be bound as nil (NULL).
 
 Example:
