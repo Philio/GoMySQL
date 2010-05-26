@@ -17,58 +17,59 @@ import (
 )
 
 const (
-	DefaultPort 	= 3306
-	DefaultSock 	= "/var/run/mysqld/mysqld.sock"
-	MaxPacketSize	= 1 << 24
+	Version       = "0.2.0"
+	DefaultPort   = 3306
+	DefaultSock   = "/var/run/mysqld/mysqld.sock"
+	MaxPacketSize = 1 << 24
 )
 
 /**
  * The main MySQL struct
  */
 type MySQL struct {
-	Logging		bool
+	Logging bool
 
-	Errno		int
-	Error		string
+	Errno int
+	Error string
 
-	auth		*MySQLAuth
-	conn		net.Conn
-	reader		*bufio.Reader
-	writer		*bufio.Writer
-	sequence	uint8
-	connected	bool
-	
-	serverInfo	*MySQLServerInfo
-	
-	curRes		*MySQLResult
-	result		[]*MySQLResult
-	pointer		int
+	auth      *MySQLAuth
+	conn      net.Conn
+	reader    *bufio.Reader
+	writer    *bufio.Writer
+	sequence  uint8
+	connected bool
 
-	mutex		*sync.Mutex
+	serverInfo *MySQLServerInfo
+
+	curRes  *MySQLResult
+	result  []*MySQLResult
+	pointer int
+
+	mutex *sync.Mutex
 }
 
 /**
  * Server infomation
  */
 type MySQLServerInfo struct {
-	serverVersion	string
-	protocolVersion	uint8
-	scrambleBuff	[]byte
-	capabilities	uint16
-	language	uint8
-	status		uint16
+	serverVersion   string
+	protocolVersion uint8
+	scrambleBuff    []byte
+	capabilities    uint16
+	language        uint8
+	status          uint16
 }
 
 /**
  * Authentication infomation
  */
 type MySQLAuth struct {
-	host		string
-	username	string
-	password	string
-	dbname		string
-	port		int
-	socket		string
+	host     string
+	username string
+	password string
+	dbname   string
+	port     int
+	socket   string
 }
 
 /**
@@ -85,32 +86,41 @@ func New() (mysql *MySQL) {
 /**
  * Connect to a server
  */
-func (mysql *MySQL) Connect(params ...interface{}) bool {
-	if mysql.Logging { log.Stdout("Connect called") }
+func (mysql *MySQL) Connect(params ...interface{}) (err os.Error) {
+	if mysql.Logging {
+		log.Stdout("Connect called")
+	}
 	// If already connected return
-	if mysql.connected { return false }
+	if mysql.connected {
+		err = os.NewError("Already connected to server")
+		return
+	}
 	// Reset error/sequence vars
 	mysql.reset()
 	// Check min number of params
 	if len(params) < 2 {
-		return false
+		err = os.NewError("A hostname and username are required to connect")
+		return
 	}
 	// Parse params
 	mysql.parseParams(params)
 	// Connect to server
-	err := mysql.connect()
-	if err != nil {
-		return false
-	}
-	return true
+	err = mysql.connect()
+	return
 }
 
 /**
  * Reconnect (if connection droppped etc)
  */
-func (mysql *MySQL) Reconnect() bool {
+func (mysql *MySQL) Reconnect() (err os.Error) {
+	if mysql.Logging {
+		log.Stdout("Reconnect called")
+	}
 	// Check auth is set
-	if mysql.auth == nil { return false }
+	if mysql.auth == nil {
+		err = os.NewError("Reconnect can only be called to re-establish a connection originally established by connect")
+		return
+	}
 	// Close connection (force down)
 	if mysql.connected {
 		mysql.conn.Close()
@@ -119,64 +129,75 @@ func (mysql *MySQL) Reconnect() bool {
 	// Reset error/sequence vars
 	mysql.reset()
 	// Call connect
-	err := mysql.connect()
-	if err != nil {
-		return false
-	}
-	return true
+	err = mysql.connect()
+	return
 }
 
 /**
  * Close the connection to the server
  */
-func (mysql *MySQL) Close() bool {
-	if mysql.Logging { log.Stdout("Close called") }
+func (mysql *MySQL) Close() (err os.Error) {
+	if mysql.Logging {
+		log.Stdout("Close called")
+	}
 	// If not connected return
-	if !mysql.connected { return false }
+	if !mysql.connected {
+		err = os.NewError("A connection to a MySQL server is required to use this function")
+		return
+	}
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
 	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send quit command
-	var err os.Error
 	err = mysql.command(COM_QUIT, "")
 	if err != nil {
-		return false
+		return
 	}
-	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent quit command to server") }
+	if mysql.Logging {
+		log.Stdout("[" + fmt.Sprint(mysql.sequence-1) + "] " + "Sent quit command to server")
+	}
 	// Close connection
 	mysql.conn.Close()
 	mysql.connected = false
-	if mysql.Logging { log.Stdout("Closed connection to server") }
-	return true
+	if mysql.Logging {
+		log.Stdout("Closed connection to server")
+	}
+	return
 }
 
 /**
  * Perform SQL query
  */
-func (mysql *MySQL) Query(sql string) *MySQLResult {
-	if mysql.Logging { log.Stdout("Query called") }
+func (mysql *MySQL) Query(sql string) (res *MySQLResult, err os.Error) {
+	if mysql.Logging {
+		log.Stdout("Query called with SQL: " + sql)
+	}
 	// If not connected return
-	if !mysql.connected { return nil }
+	if !mysql.connected {
+		err = os.NewError("A connection to a MySQL server is required to use this function")
+		return
+	}
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
 	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send query command
-	var err os.Error
 	err = mysql.command(COM_QUERY, sql)
 	if err != nil {
-		return nil
+		return
 	}
-	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent query command to server") }
+	if mysql.Logging {
+		log.Stdout("[" + fmt.Sprint(mysql.sequence-1) + "] " + "Sent query command to server")
+	}
 	// Get result packet(s)
 	for {
 		// Get result packet
 		err = mysql.getResult()
 		if err != nil {
-			return nil
+			return
 		}
 		// If buffer is empty break loop
 		if mysql.reader.Buffered() == 0 {
@@ -185,36 +206,44 @@ func (mysql *MySQL) Query(sql string) *MySQLResult {
 	}
 	// If server sent result return it
 	if len(mysql.result) > 0 {
-		return mysql.result[0]
+		return mysql.result[0], nil
+	} else {
+		err = os.NewError("No valid result packets were received from MySQL")
 	}
-	return nil
+	return nil, err
 }
 
 /**
  * Perform SQL query with multiple result sets
  */
-func (mysql *MySQL) MultiQuery(sql string) []*MySQLResult {
-	if mysql.Logging { log.Stdout("MultiQuery called") }
+func (mysql *MySQL) MultiQuery(sql string) (res []*MySQLResult, err os.Error) {
+	if mysql.Logging {
+		log.Stdout("MultiQuery called with SQL: " + sql)
+	}
 	// If not connected return
-	if !mysql.connected { return nil }
+	if !mysql.connected {
+		err = os.NewError("A connection to a MySQL server is required to use this function")
+		return
+	}
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
 	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send query command
-	var err os.Error
 	err = mysql.command(COM_QUERY, sql)
 	if err != nil {
-		return nil
+		return
 	}
-	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent query command to server") }
+	if mysql.Logging {
+		log.Stdout("[" + fmt.Sprint(mysql.sequence-1) + "] " + "Sent query command to server")
+	}
 	// Get result packet(s)
 	for {
 		// Get result packet
 		err = mysql.getResult()
 		if err != nil {
-			return nil
+			return
 		}
 		// If buffer is empty break loop
 		if mysql.reader.Buffered() == 0 {
@@ -222,74 +251,90 @@ func (mysql *MySQL) MultiQuery(sql string) []*MySQLResult {
 		}
 	}
 	// If server sent any results return them
-	return mysql.result
+	if len(mysql.result) > 0 {
+		return mysql.result, nil
+	} else {
+		err = os.NewError("No valid result packets were received from MySQL")
+	}
+	return nil, err
 }
 
 /**
  * Change database
  */
-func (mysql *MySQL) ChangeDb(dbname string) bool {
-	if mysql.Logging { log.Stdout("ChangeDb called") }
+func (mysql *MySQL) ChangeDb(dbname string) (err os.Error) {
+	if mysql.Logging {
+		log.Stdout("ChangeDb called")
+	}
 	// If not connected return
-	if !mysql.connected { return false }
+	if !mysql.connected {
+		err = os.NewError("A connection to a MySQL server is required to use this function")
+		return
+	}
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
 	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send command
-	var err os.Error
 	err = mysql.command(COM_INIT_DB, dbname)
 	if err != nil {
-		return false
+		return
 	}
-	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent change db command to server") }
+	if mysql.Logging {
+		log.Stdout("[" + fmt.Sprint(mysql.sequence-1) + "] " + "Sent change db command to server")
+	}
 	// Get result packet
 	err = mysql.getResult()
-	if err != nil {
-		return false
-	}
-	return true
+	return
 }
 
 /**
  * Ping server
  */
-func (mysql *MySQL) Ping() bool {
-	if mysql.Logging { log.Stdout("Ping called") }
+func (mysql *MySQL) Ping() (err os.Error) {
+	if mysql.Logging {
+		log.Stdout("Ping called")
+	}
 	// If not connected return
-	if !mysql.connected { return false }
+	if !mysql.connected {
+		err = os.NewError("A connection to a MySQL server is required to use this function")
+		return
+	}
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
 	defer mysql.mutex.Unlock()
 	// Reset error/sequence vars
 	mysql.reset()
 	// Send command
-	var err os.Error
 	err = mysql.command(COM_PING)
 	if err != nil {
-		return false
+		return
 	}
-	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence - 1) + "] " + "Sent ping command to server") }
+	if mysql.Logging {
+		log.Stdout("[" + fmt.Sprint(mysql.sequence-1) + "] " + "Sent ping command to server")
+	}
 	// Get result packet
 	err = mysql.getResult()
-	if err != nil {
-		return false
-	}
-	return true
+	return
 }
 
 /**
  * Initialise a new statement
  */
-func (mysql *MySQL) InitStmt() *MySQLStatement {
-	if mysql.Logging { log.Stdout("Initialise statement called") }
+func (mysql *MySQL) InitStmt() (stmt *MySQLStatement, err os.Error) {
+	if mysql.Logging {
+		log.Stdout("Initialise statement called")
+	}
 	// If not connected return
-	if !mysql.connected { return nil }
+	if !mysql.connected {
+		err = os.NewError("A connection to a MySQL server is required to use this function")
+		return
+	}
 	// Create new statement and prepare query
-	stmt := new(MySQLStatement)
+	stmt = new(MySQLStatement)
 	stmt.mysql = mysql
-	return stmt
+	return
 }
 
 /**
@@ -310,10 +355,10 @@ func (mysql *MySQL) reset() {
 func (mysql *MySQL) parseParams(p []interface{}) {
 	mysql.auth = new(MySQLAuth)
 	// Assign default values
-	mysql.auth.port   = DefaultPort
+	mysql.auth.port = DefaultPort
 	mysql.auth.socket = DefaultSock
 	// Host / username are required
-	mysql.auth.host     = p[0].(string)
+	mysql.auth.host = p[0].(string)
 	mysql.auth.username = p[1].(string)
 	// 3rd param should be a password
 	if len(p) > 2 {
@@ -341,14 +386,16 @@ func (mysql *MySQL) parseParams(p []interface{}) {
 func (mysql *MySQL) connect() (err os.Error) {
 	// Connect via unix socket
 	if mysql.auth.host == "localhost" || mysql.auth.host == "127.0.0.1" {
-		mysql.conn, err = net.Dial("unix", "", mysql.auth.socket);
+		mysql.conn, err = net.Dial("unix", "", mysql.auth.socket)
 		// On error set the connect error details
 		if err != nil {
 			mysql.error(CR_CONNECTION_ERROR, fmt.Sprintf(CR_CONNECTION_ERROR_STR, mysql.auth.socket))
 			return
 		}
-		if mysql.Logging { log.Stdout("Connected using unix socket") }
-	// Connect via TCP
+		if mysql.Logging {
+			log.Stdout("Connected using unix socket")
+		}
+		// Connect via TCP
 	} else {
 		mysql.conn, err = net.Dial("tcp", "", fmt.Sprintf("%s:%d", mysql.auth.host, mysql.auth.port))
 		// On error set the connect error details
@@ -356,28 +403,30 @@ func (mysql *MySQL) connect() (err os.Error) {
 			mysql.error(CR_CONN_HOST_ERROR, fmt.Sprintf(CR_CONN_HOST_ERROR_STR, mysql.auth.host, mysql.auth.port))
 			return
 		}
-		if mysql.Logging { log.Stdout("Connected using TCP/IP") }
+		if mysql.Logging {
+			log.Stdout("Connected using TCP/IP")
+		}
 	}
-	// Setup reader and writer
+	// Setup buffered reader and writer
 	mysql.reader = bufio.NewReader(mysql.conn)
 	mysql.writer = bufio.NewWriter(mysql.conn)
 	// Get init packet from server
 	err = mysql.init()
 	if err != nil {
-		return err
+		return
 	}
 	// Send authenticate packet
 	err = mysql.authenticate()
 	if err != nil {
-		return err
+		return
 	}
 	// Get result packet
 	err = mysql.getResult()
 	if err != nil {
-		return err
+		return
 	}
 	mysql.connected = true
-	return nil
+	return
 }
 
 /**
@@ -404,17 +453,19 @@ func (mysql *MySQL) init() (err os.Error) {
 		mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR)
 		return
 	}
-	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received init packet from server") }
+	if mysql.Logging {
+		log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received init packet from server")
+	}
 	// Populate server info
 	mysql.serverInfo = new(MySQLServerInfo)
-	mysql.serverInfo.serverVersion	 = pkt.serverVersion
+	mysql.serverInfo.serverVersion = pkt.serverVersion
 	mysql.serverInfo.protocolVersion = pkt.protocolVersion
-	mysql.serverInfo.scrambleBuff	 = pkt.scrambleBuff
-	mysql.serverInfo.capabilities	 = pkt.serverCaps
-	mysql.serverInfo.language	 = pkt.serverLanguage
-	mysql.serverInfo.status		 = pkt.serverStatus
+	mysql.serverInfo.scrambleBuff = pkt.scrambleBuff
+	mysql.serverInfo.capabilities = pkt.serverCaps
+	mysql.serverInfo.language = pkt.serverLanguage
+	mysql.serverInfo.status = pkt.serverStatus
 	// Increment sequence
-	mysql.sequence ++
+	mysql.sequence++
 	return nil
 }
 
@@ -437,7 +488,7 @@ func (mysql *MySQL) authenticate() (err os.Error) {
 	pkt.maxPacketSize = MaxPacketSize
 	// Set charset
 	pkt.charsetNumber = mysql.serverInfo.language
-	// Set username 
+	// Set username
 	pkt.user = mysql.auth.username
 	// Set password
 	if len(mysql.auth.password) > 0 {
@@ -452,10 +503,12 @@ func (mysql *MySQL) authenticate() (err os.Error) {
 		mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR)
 		return
 	}
-	if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Sent auth packet to server") }
+	if mysql.Logging {
+		log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Sent auth packet to server")
+	}
 	// Increment sequence
-	mysql.sequence ++
-	return nil
+	mysql.sequence++
+	return
 }
 
 /**
@@ -475,11 +528,6 @@ func (mysql *MySQL) getResult() (err os.Error) {
 		}
 		return
 	}
-	// Check data length
-	if int(hdr.length) > mysql.reader.Buffered() {
-		mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-		return
-	}
 	// Check sequence number
 	if hdr.sequence != mysql.sequence {
 		mysql.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
@@ -489,126 +537,146 @@ func (mysql *MySQL) getResult() (err os.Error) {
 	c, err := mysql.reader.ReadByte()
 	mysql.reader.UnreadByte()
 	switch {
-		// Unknown packet, remove it from the buffer
-		default:
-			bytes := make([]byte, hdr.length)
-			mysql.reader.Read(bytes)
-			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server") }
-		// OK Packet 00
-		case c == ResultPacketOK:
-			pkt := new(packetOK)
-			pkt.header = hdr
-			err = pkt.read(mysql.reader)
-			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-				return
+	// Unknown packet, remove it from the buffer
+	default:
+		bytes := make([]byte, hdr.length)
+		mysql.reader.Read(bytes)
+		if mysql.Logging {
+			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server")
+		}
+	// OK Packet 00
+	case c == ResultPacketOK:
+		pkt := new(packetOK)
+		pkt.header = hdr
+		err = pkt.read(mysql.reader)
+		if err != nil {
+			mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+			return
+		}
+		if mysql.Logging {
+			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received ok packet from server")
+		}
+		// Create result
+		mysql.curRes = new(MySQLResult)
+		mysql.curRes.AffectedRows = pkt.affectedRows
+		mysql.curRes.InsertId = pkt.insertId
+		mysql.curRes.WarningCount = pkt.warningCount
+		mysql.curRes.Message = pkt.message
+		mysql.addResult()
+	// Error Packet ff
+	case c == ResultPacketError:
+		pkt := new(packetError)
+		pkt.header = hdr
+		err = pkt.read(mysql.reader)
+		if err != nil {
+			mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		} else {
+			mysql.error(int(pkt.errno), pkt.error)
+		}
+		if mysql.Logging {
+			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
+		}
+		// Return error response
+		err = os.NewError("An error was received from MySQL")
+	// Result Set Packet 1-250 (first byte of Length-Coded Binary)
+	case c >= 0x01 && c <= 0xfa && mysql.curRes == nil:
+		pkt := new(packetResultSet)
+		pkt.header = hdr
+		err = pkt.read(mysql.reader)
+		if err != nil {
+			mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+			return
+		}
+		if mysql.Logging {
+			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server")
+		}
+		// Create result
+		mysql.curRes = new(MySQLResult)
+		mysql.curRes.FieldCount = pkt.fieldCount
+		mysql.curRes.Fields = make([]*MySQLField, pkt.fieldCount)
+	// Field Packet 1-250 ("")
+	case c >= 0x01 && c <= 0xfa && !mysql.curRes.fieldsEOF:
+		pkt := new(packetField)
+		pkt.header = hdr
+		err = pkt.read(mysql.reader)
+		if err != nil {
+			mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+			return
+		}
+		// Populate field data (ommiting anything which doesnt seam useful at time of writing)
+		field := new(MySQLField)
+		field.Name = pkt.name
+		field.Length = pkt.length
+		field.Type = pkt.fieldType
+		field.Decimals = pkt.decimals
+		field.Flags = new(MySQLFieldFlags)
+		field.Flags.process(pkt.flags)
+		mysql.curRes.Fields[mysql.curRes.fieldsRead] = field
+		// Increment fields read count
+		mysql.curRes.fieldsRead++
+		if mysql.Logging {
+			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server")
+		}
+	// Row Data Packet 1-250 ("")
+	case c >= 0x01 && c <= 0xfa && !mysql.curRes.rowsEOF:
+		pkt := new(packetRowData)
+		pkt.header = hdr
+		pkt.fields = mysql.curRes.Fields
+		err = pkt.read(mysql.reader)
+		if err != nil {
+			mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+			return
+		}
+		// Create row
+		row := new(MySQLRow)
+		row.Data = pkt.values
+		if mysql.curRes.RowCount == 0 {
+			mysql.curRes.Rows = make([]*MySQLRow, 1)
+			mysql.curRes.Rows[0] = row
+		} else {
+			curRows := mysql.curRes.Rows
+			mysql.curRes.Rows = make([]*MySQLRow, mysql.curRes.RowCount+1)
+			copy(mysql.curRes.Rows, curRows)
+			mysql.curRes.Rows[mysql.curRes.RowCount] = row
+		}
+		// Increment row count
+		mysql.curRes.RowCount++
+		if mysql.Logging {
+			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received row data packet from server")
+		}
+	// EOF Packet fe
+	case c == ResultPacketEOF:
+		pkt := new(packetEOF)
+		pkt.header = hdr
+		err = pkt.read(mysql.reader)
+		if err != nil {
+			mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+			return
+		}
+		if mysql.Logging {
+			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server")
+		}
+		// Change EOF flag in result
+		if mysql.curRes == nil {
+			mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+			return
+		}
+		if !mysql.curRes.fieldsEOF {
+			mysql.curRes.fieldsEOF = true
+			if mysql.Logging {
+				log.Stdout("End of field packets")
 			}
-			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received ok packet from server") }
-			// Create result
-			mysql.curRes = new(MySQLResult)
-			mysql.curRes.AffectedRows = pkt.affectedRows
-			mysql.curRes.InsertId 	  = pkt.insertId
-			mysql.curRes.WarningCount = pkt.warningCount
-			mysql.curRes.Message	  = pkt.message
+		} else if !mysql.curRes.rowsEOF {
+			mysql.curRes.rowsEOF = true
+			if mysql.Logging {
+				log.Stdout("End of row data packets")
+			}
 			mysql.addResult()
-		// Error Packet ff
-		case c == ResultPacketError:
-			pkt := new(packetError)
-			pkt.header = hdr
-			err = pkt.read(mysql.reader)
-			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-			} else {
-				mysql.error(int(pkt.errno), pkt.error)
-			}
-			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server") }
-		// Result Set Packet 1-250 (first byte of Length-Coded Binary)
-		case c >= 0x01 && c <= 0xfa && mysql.curRes == nil:
-			pkt := new(packetResultSet)
-			pkt.header = hdr
-			err = pkt.read(mysql.reader)
-			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-				return
-			}
-			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server") }
-			// Create result
-			mysql.curRes = new(MySQLResult)
-			mysql.curRes.FieldCount = pkt.fieldCount
-			mysql.curRes.Fields     = make([]*MySQLField, pkt.fieldCount)
-		// Field Packet 1-250 ("")
-		case c >= 0x01 && c <= 0xfa && !mysql.curRes.fieldsEOF:
-			pkt := new(packetField)
-			pkt.header = hdr
-			err = pkt.read(mysql.reader)
-			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-				return
-			}
-			// Populate field data (ommiting anything which doesnt seam useful at time of writing)
-			field := new(MySQLField)
-			field.Name	    = pkt.name
-			field.Length	    = pkt.length
-			field.Type	    = pkt.fieldType
-			field.Decimals	    = pkt.decimals
-			field.Flags 	    = new(MySQLFieldFlags)
-			field.Flags.process(pkt.flags)
-			mysql.curRes.Fields[mysql.curRes.fieldsRead] = field
-			// Increment fields read count
-			mysql.curRes.fieldsRead ++
-			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server") }
-		// Row Data Packet 1-250 ("")
-		case c >= 0x01 && c <= 0xfa && !mysql.curRes.rowsEOF:
-			pkt := new(packetRowData)
-			pkt.header = hdr
-			pkt.fields = mysql.curRes.Fields
-			err = pkt.read(mysql.reader)
-			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-				return
-			}
-			// Create row
-			row := new(MySQLRow)
-			row.Data = pkt.values
-			if mysql.curRes.RowCount == 0 {
-				mysql.curRes.Rows = make([]*MySQLRow, 1)
-				mysql.curRes.Rows[0] = row
-			} else {
-				curRows := mysql.curRes.Rows
-				mysql.curRes.Rows = make([]*MySQLRow, mysql.curRes.RowCount + 1)
-				copy(mysql.curRes.Rows, curRows)
-				mysql.curRes.Rows[mysql.curRes.RowCount] = row
-			}
-			// Increment row count
-			mysql.curRes.RowCount ++
-			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received row data packet from server") }
-		// EOF Packet fe
-		case c == ResultPacketEOF:
-			pkt := new(packetEOF)
-			pkt.header = hdr
-			err = pkt.read(mysql.reader)
-			if err != nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-				return
-			}
-			if mysql.Logging { log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server") }
-			// Change EOF flag in result
-			if mysql.curRes == nil {
-				mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-				return
-			}
-			if !mysql.curRes.fieldsEOF {
-				mysql.curRes.fieldsEOF = true
-				if mysql.Logging { log.Stdout("End of field packets") }
-			} else if !mysql.curRes.rowsEOF {
-				mysql.curRes.rowsEOF = true
-				if mysql.Logging { log.Stdout("End of row data packets") }
-				mysql.addResult()
-			}
+		}
 	}
 	// Increment sequence
-	mysql.sequence ++
-	return nil
+	mysql.sequence++
+	return
 }
 
 /**
@@ -620,15 +688,17 @@ func (mysql *MySQL) addResult() {
 		mysql.result[0] = mysql.curRes
 	} else {
 		curRes := mysql.result
-		mysql.result = make([]*MySQLResult, mysql.pointer + 1)
+		mysql.result = make([]*MySQLResult, mysql.pointer+1)
 		copy(mysql.result, curRes)
 		mysql.result[mysql.pointer] = mysql.curRes
 	}
-	if mysql.Logging { log.Stdout("Current result set saved") }
+	if mysql.Logging {
+		log.Stdout("Current result set saved")
+	}
 	// Reset temp result
 	mysql.curRes = nil
 	// Increment pointer
-	mysql.pointer ++
+	mysql.pointer++
 }
 
 /**
@@ -644,7 +714,7 @@ func (mysql *MySQL) command(command byte, args ...interface{}) (err os.Error) {
 		return
 	}
 	// Increment sequence
-	mysql.sequence ++
+	mysql.sequence++
 	return nil
 }
 
@@ -654,5 +724,5 @@ func (mysql *MySQL) command(command byte, args ...interface{}) (err os.Error) {
 func (mysql *MySQL) error(errno int, error string) {
 	// Set err number/string
 	mysql.Errno = errno
-	mysql.Error = error	
+	mysql.Error = error
 }
