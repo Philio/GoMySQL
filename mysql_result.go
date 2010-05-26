@@ -10,21 +10,21 @@ package mysql
  * All results stored using MySQLResult
  */
 type MySQLResult struct {
-	AffectedRows	uint64
-	InsertId	uint64
-	WarningCount	uint16
-	Message		string
-	
-	Fields		[]*MySQLField
-	FieldCount	uint64
-	fieldsRead	uint64
-	fieldsEOF	bool
-	
-	Rows		[]*MySQLRow
-	RowCount	uint64
-	rowsEOF		bool
-	
-	pointer		int
+	AffectedRows uint64
+	InsertId     uint64
+	WarningCount uint16
+	Message      string
+
+	Fields     []*MySQLField
+	FieldCount uint64
+	fieldsRead uint64
+	fieldsEOF  bool
+
+	Rows     []*MySQLRow
+	RowCount uint64
+	rowsEOF  bool
+
+	pointer int
 }
 
 /**
@@ -34,7 +34,7 @@ func (res *MySQLResult) FetchRow() []interface{} {
 	if res.RowCount > 0 {
 		if len(res.Rows) > res.pointer {
 			row := res.Rows[res.pointer].Data
-			res.pointer ++
+			res.pointer++
 			return row
 		}
 	}
@@ -44,15 +44,15 @@ func (res *MySQLResult) FetchRow() []interface{} {
 /**
  * Fetch a map of the current row
  */
-func (res *MySQLResult) FetchMap() map[string] interface{} {
+func (res *MySQLResult) FetchMap() map[string]interface{} {
 	if res.RowCount > 0 {
 		if len(res.Rows) > res.pointer {
 			row := res.Rows[res.pointer].Data
-			rowMap := make(map[string] interface{})
+			rowMap := make(map[string]interface{})
 			for key, val := range row {
 				rowMap[res.Fields[key].Name] = val
 			}
-			res.pointer ++
+			res.pointer++
 			return rowMap
 		}
 	}
@@ -70,29 +70,29 @@ func (res *MySQLResult) Reset() {
  * Field definition
  */
 type MySQLField struct {
-	Name		string
-	Length		uint32
-	Type		byte
-	Flags		*MySQLFieldFlags
-	Decimals	uint8
+	Name     string
+	Length   uint32
+	Type     byte
+	Flags    *MySQLFieldFlags
+	Decimals uint8
 }
 
 /**
  * Field flags
  */
 type MySQLFieldFlags struct {
-	NotNull		bool
-	PrimaryKey	bool
-	UniqueKey	bool
-	MultiKey	bool
-	Blob		bool
-	Unsigned	bool
-	Zerofill	bool
-	Binary		bool
-	Enum		bool
-	AutoIncrement	bool
-	Timestamp	bool
-	Set		bool
+	NotNull       bool
+	PrimaryKey    bool
+	UniqueKey     bool
+	MultiKey      bool
+	Blob          bool
+	Unsigned      bool
+	Zerofill      bool
+	Binary        bool
+	Enum          bool
+	AutoIncrement bool
+	Timestamp     bool
+	Set           bool
 }
 
 /**
@@ -100,59 +100,53 @@ type MySQLFieldFlags struct {
  * @todo This would probably faster using binary
  */
 func (field *MySQLFieldFlags) process(flags uint16) {
-	// MySQL 5.1 returns values larger than defined in protocol docs, ignore these for now
-	if flags >= FLAG_UNKNOWN_4 { flags -= FLAG_UNKNOWN_4 }
-	if flags >= FLAG_UNKNOWN_3 { flags -= FLAG_UNKNOWN_3 }
-	if flags >= FLAG_UNKNOWN_2 { flags -= FLAG_UNKNOWN_2 }
-	if flags >= FLAG_UNKNOWN_1 { flags -= FLAG_UNKNOWN_1 }
-	// Populate struct with known flags
-	if flags >= FLAG_SET {
-		field.Set = true
-		flags -= FLAG_SET
-	}
-	if flags >= FLAG_TIMESTAMP {
-		field.Timestamp = true
-		flags -= FLAG_TIMESTAMP
-	}
-	if flags >= FLAG_AUTO_INCREMENT {
-		field.AutoIncrement = true
-		flags -= FLAG_AUTO_INCREMENT
-	}
-	if flags >= FLAG_ENUM {
-		field.Enum = true
-		flags -= FLAG_ENUM
-	}
-	if flags >= FLAG_BINARY {
-		field.Binary = true
-		flags -= FLAG_BINARY
-	}
-	if flags >= FLAG_ZEROFILL {
-		field.Zerofill = true
-		flags -= FLAG_ZEROFILL
-	}
-	if flags >= FLAG_UNSIGNED {
-		field.Unsigned = true
-		flags -= FLAG_UNSIGNED
-	}
-	if flags >= FLAG_BLOB {
-		field.Blob = true
-		flags -= FLAG_BLOB
-	}
-	if flags >= FLAG_MULTIPLE_KEY {
-		field.MultiKey = true
-		flags -= FLAG_MULTIPLE_KEY
-	}
-	if flags >= FLAG_UNIQUE_KEY {
-		field.UniqueKey = true
-		flags -= FLAG_UNIQUE_KEY
-	}
-	if flags >= FLAG_PRI_KEY {
-		field.PrimaryKey = true
-		flags -= FLAG_PRI_KEY
-	}
-	if flags >= FLAG_NOT_NULL {
+	// Check not null
+	if flags & FLAG_NOT_NULL != 0 {
 		field.NotNull = true
-		flags -= FLAG_NOT_NULL
+	}
+	// Check pri key
+	if flags & FLAG_PRI_KEY != 0 {
+		field.PrimaryKey = true
+	}
+	// Check unique
+	if flags & FLAG_UNIQUE_KEY != 0 {
+		field.UniqueKey = true
+	}
+	// Check multi key
+	if flags & FLAG_MULTIPLE_KEY != 0 {
+		field.MultiKey = true
+	}
+	// Check blob
+	if flags & FLAG_BLOB != 0 {
+		field.Blob = true
+	}
+	// Check unsigned
+	if flags & FLAG_UNSIGNED != 0 {
+		field.Unsigned = true
+	}
+	// Check zerofill
+	if flags & FLAG_ZEROFILL != 0 {
+		field.Zerofill = true
+	}
+	// Check binary
+	if flags & FLAG_BINARY != 0 {
+		field.Binary = true
+	}
+	// Check enum
+	if flags & FLAG_ENUM != 0 {
+		field.Enum = true
+	}
+	// Check auto increment
+	if flags & FLAG_AUTO_INCREMENT != 0 {
+		field.AutoIncrement = true
+	}
+	// Check timestamp
+	if flags & FLAG_TIMESTAMP != 0 {
+		field.Timestamp = true
+	}
+	// Check flag set
+	if flags & FLAG_SET != 0 {
+		field.Set = true
 	}
 }
 
@@ -160,5 +154,5 @@ func (field *MySQLFieldFlags) process(flags uint16) {
  * Row definition
  */
 type MySQLRow struct {
-	Data		[]interface{}
+	Data []interface{}
 }
