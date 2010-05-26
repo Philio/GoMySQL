@@ -1,4 +1,4 @@
-GoMySQL Version 0.2.0
+GoMySQL Version 0.2.0 [DO NOT USE THIS VERSION IT WILL NOT BUILD]
 =====================
 
 
