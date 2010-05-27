@@ -333,5 +333,4 @@ Error handling
 As of version 0.2.0 all functions return os.Error. If the command succeeded the return value will be nil, otherwise it will contain the error.
 If returned value is not nil then mysql error code and description can then be retreived from Errno and Error properties for additional info/debugging.
 Prepared statements have their own copy of the Errno and Error properties.  
-Generated errors attempt to follow MySQL protocol/specifications as closely as possible.  
-If a function returns a negative value (e.g. false or nil) the Errno and Error properties can be checked for details of the error.
+Generated errors attempt to follow MySQL protocol/specifications as closely as possible.
