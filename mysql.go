@@ -526,12 +526,12 @@ func (mysql *MySQL) getResult() (err os.Error) {
 		} else {
 			mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR)
 		}
-		return
+		return os.NewError("An error occured receiving packet from MySQL")
 	}
 	// Check sequence number
 	if hdr.sequence != mysql.sequence {
 		mysql.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		return
+		return os.NewError("An error occured receiving packet from MySQL")
 	}
 	// Read the next byte to identify the type of packet
 	c, err := mysql.reader.ReadByte()
@@ -544,6 +544,8 @@ func (mysql *MySQL) getResult() (err os.Error) {
 		if mysql.Logging {
 			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server")
 		}
+		// Return error response
+		err = os.NewError("An unknown packet was received from MySQL")
 	// OK Packet 00
 	case c == ResultPacketOK:
 		pkt := new(packetOK)
