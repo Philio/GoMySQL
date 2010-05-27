@@ -117,7 +117,7 @@ The fifth parameter can either be an integer value which will be assigned as the
 The port will default to 3306.  
 The socket will default to /var/run/mysql/mysql.sock (Debian/Ubuntu).  
 
-Returns true on success or false on failure, error number and description can be retrieved for failure description (see error handling section)
+Returns os.Error, error number and description can be retrieved for failure description (see error handling section)
 
 Example:
 
@@ -134,7 +134,7 @@ Example:
 **MySQL.Close()**
 
 Closes the connection to the database.  
-Returns true on success or false on failure, error number and description can be retrieved for failure description (see error handling section)
+Returns os.Error, error number and description can be retrieved for failure description (see error handling section)
 
 Example:
 
@@ -143,7 +143,7 @@ Example:
 **MySQL.Query(sql string)**
 
 Perform an SQL query, as of 0.1.1 supports multiple statements.  
-Returns a MySQLResult object on success or nil on failure, data contained within result object varies depending on query type. If query contains multiple statements then the first result set is returned.
+Returns a MySQLResult object and os.Error, data contained within result object varies depending on query type. If query contains multiple statements then the first result set is returned.
 
 Example:
 
@@ -152,7 +152,7 @@ Example:
 **MySQL.MultiQuery(sql string)**
 
 Identical in function to MySQL.Query, intended for use with multiple statements.  
-Returns an array of MySQLResult objects or nil on failure.
+Returns an array of MySQLResult objects and os.Error.
 
 Example:
 
@@ -164,7 +164,7 @@ resArray[1] contains result of UPDATE t2 SET b = 2
 **MySQL.ChangeDb(dbname string)**
 
 Change the currently active database.  
-Returns true on success or false on failure.
+Returns os.Error.
 
 Example:  
 
@@ -173,7 +173,7 @@ Example:
 **MySQL.Ping()**
 
 Ping the server.  
-Returns true on success or false on failure.  
+Returns os.Error.  
 
 Example:
 
@@ -182,6 +182,7 @@ Example:
 **MySQL.InitStmt()**
 
 Create a new prepared statement.
+Returns a new statement and os.Error.
 
 Example:
 
@@ -251,7 +252,7 @@ Example:
 **MySQLStatement.BindParams(params)**
 
 Bind params to a query, the number of params should equal the number of ?'s in the query sent to prepare.  
-Returns true on success or false on failure.  
+Returns os.Error.  
 *Please read limitations section below for supported param types*
 
 Example:
@@ -263,6 +264,7 @@ Example:
 Send paramater as long data.  
 Multiple packets can be sent per parameter, each up to the maximum packet size.  
 Parameters that are sent as long data should be bound as nil (NULL).
+Returns os.Error.  
 
 Example:
 
@@ -271,7 +273,7 @@ Example:
 **MySQLStatement.Execute()**
 
 Execute the prepared query.  
-Returns a MySQLResult object on success or nil on failure, data contained within result object varies depending on query type.
+Returns a MySQLResult object and os.Error, data contained within result object varies depending on query type.
 
 Example:
 
@@ -280,7 +282,7 @@ Example:
 **MySQLStatement.Reset()**
 
 Reset the statement.  
-Returns true on success or false on failure.
+Returns os.Error.  
 
 Example:
 
@@ -289,7 +291,7 @@ Example:
 **MySQLStatement.Close()**
 
 Close the statement.  
-Returns true on success or false on failure.
+Returns os.Error.
 
 Example:
 
@@ -328,7 +330,8 @@ Date/time: date, datetime, timestamp
 Error handling
 --------------
 
-Almost all errors are handled internally and populate the Errno and Error properties of MySQL, as of 0.1.7 this includes connect errors. 
+As of version 0.2.0 all functions return os.Error. If the command succeeded the return value will be nil, otherwise it will contain the error.
+If returned value is not nil then mysql error code and description can then be retreived from Errno and Error properties for additional info/debugging.
 Prepared statements have their own copy of the Errno and Error properties.  
 Generated errors attempt to follow MySQL protocol/specifications as closely as possible.  
 If a function returns a negative value (e.g. false or nil) the Errno and Error properties can be checked for details of the error.
