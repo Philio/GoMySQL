@@ -318,6 +318,31 @@ func (mysql *MySQL) Ping() (err os.Error) {
 }
 
 /**
+ * Escape string
+ */
+func (mysql *MySQL) Escape(str string) (esc string) {
+	if mysql.Logging {
+		log.Stdout("Escape called")
+	}
+	// loop through string a character at a time
+	prev := ""
+	for i := 0; i < len(str); i ++ {
+		cur := string(str[i])
+		switch cur {
+		// Detect unescaped quotes
+		case "'", "\"":
+			if prev != "\\" {
+				// Add escape character
+				esc += "\\"
+			}
+		}
+		esc += cur
+		prev = cur
+	}
+	return
+}
+
+/**
  * Initialise a new statement
  */
 func (mysql *MySQL) InitStmt() (stmt *MySQLStatement, err os.Error) {
