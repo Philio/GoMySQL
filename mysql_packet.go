@@ -789,41 +789,10 @@ func (pkt *packetLongData) write(writer *bufio.Writer) (err os.Error) {
 	if err != nil {
 		return
 	}
-	// Flush
-	err = writer.Flush()
+	// Write data
+	_, err = writer.WriteString(pkt.data)
 	if err != nil {
 		return
-	}
-	// Write data
-	if len(pkt.data) < writer.Available() {
-		_, err = writer.WriteString(pkt.data)
-		if err != nil {
-			return
-		}
-	} else {
-		bufSize := writer.Available()
-		sent := 0
-		for sent < len(pkt.data) {
-			// Get next block of data
-			var tmpStr string
-			if len(pkt.data)-sent < bufSize {
-				tmpStr = pkt.data[sent : len(pkt.data)-sent]
-				sent += len(pkt.data) - sent
-			} else {
-				tmpStr = pkt.data[sent:bufSize]
-				sent += bufSize
-			}
-			// Write data block
-			_, err = writer.WriteString(tmpStr)
-			if err != nil {
-				return
-			}
-			// Flush
-			err = writer.Flush()
-			if err != nil {
-				return
-			}
-		}
 	}
 	// Flush
 	err = writer.Flush()
@@ -1023,11 +992,6 @@ func (pkt *packetExecute) write(writer *bufio.Writer) (err os.Error) {
 			}
 		}
 	}
-	// Flush prior to sending params
-	err = writer.Flush()
-	if err != nil {
-		return
-	}
 	// Write param data
 	if len(pkt.paramData) > 0 {
 		for _, paramData := range pkt.paramData {
@@ -1036,14 +1000,11 @@ func (pkt *packetExecute) write(writer *bufio.Writer) (err os.Error) {
 				if err != nil {
 					return
 				}
-				// Flush after each param to ensure buffer isn't full
-				err = writer.Flush()
-				if err != nil {
-					return
-				}
 			}
 		}
 	}
+	// Flush
+	err = writer.Flush()
 	return
 }
 
