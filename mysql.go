@@ -27,21 +27,21 @@ const (
  * The main MySQL struct
  */
 type MySQL struct {
-	Logging bool
-	Errno int
-	Error string
-	auth      *MySQLAuth
-	conn      net.Conn
-	reader    *bufio.Reader
-	writer    *bufio.Writer
-	sequence  uint8
-	connected bool
-	serverInfo *MySQLServerInfo
-	curRes  *MySQLResult
-	result  []*MySQLResult
+	Logging     bool
+	Errno       int
+	Error       string
+	auth        *MySQLAuth
+	conn        net.Conn
+	reader      *bufio.Reader
+	writer      *bufio.Writer
+	sequence    uint8
+	connected   bool
+	serverInfo  *MySQLServerInfo
+	curRes      *MySQLResult
+	result      []*MySQLResult
 	resultSaved bool
-	pointer int
-	mutex *sync.Mutex
+	pointer     int
+	mutex       *sync.Mutex
 }
 
 /**
