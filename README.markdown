@@ -1,11 +1,12 @@
-GoMySQL Version 0.2.0
-=====================
+GoMySQL Version 0.2.0-beta2
+===========================
 
 
 Revision History
 ----------------
 
-* 0.2.0 - Functions have been reworked and as a general rule now always return os.Error, this provides a more generic and consistant function design. This change resolves Github issue #3. Removed length vs buffered length checks as they don't work with packets > 4096 bytes, this resolves Github issue #4. Fixed several minor bugs. All code has been processed with gofmt. [THIS VERSION IS NOT BACKWARDS COMPATIBLE WITH 0.1 SERIES]
+* 0.2.0-beta2 - Additional fixes for Github issue #4, client should be more robust in certain circumstances.
+* 0.2.0-beta1 - Functions have been reworked and as a general rule now always return os.Error, this provides a more generic and consistant function design. This change resolves Github issue #3. Removed length vs buffered length checks as they don't work with packets > 4096 bytes, this resolves Github issue #4. Fixed several minor bugs. All code has been processed with gofmt. [THIS VERSION IS NOT BACKWARDS COMPATIBLE WITH 0.1 SERIES]
 * 0.1.14 - Added support for long data packets.
 * 0.1.13 - Added proper support for NULL bit map in binary row data packets.
 * 0.1.12 - Added auth struct to store authentication data. Removed logging param from New() in favour of just setting the public var. Added Reconnect() function. Bug fix in Query() causing panic for error packet responses. Added a number of examples.
