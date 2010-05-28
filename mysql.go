@@ -28,23 +28,19 @@ const (
  */
 type MySQL struct {
 	Logging bool
-
 	Errno int
 	Error string
-
 	auth      *MySQLAuth
 	conn      net.Conn
 	reader    *bufio.Reader
 	writer    *bufio.Writer
 	sequence  uint8
 	connected bool
-
 	serverInfo *MySQLServerInfo
-
 	curRes  *MySQLResult
 	result  []*MySQLResult
+	resultSaved bool
 	pointer int
-
 	mutex *sync.Mutex
 }
 
@@ -199,18 +195,19 @@ func (mysql *MySQL) Query(sql string) (res *MySQLResult, err os.Error) {
 		if err != nil {
 			return
 		}
-		// If buffer is empty break loop
-		if mysql.reader.Buffered() == 0 {
+		// If result saved and buffer is empty break loop
+		if mysql.resultSaved && mysql.reader.Buffered() == 0 {
 			break
 		}
 	}
 	// If server sent result return it
 	if len(mysql.result) > 0 {
-		return mysql.result[0], nil
+		res = mysql.result[0]
+		return
 	} else {
 		err = os.NewError("No valid result packets were received from MySQL")
 	}
-	return nil, err
+	return
 }
 
 /**
@@ -245,18 +242,19 @@ func (mysql *MySQL) MultiQuery(sql string) (res []*MySQLResult, err os.Error) {
 		if err != nil {
 			return
 		}
-		// If buffer is empty break loop
-		if mysql.reader.Buffered() == 0 {
+		// If result saved and buffer is empty break loop
+		if mysql.resultSaved && mysql.reader.Buffered() == 0 {
 			break
 		}
 	}
 	// If server sent any results return them
 	if len(mysql.result) > 0 {
-		return mysql.result, nil
+		res = mysql.result
+		return
 	} else {
 		err = os.NewError("No valid result packets were received from MySQL")
 	}
-	return nil, err
+	return
 }
 
 /**
@@ -441,11 +439,6 @@ func (mysql *MySQL) init() (err os.Error) {
 		mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR)
 		return
 	}
-	// Check read buffer size matches header length
-	if int(hdr.length) != mysql.reader.Buffered() {
-		mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-		return
-	}
 	// Get packet
 	pkt := new(packetInit)
 	err = pkt.read(mysql.reader)
@@ -596,6 +589,7 @@ func (mysql *MySQL) getResult() (err os.Error) {
 		mysql.curRes = new(MySQLResult)
 		mysql.curRes.FieldCount = pkt.fieldCount
 		mysql.curRes.Fields = make([]*MySQLField, pkt.fieldCount)
+		mysql.resultSaved = false
 	// Field Packet 1-250 ("")
 	case c >= 0x01 && c <= 0xfa && !mysql.curRes.fieldsEOF:
 		pkt := new(packetField)
@@ -699,6 +693,7 @@ func (mysql *MySQL) addResult() {
 	}
 	// Reset temp result
 	mysql.curRes = nil
+	mysql.resultSaved = true
 	// Increment pointer
 	mysql.pointer++
 }
@@ -717,7 +712,7 @@ func (mysql *MySQL) command(command byte, args ...interface{}) (err os.Error) {
 	}
 	// Increment sequence
 	mysql.sequence++
-	return nil
+	return
 }
 
 /**
