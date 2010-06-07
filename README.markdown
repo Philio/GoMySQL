@@ -5,7 +5,7 @@ GoMySQL Version 0.2.0-RC
 Revision History
 ----------------
 
-* 0.2.0-RC - Fixed Github issue #5, improvements to query logger.
+* 0.2.0-RC - Fixed Github issue #5, improvements to query logger. Added escape function but currently advise against using this for anything but short strings at present.
 * 0.2.0-beta2 - Additional fixes for Github issue #4, client should be more robust in certain circumstances.
 * 0.2.0-beta1 - Functions have been reworked and as a general rule now always return os.Error, this provides a more generic and consistant function design. This change resolves Github issue #3. Removed length vs buffered length checks as they don't work with packets > 4096 bytes, this resolves Github issue #4. Fixed several minor bugs. All code has been processed with gofmt. [THIS VERSION IS NOT BACKWARDS COMPATIBLE WITH 0.1 SERIES]
 * 0.1.14 - Added support for long data packets.
@@ -189,6 +189,15 @@ Returns a new statement and os.Error.
 Example:
 
 `stmt := db.InitStmt()`
+
+**MySQL.Escape(str string)**
+
+Escape a string.
+Returns an escaped copy of the string.
+
+Example:
+
+`str = db.Escape("I 'should' be escaped because I contain single quotes!")`
 
 
 MySQL Result Functions
