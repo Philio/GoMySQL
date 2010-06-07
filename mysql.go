@@ -168,7 +168,12 @@ func (mysql *MySQL) Close() (err os.Error) {
  */
 func (mysql *MySQL) Query(sql string) (res *MySQLResult, err os.Error) {
 	if mysql.Logging {
-		log.Stdout("Query called with SQL: " + sql)
+		if len(sql) > 512 {
+			trim := sql[0:512]
+			log.Stdout("Query called with SQL: " + trim + "...")
+		} else {
+			log.Stdout("Query called with SQL: " + sql)
+		}
 	}
 	// If not connected return
 	if !mysql.connected {
@@ -215,7 +220,12 @@ func (mysql *MySQL) Query(sql string) (res *MySQLResult, err os.Error) {
  */
 func (mysql *MySQL) MultiQuery(sql string) (res []*MySQLResult, err os.Error) {
 	if mysql.Logging {
-		log.Stdout("MultiQuery called with SQL: " + sql)
+		if len(sql) > 512 {
+			trim := sql[0:512]
+			log.Stdout("MultiQuery called with SQL: " + trim + "...")
+		} else {
+			log.Stdout("MultiQuery called with SQL: " + sql)
+		}
 	}
 	// If not connected return
 	if !mysql.connected {
@@ -639,7 +649,7 @@ func (mysql *MySQL) getResult() (err os.Error) {
 			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server")
 		}
 	// Row Data Packet 1-250 ("")
-	case c >= 0x01 && c <= 0xfa && !mysql.curRes.rowsEOF:
+	case c >= 0x01 && c <= 0xfb && !mysql.curRes.rowsEOF:
 		pkt := new(packetRowData)
 		pkt.header = hdr
 		pkt.fields = mysql.curRes.Fields
