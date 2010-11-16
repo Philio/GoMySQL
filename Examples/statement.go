@@ -14,7 +14,7 @@ func main() {
 	// Enable logging
 	db.Logging = true
 	// Connect to database
-	db.Connect("localhost", "root", "********", "gotesting")
+	db.Connect("localhost", "root", "********", "gotesting", "/tmp/mysql.sock")
 	if db.Errno != 0 {
 		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
 		os.Exit(1)
