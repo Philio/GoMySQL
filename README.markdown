@@ -7,7 +7,7 @@ Revision History
 
 0.2.x series [current]
 
-* 0.2.1 - Fixes for current Go versions.  log.Print instead of log.Stdout.  New make([]type, int) for slices
+* 0.2.1 - Fixes for current Go versions.  log.Print instead of log.Stdout.  New make([]type, int) for slices.  Patch & pull request sent to Philio - original author
 * 0.2.0 - Functions have been reworked and now always return os.Error to provide a generic and consistant design. Improved logging output. Improved client stability. Removed length vs buffered length checks as they don't work with packets > 4096 bytes. Added new Escape function, although this is currently only suitiable for short strings. Tested library with much larger databases such as multi-gigabyte tables and multi-megabyte blogs. Many minor bug fixes. Resolved issue #3, #4 and #5.
 
 0.1.x series [deprecated]
@@ -44,6 +44,7 @@ As of version 0.1.14 development on the MySQL protocol has been completed and th
 
 Please report bugs via the GitHub issue tracker, also comments and suggestions are very welcome.
 
+Also, note that I (bketelsen) changed the default socket location to /tmp/mysqld.sock which suits my Mac needs.  YMMV
 
 License
 -------

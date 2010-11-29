@@ -418,18 +418,6 @@ func (mysql *MySQL) parseParams(p []interface{}) {
  */
 func (mysql *MySQL) connect() (err os.Error) {
 	// Connect via unix socket
-	if mysql.auth.host == "localhost" || mysql.auth.host == "127.0.0.1" {
-		mysql.conn, err = net.Dial("unix", "", mysql.auth.socket)
-		// On error set the connect error details
-		if err != nil {
-			mysql.error(CR_CONNECTION_ERROR, fmt.Sprintf(CR_CONNECTION_ERROR_STR, mysql.auth.socket))
-			return
-		}
-		if mysql.Logging {
-			log.Print("Connected using unix socket")
-		}
-		// Connect via TCP
-	} else {
 		mysql.conn, err = net.Dial("tcp", "", fmt.Sprintf("%s:%d", mysql.auth.host, mysql.auth.port))
 		// On error set the connect error details
 		if err != nil {
@@ -439,7 +427,7 @@ func (mysql *MySQL) connect() (err os.Error) {
 		if mysql.Logging {
 			log.Print("Connected using TCP/IP")
 		}
-	}
+
 	// Setup buffered reader and writer
 	mysql.reader = bufio.NewReader(mysql.conn)
 	mysql.writer = bufio.NewWriter(mysql.conn)

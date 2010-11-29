@@ -12,9 +12,9 @@ func main() {
 	// Create new instance
 	db := mysql.New()
 	// Enable logging
-	db.Logging = true
+	db.Logging = false
 	// Connect to database
-	db.Connect("localhost", "root", "********", "gotesting", "/tmp/mysql.sock")
+	db.Connect("localhost", "root", "", "gotesting", "/tmp/mysql.sock")
 	if db.Errno != 0 {
 		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
 		os.Exit(1)
@@ -26,11 +26,15 @@ func main() {
 		os.Exit(1)
 	}
 	// Query database
-	res := db.Query("SELECT * FROM test1 LIMIT 5")
+	res, _ := db.Query("SELECT fname, lname FROM test1 LIMIT 5")
 	if db.Errno != 0 {
 		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
 		os.Exit(1)
 	}
+	
+	defer db.Close()
+
+	
 	// Display results
 	var row map[string] interface{}
 	for {
@@ -38,10 +42,13 @@ func main() {
 		if row == nil {
 			break
 		}
-		for key, value := range row {
-			fmt.Printf("%s:%v\n", key, value)
-		}
+//		for _, value := range row {
+//			fmt.Printf("%v",  value)
+//		}
+		fmt.Printf("%s %s\n", row["fname"], row["lname"])
+		
+
 	}
 	// Close connection
-	db.Close()
+
 }

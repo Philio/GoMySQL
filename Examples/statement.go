@@ -12,9 +12,9 @@ func main() {
 	// Create new instance
 	db := mysql.New()
 	// Enable logging
-	db.Logging = true
+	db.Logging = false
 	// Connect to database
-	db.Connect("localhost", "root", "********", "gotesting", "/tmp/mysql.sock")
+	db.Connect("localhost", "root", "", "gotesting", "/tmp/mysql.sock")
 	if db.Errno != 0 {
 		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
 		os.Exit(1)
@@ -26,7 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 	// Initialise statement
-	stmt := db.InitStmt()
+	stmt, _ := db.InitStmt()
 	// Prepare statement
 	stmt.Prepare("SELECT * FROM test1 WHERE id > ? AND id < ?")
 	if stmt.Errno != 0 {
@@ -36,7 +36,7 @@ func main() {
 	// Bind params 
 	stmt.BindParams(1, 5)
 	// Execute statement
-	res := stmt.Execute()
+	res, _ := stmt.Execute()
 	if stmt.Errno != 0 {
 		fmt.Printf("Error #%d %s\n", stmt.Errno, stmt.Error)
 		os.Exit(1)

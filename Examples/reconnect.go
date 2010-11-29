@@ -12,6 +12,7 @@ import (
 
 // Reconnect function, attempts to reconnect once per second
 func reconnect(db *mysql.MySQL, done chan int) {
+	max_attempts := 20
 	attempts := 0
 	for {
 		// Sleep for 1 second
@@ -24,6 +25,9 @@ func reconnect(db *mysql.MySQL, done chan int) {
 		} else {
 			attempts ++
 			fmt.Printf("Reconnect attempt %d failed\n", attempts)
+			if attempts > max_attempts {
+				panic("Max attempts exceeded!")
+			}
 		}
 	}
 	done <- 1
@@ -35,14 +39,14 @@ func main() {
 	// Enable logging
 	db.Logging = true
 	// Connect to database
-	db.Connect("localhost", "root", "********", "gotesting", "/tmp/mysql.sock")
+	db.Connect("localhost", "root", "", "gotesting", "/tmp/mysql.sock")
 	if db.Errno != 0 {
 		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
 		os.Exit(1)
 	}
 	// Repeat query forever
 	for {
-		res := db.Query("select * from test1")
+		res, _ := db.Query("select * from test1")
 		// On error reconnect to the server
 		if res == nil {
 			fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
