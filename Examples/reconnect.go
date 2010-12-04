@@ -22,7 +22,7 @@ func reconnect(db *mysql.MySQL, done chan int) {
 		if db.Errno == 0 {
 			break
 		} else {
-			attempts ++
+			attempts++
 			fmt.Printf("Reconnect attempt %d failed\n", attempts)
 		}
 	}
@@ -47,8 +47,8 @@ func main() {
 		if res == nil {
 			fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
 			done := make(chan int)
-    			go reconnect(db, done)
-    			<- done
+			go reconnect(db, done)
+			<-done
 		}
 		// Sleep for 0.5 seconds
 		time.Sleep(500000000)

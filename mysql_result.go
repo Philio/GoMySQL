@@ -101,51 +101,51 @@ type MySQLFieldFlags struct {
  */
 func (field *MySQLFieldFlags) process(flags uint16) {
 	// Check not null
-	if flags & FLAG_NOT_NULL != 0 {
+	if flags&FLAG_NOT_NULL != 0 {
 		field.NotNull = true
 	}
 	// Check pri key
-	if flags & FLAG_PRI_KEY != 0 {
+	if flags&FLAG_PRI_KEY != 0 {
 		field.PrimaryKey = true
 	}
 	// Check unique
-	if flags & FLAG_UNIQUE_KEY != 0 {
+	if flags&FLAG_UNIQUE_KEY != 0 {
 		field.UniqueKey = true
 	}
 	// Check multi key
-	if flags & FLAG_MULTIPLE_KEY != 0 {
+	if flags&FLAG_MULTIPLE_KEY != 0 {
 		field.MultiKey = true
 	}
 	// Check blob
-	if flags & FLAG_BLOB != 0 {
+	if flags&FLAG_BLOB != 0 {
 		field.Blob = true
 	}
 	// Check unsigned
-	if flags & FLAG_UNSIGNED != 0 {
+	if flags&FLAG_UNSIGNED != 0 {
 		field.Unsigned = true
 	}
 	// Check zerofill
-	if flags & FLAG_ZEROFILL != 0 {
+	if flags&FLAG_ZEROFILL != 0 {
 		field.Zerofill = true
 	}
 	// Check binary
-	if flags & FLAG_BINARY != 0 {
+	if flags&FLAG_BINARY != 0 {
 		field.Binary = true
 	}
 	// Check enum
-	if flags & FLAG_ENUM != 0 {
+	if flags&FLAG_ENUM != 0 {
 		field.Enum = true
 	}
 	// Check auto increment
-	if flags & FLAG_AUTO_INCREMENT != 0 {
+	if flags&FLAG_AUTO_INCREMENT != 0 {
 		field.AutoIncrement = true
 	}
 	// Check timestamp
-	if flags & FLAG_TIMESTAMP != 0 {
+	if flags&FLAG_TIMESTAMP != 0 {
 		field.Timestamp = true
 	}
 	// Check flag set
-	if flags & FLAG_SET != 0 {
+	if flags&FLAG_SET != 0 {
 		field.Set = true
 	}
 }

@@ -97,7 +97,7 @@ func (pkt *packetInit) read(reader *bufio.Reader) (err os.Error) {
 	}
 	pkt.threadId = uint32(num)
 	// Scramble buffer (first part)
-	pkt.scrambleBuff = new([20]byte)
+	pkt.scrambleBuff = make([]byte, 20)
 	_, err = reader.Read(pkt.scrambleBuff[0:8])
 	if err != nil {
 		return
@@ -175,7 +175,7 @@ func (pkt *packetAuth) encrypt(password string, scrambleBuff []byte) {
 	crypt.Write(stg2Hash)
 	stg3Hash := crypt.Sum()
 	// XOR with first hash
-	pkt.scrambleBuff = new([21]byte)
+	pkt.scrambleBuff = make([]byte, 21)
 	pkt.scrambleBuff[0] = 0x14
 	for i := 0; i < 20; i++ {
 		pkt.scrambleBuff[i+1] = stg3Hash[i] ^ stg1Hash[i]

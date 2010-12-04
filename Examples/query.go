@@ -20,7 +20,7 @@ func main() {
 		os.Exit(1)
 	}
 	// Use UTF8
-	db.Query("SET NAMES utf8");
+	db.Query("SET NAMES utf8")
 	if db.Errno != 0 {
 		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
 		os.Exit(1)
@@ -32,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 	// Display results
-	var row map[string] interface{}
+	var row map[string]interface{}
 	for {
 		row = res.FetchMap()
 		if row == nil {

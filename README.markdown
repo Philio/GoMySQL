@@ -7,6 +7,7 @@ Revision History
 
 0.2.x series [current]
 
+* 0.2.1 - Updated to work with latest release of Go plus 1 or 2 minor tweaks.
 * 0.2.0 - Functions have been reworked and now always return os.Error to provide a generic and consistant design. Improved logging output. Improved client stability. Removed length vs buffered length checks as they don't work with packets > 4096 bytes. Added new Escape function, although this is currently only suitiable for short strings. Tested library with much larger databases such as multi-gigabyte tables and multi-megabyte blogs. Many minor bug fixes. Resolved issue #3, #4 and #5.
 
 0.1.x series [deprecated]

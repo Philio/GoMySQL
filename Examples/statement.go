@@ -20,7 +20,7 @@ func main() {
 		os.Exit(1)
 	}
 	// Use UTF8
-	db.Query("SET NAMES utf8");
+	db.Query("SET NAMES utf8")
 	if db.Errno != 0 {
 		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
 		os.Exit(1)
@@ -33,7 +33,7 @@ func main() {
 		fmt.Printf("Error #%d %s\n", stmt.Errno, stmt.Error)
 		os.Exit(1)
 	}
-	// Bind params 
+	// Bind params
 	stmt.BindParams(1, 5)
 	// Execute statement
 	res := stmt.Execute()
@@ -42,7 +42,7 @@ func main() {
 		os.Exit(1)
 	}
 	// Display results
-	var row map[string] interface{}
+	var row map[string]interface{}
 	for {
 		row = res.FetchMap()
 		if row == nil {

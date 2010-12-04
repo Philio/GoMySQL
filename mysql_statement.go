@@ -62,7 +62,7 @@ type MySQLParam struct {
 func (stmt *MySQLStatement) Prepare(sql string) (err os.Error) {
 	mysql := stmt.mysql
 	if mysql.Logging {
-		log.Stdout("Prepare statement called")
+		log.Print("Prepare statement called")
 	}
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
@@ -76,7 +76,7 @@ func (stmt *MySQLStatement) Prepare(sql string) (err os.Error) {
 		return
 	}
 	if mysql.Logging {
-		log.Stdout("[" + strconv.Uitoa(uint(mysql.sequence-1)) + "] Sent prepare command to server")
+		log.Print("[" + strconv.Uitoa(uint(mysql.sequence-1)) + "] Sent prepare command to server")
 	}
 	// Get result packet(s)
 	for {
@@ -100,7 +100,7 @@ func (stmt *MySQLStatement) Prepare(sql string) (err os.Error) {
 func (stmt *MySQLStatement) BindParams(params ...interface{}) (err os.Error) {
 	mysql := stmt.mysql
 	if mysql.Logging {
-		log.Stdout("Bind params called")
+		log.Print("Bind params called")
 	}
 	// Check statement has been prepared
 	if !stmt.prepared {
@@ -126,7 +126,7 @@ func (stmt *MySQLStatement) BindParams(params ...interface{}) (err os.Error) {
 func (stmt *MySQLStatement) SendLongData(num uint16, data string) (err os.Error) {
 	mysql := stmt.mysql
 	if mysql.Logging {
-		log.Stdout("Send long data called")
+		log.Print("Send long data called")
 	}
 	// Check statement has been prepared
 	if !stmt.prepared {
@@ -154,7 +154,7 @@ func (stmt *MySQLStatement) SendLongData(num uint16, data string) (err os.Error)
 	}
 	mysql.sequence++
 	if mysql.Logging {
-		log.Stdout("[" + strconv.Uitoa(uint(mysql.sequence-1)) + "] " + "Sent long data packet to server")
+		log.Print("[" + strconv.Uitoa(uint(mysql.sequence-1)) + "] " + "Sent long data packet to server")
 	}
 	return
 }
@@ -165,7 +165,7 @@ func (stmt *MySQLStatement) SendLongData(num uint16, data string) (err os.Error)
 func (stmt *MySQLStatement) Execute() (res *MySQLResult, err os.Error) {
 	mysql := stmt.mysql
 	if mysql.Logging {
-		log.Stdout("Execute statement called")
+		log.Print("Execute statement called")
 	}
 	// Check statement has been prepared
 	if !stmt.prepared {
@@ -205,7 +205,7 @@ func (stmt *MySQLStatement) Execute() (res *MySQLResult, err os.Error) {
 	}
 	mysql.sequence++
 	if mysql.Logging {
-		log.Stdout("[" + strconv.Uitoa(uint(mysql.sequence-1)) + "] " + "Sent execute statement to server")
+		log.Print("[" + strconv.Uitoa(uint(mysql.sequence-1)) + "] " + "Sent execute statement to server")
 	}
 	// Get result packet(s)
 	for {
@@ -215,7 +215,7 @@ func (stmt *MySQLStatement) Execute() (res *MySQLResult, err os.Error) {
 			return
 		}
 		// If buffer is empty break loop
-		if mysql.reader.Buffered() == 0 {
+		if stmt.result.rowsEOF == true && mysql.reader.Buffered() == 0 {
 			break
 		}
 	}
@@ -230,7 +230,7 @@ func (stmt *MySQLStatement) Execute() (res *MySQLResult, err os.Error) {
 func (stmt *MySQLStatement) Close() (err os.Error) {
 	mysql := stmt.mysql
 	if mysql.Logging {
-		log.Stdout("Close statement called")
+		log.Print("Close statement called")
 	}
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
@@ -250,7 +250,7 @@ func (stmt *MySQLStatement) Close() (err os.Error) {
 		return
 	}
 	if mysql.Logging {
-		log.Stdout("[" + strconv.Uitoa(uint(mysql.sequence-1)) + "] Sent close statement command to server")
+		log.Print("[" + strconv.Uitoa(uint(mysql.sequence-1)) + "] Sent close statement command to server")
 	}
 	return
 }
@@ -261,7 +261,7 @@ func (stmt *MySQLStatement) Close() (err os.Error) {
 func (stmt *MySQLStatement) Reset() (err os.Error) {
 	mysql := stmt.mysql
 	if mysql.Logging {
-		log.Stdout("Reset statement called")
+		log.Print("Reset statement called")
 	}
 	// Lock mutex and defer unlock
 	mysql.mutex.Lock()
@@ -281,7 +281,7 @@ func (stmt *MySQLStatement) Reset() (err os.Error) {
 		return
 	}
 	if mysql.Logging {
-		log.Stdout("[" + strconv.Uitoa(uint(mysql.sequence-1)) + "] Sent reset statement command to server")
+		log.Print("[" + strconv.Uitoa(uint(mysql.sequence-1)) + "] Sent reset statement command to server")
 	}
 	return
 }
@@ -322,7 +322,7 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 		bytes := make([]byte, hdr.length)
 		mysql.reader.Read(bytes)
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
 		}
 		// Return error response
 		err = os.NewError("An unknown packet was received from MySQL")
@@ -336,7 +336,7 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 			return
 		}
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received ok for prepared statement packet from server")
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received ok for prepared statement packet from server")
 		}
 		// Save statement info
 		stmt.result = new(MySQLResult)
@@ -360,7 +360,7 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 			stmt.error(int(pkt.errno), pkt.error)
 		}
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
 		}
 		// Return error response
 		err = os.NewError("An error was received from MySQL")
@@ -382,7 +382,7 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 		// Increment params read
 		stmt.paramsRead++
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received param packet from server (ignored)")
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received param packet from server (ignored)")
 		}
 	// Field packet
 	case c >= 0x01 && c <= 0xfa && stmt.result.FieldCount > 0 && !stmt.result.fieldsEOF:
@@ -405,7 +405,7 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 		// Increment fields read count
 		stmt.result.fieldsRead++
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server")
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server")
 		}
 	// EOF Packet fe
 	case c == ResultPacketEOF:
@@ -417,18 +417,18 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 			return
 		}
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server")
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server")
 		}
 		// Change EOF flag
 		if stmt.ParamCount > 0 && !stmt.paramsEOF {
 			stmt.paramsEOF = true
 			if mysql.Logging {
-				log.Stdout("End of param packets")
+				log.Print("End of param packets")
 			}
 		} else if !stmt.result.fieldsEOF {
 			stmt.result.fieldsEOF = true
 			if mysql.Logging {
-				log.Stdout("End of field packets")
+				log.Print("End of field packets")
 			}
 		}
 	}
@@ -465,7 +465,7 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 		bytes := make([]byte, hdr.length)
 		mysql.reader.Read(bytes)
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
 		}
 		// Return error response
 		err = os.NewError("An unknown packet was received from MySQL")
@@ -479,7 +479,7 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 			return
 		}
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received ok packet from server")
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received ok packet from server")
 		}
 		// Create result
 		stmt.result = new(MySQLResult)
@@ -500,7 +500,7 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 			stmt.error(int(pkt.errno), pkt.error)
 		}
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
 		}
 		// Return error response
 		err = os.NewError("An error was received from MySQL")
@@ -514,7 +514,7 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 			return
 		}
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server")
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server")
 		}
 		// If fields sent again re-read incase for some reason something changed
 		if pkt.fieldCount > 0 {
@@ -545,7 +545,7 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 		// Increment fields read count
 		stmt.result.fieldsRead++
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server")
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server")
 		}
 	// Binary row packets appear to always start 00
 	case c == ResultPacketOK && stmt.resExecuted:
@@ -572,7 +572,7 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 		// Increment row count
 		stmt.result.RowCount++
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received binary row data packet from server")
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received binary row data packet from server")
 		}
 	// EOF Packet fe
 	case c == ResultPacketEOF:
@@ -584,18 +584,18 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 			return
 		}
 		if mysql.Logging {
-			log.Stdout("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server")
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server")
 		}
 		// Change EOF flag
 		if stmt.result.FieldCount > 0 && !stmt.result.fieldsEOF {
 			stmt.result.fieldsEOF = true
 			if mysql.Logging {
-				log.Stdout("End of field packets")
+				log.Print("End of field packets")
 			}
 		} else if !stmt.result.rowsEOF {
 			stmt.result.rowsEOF = true
 			if mysql.Logging {
-				log.Stdout("End of row packets")
+				log.Print("End of row packets")
 			}
 		}
 	}
