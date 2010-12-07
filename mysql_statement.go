@@ -215,7 +215,7 @@ func (stmt *MySQLStatement) Execute() (res *MySQLResult, err os.Error) {
 			return
 		}
 		// If buffer is empty break loop
-		if stmt.result.rowsEOF == true && mysql.reader.Buffered() == 0 {
+		if mysql.reader.Buffered() == 0 && stmt.resExecuted {
 			break
 		}
 	}
