@@ -12,7 +12,6 @@ import (
 	"bufio"
 	"os"
 	"log"
-	"reflect"
 	"sync"
 )
 
@@ -403,11 +402,9 @@ func (mysql *MySQL) parseParams(p []interface{}) {
 	}
 	// Reflect 5th param to determine if it is port or socket
 	if len(p) > 4 {
-		v := reflect.NewValue(p[4])
-		if v.Type().Name() == "int" {
-			mysql.auth.port = v.Interface().(int)
-		} else if v.Type().Name() == "string" {
-			mysql.auth.socket = v.Interface().(string)
+		switch v := p[4].(type) {
+			case int: mysql.auth.port = v
+			case string: mysql.auth.socket = v
 		}
 	}
 	return
