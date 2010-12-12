@@ -358,12 +358,11 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 		} else {
 			stmt.error(int(pkt.errno), pkt.error)
+			err = os.NewError(fmt.Sprintf("[seq %d] [errno %d] %s", int(mysql.sequence), int(pkt.errno), pkt.error))
 		}
 		if mysql.Logging {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
 		}
-		// Return error response
-		err = os.NewError("An error was received from MySQL")
 	// Making assumption that statement packets follow similar format to result packets
 	// If param count > 0 then first will get parameter packets following EOF
 	// After this should get standard field packets followed by EOF
@@ -498,12 +497,11 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 		} else {
 			stmt.error(int(pkt.errno), pkt.error)
+			err = os.NewError(fmt.Sprintf("[seq %d] [errno %d] %s", int(mysql.sequence), pkt.errno, pkt.error))
 		}
 		if mysql.Logging {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
 		}
-		// Return error response
-		err = os.NewError("An error was received from MySQL")
 	// Result Set Packet 1-250 (first byte of Length-Coded Binary)
 	case c >= 0x01 && c <= 0xfa && !stmt.resExecuted:
 		pkt := new(packetResultSet)
