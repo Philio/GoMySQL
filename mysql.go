@@ -597,14 +597,14 @@ func (mysql *MySQL) getResult() (err os.Error) {
 		err = pkt.read(mysql.reader)
 		if err != nil {
 			mysql.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+			err = os.NewError(fmt.Sprintf("[%d] %s", CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR))
 		} else {
 			mysql.error(int(pkt.errno), pkt.error)
+			err = os.NewError(fmt.Sprintf("[%d] %s", pkt.errno, pkt.error))
 		}
 		if mysql.Logging {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
 		}
-		// Return error response
-		err = os.NewError("An error was received from MySQL")
 	// Result Set Packet 1-250 (first byte of Length-Coded Binary)
 	case c >= 0x01 && c <= 0xfa && mysql.curRes == nil:
 		pkt := new(packetResultSet)
