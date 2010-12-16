@@ -185,6 +185,7 @@ func (stmt *MySQLStatement) Execute() (res *MySQLResult, err os.Error) {
 	// Reset error/sequence vars
 	mysql.reset()
 	stmt.reset()
+	stmt.resExecuted = false
 	// Construct packet
 	pkt := new(packetExecute)
 	pkt.command = COM_STMT_EXECUTE
