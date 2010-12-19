@@ -565,7 +565,10 @@ func (mysql *MySQL) getResult() (err os.Error) {
 	// Unknown packet, remove it from the buffer
 	default:
 		bytes := make([]byte, hdr.length)
-		mysql.reader.Read(bytes)
+		err := readFull(mysql.reader, bytes)
+                if err != nil {
+                    return err
+                }
 		if mysql.Logging {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server")
 		}

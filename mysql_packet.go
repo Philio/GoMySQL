@@ -14,6 +14,21 @@ import (
 	"math"
 )
 
+// Reads full slice or retutns error
+func readFull(rd *bufio.Reader, p []byte) os.Error {
+    for nn := 0; nn < len(p); {
+        kk, err := rd.Read(p[nn:])
+        /*if kk != len(p) {
+            fmt.Printf("DEBUG: readed %d/%d\n", kk, len(p))
+        }*/
+        if err != nil {
+            return err
+        }
+        nn += kk
+    }
+    return nil
+}
+
 /**
  * The packet header, always at the start of every packet
  */
@@ -97,7 +112,7 @@ func (pkt *packetInit) read(reader *bufio.Reader) (err os.Error) {
 	pkt.threadId = uint32(num)
 	// Scramble buffer (first part)
 	pkt.scrambleBuff = make([]byte, 20)
-	_, err = reader.Read(pkt.scrambleBuff[0:8])
+	err = readFull(reader, pkt.scrambleBuff[0:8])
 	if err != nil {
 		return
 	}
@@ -130,7 +145,7 @@ func (pkt *packetInit) read(reader *bufio.Reader) (err os.Error) {
 		return
 	}
 	// Scramble buffer (second part)
-	_, err = reader.Read(pkt.scrambleBuff[8:20])
+	err = readFull(reader, pkt.scrambleBuff[8:20])
 	if err != nil {
 		return
 	}
@@ -309,7 +324,7 @@ func (pkt *packetOK) read(reader *bufio.Reader) (err os.Error) {
 	bytes += 5
 	if int(pkt.header.length) > bytes {
 		msg := make([]byte, int(pkt.header.length)-bytes)
-		_, err = reader.Read(msg)
+		err = readFull(reader, msg)
 		if err != nil {
 			return
 		}
@@ -355,7 +370,7 @@ func (pkt *packetError) read(reader *bufio.Reader) (err os.Error) {
 	if c == 0x23 {
 		// Read state
 		state := make([]byte, 5)
-		_, err = reader.Read(state)
+		err = readFull(reader, state)
 		if err != nil {
 			return
 		}
@@ -368,7 +383,7 @@ func (pkt *packetError) read(reader *bufio.Reader) (err os.Error) {
 	// Read message
 	if int(pkt.header.length) > bytes {
 		msg := make([]byte, int(pkt.header.length)-bytes)
-		_, err = reader.Read(msg)
+		err = readFull(reader, msg)
 		if err != nil {
 			return
 		}
@@ -732,7 +747,7 @@ type packetParameter struct {
 func (pkt *packetParameter) read(reader *bufio.Reader) (err os.Error) {
 	// Skip this packet, documentation is incorrect and it is also ignored in MySQL code!
 	bytes := make([]byte, pkt.header.length)
-	reader.Read(bytes)
+	err = readFull(reader, bytes)
 	return
 }
 
@@ -1008,7 +1023,7 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 	// Read null bit map
 	nullBytes := (len(pkt.fields) + 9) / 8
 	nullBitMap := make([]byte, nullBytes)
-	_, err = reader.Read(nullBitMap)
+	err = readFull(reader, nullBitMap)
 	if err != nil {
 		return
 	}
@@ -1250,7 +1265,7 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 	// probably never happen unless using some very odd queries!
 	if bytesRead < pkt.header.length {
 		bytes := make([]byte, pkt.header.length-bytesRead)
-		reader.Read(bytes)
+		err = readFull(reader, bytes)
 	}
 	return
 }
@@ -1267,7 +1282,7 @@ type packetFunctions struct {
  */
 func (pkt *packetFunctions) readNumber(reader *bufio.Reader, n uint8) (num uint64, err os.Error) {
 	p := make([]byte, n)
-	_, err = reader.Read(p)
+	err = readFull(reader, p)
 	if err != nil {
 		return
 	}
@@ -1283,7 +1298,7 @@ func (pkt *packetFunctions) readNumber(reader *bufio.Reader, n uint8) (num uint6
  */
 func (pkt *packetFunctions) readFill(reader *bufio.Reader, n int) (err os.Error) {
 	p := make([]byte, n)
-	_, err = reader.Read(p)
+	err = readFull(reader, p)
 	return
 }
 
@@ -1335,7 +1350,7 @@ func (pkt *packetFunctions) readlengthCodedString(reader *bufio.Reader) (str str
 	n += int(strlen)
 	// Read string
 	p := make([]byte, strlen)
-	_, err = reader.Read(p)
+	err = readFull(reader, p)
 	if err != nil {
 		return
 	}

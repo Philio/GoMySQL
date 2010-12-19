@@ -321,7 +321,10 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 	// Unknown packet, read it and leave it for now
 	default:
 		bytes := make([]byte, hdr.length)
-		mysql.reader.Read(bytes)
+		err := readFull(mysql.reader, bytes)
+                if err != nil {
+                    return err
+                }
 		if mysql.Logging {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
 		}
@@ -464,7 +467,10 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 	// Unknown packet, read it and leave it for now
 	default:
 		bytes := make([]byte, hdr.length)
-		mysql.reader.Read(bytes)
+		err := readFull(mysql.reader, bytes)
+                if err != nil {
+                    return err
+                }
 		if mysql.Logging {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
 		}
