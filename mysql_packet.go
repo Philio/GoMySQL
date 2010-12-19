@@ -932,7 +932,10 @@ func (pkt *packetExecute) encodeParams(params []interface{}) {
 func (pkt *packetExecute) write(writer *bufio.Writer) (err os.Error) {
 	// Construct packet header
 	pkt.header = new(packetHeader)
-	pkt.header.length = 11 + uint32(len(pkt.nullBitMap)) + uint32(len(pkt.paramType)*2) + pkt.paramLength
+	pkt.header.length = 11 + uint32(len(pkt.nullBitMap)) + pkt.paramLength
+	if pkt.newParamBound == 1 {
+		pkt.header.length += uint32(len(pkt.paramType)*2)
+	}
 	pkt.header.sequence = 0
 	err = pkt.header.write(writer)
 	// Write command
@@ -965,12 +968,14 @@ func (pkt *packetExecute) write(writer *bufio.Writer) (err os.Error) {
 	if err != nil {
 		return
 	}
-	// Write param types
-	if len(pkt.paramType) > 0 {
-		for _, paramType := range pkt.paramType {
-			_, err = writer.Write(paramType)
-			if err != nil {
-				return
+	if pkt.newParamBound == 1 {
+		// Write param types
+		if len(pkt.paramType) > 0 {
+			for _, paramType := range pkt.paramType {
+				_, err = writer.Write(paramType)
+				if err != nil {
+					return
+				}
 			}
 		}
 	}

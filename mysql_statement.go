@@ -193,9 +193,9 @@ func (stmt *MySQLStatement) Execute() (res *MySQLResult, err os.Error) {
 	pkt.flags = CURSOR_TYPE_NO_CURSOR
 	pkt.iterationCount = 1
 	pkt.encodeNullBits(stmt.paramData)
+	pkt.encodeParams(stmt.paramData)
 	if stmt.paramsRebound {
 		pkt.newParamBound = 1
-		pkt.encodeParams(stmt.paramData)
 	} else {
 		pkt.newParamBound = 0
 	}
@@ -517,6 +517,7 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 		if mysql.Logging {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server")
 		}
+		stmt.result = new(MySQLResult)
 		// If fields sent again re-read incase for some reason something changed
 		if pkt.fieldCount > 0 {
 			stmt.result.FieldCount = pkt.fieldCount
