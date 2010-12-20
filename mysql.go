@@ -575,7 +575,7 @@ func (mysql *MySQL) getResult() (err os.Error) {
 		// Return error response
 		err = os.NewError("An unknown packet was received from MySQL")
 	// OK Packet 00
-	case c == ResultPacketOK:
+	case c == ResultPacketOK && mysql.curRes == nil:
 		pkt := new(packetOK)
 		pkt.header = hdr
 		err = pkt.read(mysql.reader)
