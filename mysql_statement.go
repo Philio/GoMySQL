@@ -284,6 +284,11 @@ func (stmt *MySQLStatement) Reset() (err os.Error) {
 	if mysql.Logging {
 		log.Print("[" + strconv.Uitoa(uint(mysql.sequence-1)) + "] Sent reset statement command to server")
 	}
+	err = stmt.getResetResult()
+	if err != nil {
+		return
+	}
+	stmt.paramsRebound = true
 	return
 }
 
@@ -293,6 +298,56 @@ func (stmt *MySQLStatement) Reset() (err os.Error) {
 func (stmt *MySQLStatement) reset() {
 	stmt.Errno = 0
 	stmt.Error = ""
+}
+
+func (stmt *MySQLStatement) getResetResult() (err os.Error) {
+	mysql := stmt.mysql
+	hdr := new(packetHeader)
+	err = hdr.read(mysql.reader)
+	if err != nil {
+		stmt.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
+		return os.NewError("An error occurred receiving packet from MySQL")
+	}
+	if hdr.sequence != mysql.sequence {
+		stmt.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
+		return os.NewError("An error occurred receiving packet from MySQL")
+	}
+	c, err := mysql.reader.ReadByte()
+	mysql.reader.UnreadByte()
+	switch c {
+	default:
+		bytes := make([]byte, hdr.length)
+		mysql.reader.Read(bytes)
+		if mysql.Logging {
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
+		}
+		// Return error response
+		err = os.NewError("An unknown packet was received from MySQL")
+	case ResultPacketOK:
+		pkt := new(packetOK)
+		pkt.header = hdr
+		err = pkt.read(mysql.reader)
+		if err != nil {
+			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+			return
+		}
+		if mysql.Logging {
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received ok for reset statement packet from server")
+		}
+	case ResultPacketError:
+		pkt := new(packetError)
+		pkt.header = hdr
+		err = pkt.read(mysql.reader)
+		if err != nil {
+			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+			return
+		}
+		if mysql.Logging {
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
+		}
+	}
+	mysql.sequence++
+	return
 }
 
 /**
