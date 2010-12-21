@@ -13,6 +13,7 @@ import (
 	"os"
 	"log"
 	"sync"
+	"bytes"
 )
 
 const (
@@ -333,22 +334,26 @@ func (mysql *MySQL) Escape(str string) (esc string) {
 	if mysql.Logging {
 		log.Print("Escape called")
 	}
-	// loop through string a character at a time
-	prev := ""
+
+	var prev byte
+	var b bytes.Buffer
+
 	for i := 0; i < len(str); i++ {
-		cur := string(str[i])
-		switch cur {
-		// Detect unescaped quotes
-		case "'", "\"":
-			if prev != "\\" {
-				// Add escape character
-				esc += "\\"
+		switch str[i] {
+		case '\'', '"':
+			if prev != '\\' {
+				b.WriteString(str[:i])
+				b.WriteByte('\\')
+				str = str[i:]
+				i = 0
 			}
 		}
-		esc += cur
-		prev = cur
+
+		prev = str[i]
 	}
-	return
+
+	b.WriteString(str)
+	return b.String()
 }
 
 /**
