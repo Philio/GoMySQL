@@ -47,13 +47,13 @@ func main() {
 	// Use UTF8
 	if _, err = db.Query("SET NAMES utf8"); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	// Query database
 	if res, err = db.Query("SELECT * FROM test1 LIMIT 5"); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	for {

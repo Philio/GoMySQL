@@ -46,19 +46,19 @@ func main() {
 	// Use UTF8
 	if _, err = db.Query("SET NAMES utf8"); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	// Initialise statement
 	if stmt, err = db.InitStmt(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	// Prepare statement
 	if err = stmt.Prepare("SELECT * FROM test1 WHERE id > ? AND id < ?"); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	// Bind params
@@ -67,7 +67,7 @@ func main() {
 	// Execute statement
 	if res, err = stmt.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	defer stmt.Close()
