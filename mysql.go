@@ -200,7 +200,7 @@ func (mysql *MySQL) Query(sql string) (res *MySQLResult, err os.Error) {
 			return
 		}
 		// If result saved and buffer is empty break loop
-		if mysql.resultSaved && mysql.reader.Buffered() == 0 {
+		if mysql.resultSaved {
 			break
 		}
 	}
