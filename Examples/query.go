@@ -9,39 +9,46 @@ import (
 )
 
 func main() {
+	var err os.Error
+	var res *mysql.MySQLResult
+	var row map[string]interface{}
+	var key string
+	var value interface{}
+
 	// Create new instance
 	db := mysql.New()
+	
 	// Enable logging
 	db.Logging = true
+	
 	// Connect to database
-	db.Connect("localhost", "root", "********", "gotesting")
-	if db.Errno != 0 {
-		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
+	if  err = db.Connect("localhost", "root", "********", "gotesting"); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
+	
+	defer db.Close()
+	
 	// Use UTF8
-	db.Query("SET NAMES utf8")
-	if db.Errno != 0 {
-		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
+	if _, err = db.Query("SET NAMES utf8"); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
+	
 	// Query database
-	res := db.Query("SELECT * FROM test1 LIMIT 5")
-	if db.Errno != 0 {
-		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
+	if res, err = db.Query("SELECT * FROM test1 LIMIT 5"); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
-	// Display results
-	var row map[string]interface{}
+	
 	for {
-		row = res.FetchMap()
-		if row == nil {
+		if row = res.FetchMap(); row == nil {
 			break
 		}
-		for key, value := range row {
+
+		for key, value = range row {
 			fmt.Printf("%s:%v\n", key, value)
 		}
 	}
-	// Close connection
-	db.Close()
+
 }

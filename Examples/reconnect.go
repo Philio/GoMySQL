@@ -11,46 +11,52 @@ import (
 )
 
 // Reconnect function, attempts to reconnect once per second
-func reconnect(db *mysql.MySQL, done chan int) {
+func reconnect(db *mysql.MySQL, done chan bool) {
+	var err os.Error
 	attempts := 0
+
 	for {
 		// Sleep for 1 second
-		time.Sleep(1000000000)
+		time.Sleep(1e9)
+
 		// Attempt to reconnect
-		db.Reconnect()
-		// If there was no error break for loop
-		if db.Errno == 0 {
+		if err = db.Reconnect(); err != nil {
 			break
-		} else {
-			attempts++
-			fmt.Printf("Reconnect attempt %d failed\n", attempts)
 		}
+
+		attempts++
+		fmt.Fprintf(os.Stderr, "Reconnect attempt %d failed\n", attempts)
 	}
-	done <- 1
+
+	done <- true
 }
 
 func main() {
+	var err os.Error
+
 	// Create new instance
 	db := mysql.New()
-	// Enable logging
-	db.Logging = true
+
 	// Connect to database
-	db.Connect("localhost", "root", "********", "gotesting")
-	if db.Errno != 0 {
-		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
+	if err = db.Connect("localhost", "root", "********", "gotesting"); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
+
+	// Ensure connection is closed on exit.
+	defer db.Close()
+
+	done := make(chan bool)
+
 	// Repeat query forever
 	for {
-		res := db.Query("select * from test1")
-		// On error reconnect to the server
-		if res == nil {
-			fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
-			done := make(chan int)
+		if _, err = db.Query("SELECT * FROM test1 LIMIT 5"); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 			go reconnect(db, done)
 			<-done
 		}
+
 		// Sleep for 0.5 seconds
-		time.Sleep(500000000)
+		time.Sleep(5e8)
 	}
 }

@@ -9,51 +9,62 @@ import (
 )
 
 func main() {
+	var err os.Error
+	var res *mysql.MySQLResult
+	var row map[string]interface{}
+	var key string
+	var value interface{}
+	var stmt *mysql.MySQLStatement
+
 	// Create new instance
 	db := mysql.New()
-	// Enable logging
-	db.Logging = true
+
 	// Connect to database
-	db.Connect("localhost", "root", "********", "gotesting")
-	if db.Errno != 0 {
-		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
+	if err = db.Connect("localhost", "root", "********", "gotesting"); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
+
+	// Ensure connection is closed on exit.
+	defer db.Close()
+
 	// Use UTF8
-	db.Query("SET NAMES utf8")
-	if db.Errno != 0 {
-		fmt.Printf("Error #%d %s\n", db.Errno, db.Error)
+	if _, err = db.Query("SET NAMES utf8"); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
+
 	// Initialise statement
-	stmt := db.InitStmt()
-	// Prepare statement
-	stmt.Prepare("SELECT * FROM test1 WHERE id > ? AND id < ?")
-	if stmt.Errno != 0 {
-		fmt.Printf("Error #%d %s\n", stmt.Errno, stmt.Error)
+	if stmt, err = db.InitStmt(); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
+
+	// Prepare statement
+	if err = stmt.Prepare("SELECT * FROM test1 WHERE id > ? AND id < ?"); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+
 	// Bind params
 	stmt.BindParams(1, 5)
+
 	// Execute statement
-	res := stmt.Execute()
-	if stmt.Errno != 0 {
-		fmt.Printf("Error #%d %s\n", stmt.Errno, stmt.Error)
+	if res, err = stmt.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
+
+	defer stmt.Close()
+
 	// Display results
-	var row map[string]interface{}
 	for {
-		row = res.FetchMap()
-		if row == nil {
+		if row = res.FetchMap(); row == nil {
 			break
 		}
-		for key, value := range row {
+
+		for key, value = range row {
 			fmt.Printf("%s:%v\n", key, value)
 		}
 	}
-	// Close statement
-	stmt.Close()
-	// Close connection
-	db.Close()
 }
