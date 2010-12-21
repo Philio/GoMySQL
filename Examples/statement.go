@@ -6,9 +6,24 @@ import (
 	"mysql"
 	"fmt"
 	"os"
+	"flag"
+)
+
+var (
+	dbhost = flag.String("host", "", "Database server address.")
+	dbuser = flag.String("user", "", "Database username.")
+	dbpass = flag.String("pass", "", "Database password.")
+	dbname = flag.String("db", "", "Database name.")
 )
 
 func main() {
+	flag.Parse()
+
+	if *dbhost == "" || *dbname == "" || *dbuser == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	var err os.Error
 	var res *mysql.MySQLResult
 	var row map[string]interface{}
@@ -20,7 +35,7 @@ func main() {
 	db := mysql.New()
 
 	// Connect to database
-	if err = db.Connect("localhost", "root", "********", "gotesting"); err != nil {
+	if err = db.Connect(*dbhost, *dbuser, *dbpass, *dbname); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
