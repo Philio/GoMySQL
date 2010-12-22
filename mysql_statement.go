@@ -306,54 +306,30 @@ func (stmt *MySQLStatement) reset() {
  */
 func (stmt *MySQLStatement) getResetResult() (err os.Error) {
 	mysql := stmt.mysql
-	hdr := new(packetHeader)
-	err = hdr.read(mysql.reader)
+	hdr, err := stmt.readHeader()
 	if err != nil {
-		stmt.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
-		return os.NewError("An error occurred receiving packet from MySQL")
+		return
 	}
-	if hdr.sequence != mysql.sequence {
-		stmt.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		return os.NewError("An error occurred receiving packet from MySQL")
+	c, err := stmt.peekByte()
+	if err != nil {
+		return
 	}
-	c, err := mysql.reader.ReadByte()
-	mysql.reader.UnreadByte()
+
 	switch c {
 	default:
-		bytes := make([]byte, hdr.length)
-		_, err = io.ReadFull(mysql.reader, bytes)
-		// Set error response
-		if err != nil {
-			err = os.NewError("An unknown packet was received from MySQL, in addition an error occurred when attempting to read the packet from the buffer: " + err.String());
-		} else {
-			err = os.NewError("An unknown packet was received from MySQL")
-		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
-		}
+		err = stmt.discardPacket(hdr)
+
 	// OK packet
 	case ResultPacketOK:
-		pkt := new(packetOK)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		_, err = stmt.readOKPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			return
-		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received ok for reset statement packet from server")
 		}
 	// Error packet
 	case ResultPacketError:
-		pkt := new(packetError)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		_, err = stmt.readErrorPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			return
-		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
 		}
 	}
 	mysql.sequence++
@@ -365,49 +341,26 @@ func (stmt *MySQLStatement) getResetResult() (err os.Error) {
  */
 func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 	mysql := stmt.mysql
-	// Get header and validate header info
-	hdr := new(packetHeader)
-	err = hdr.read(mysql.reader)
-	// Read error
+	hdr, err := stmt.readHeader()
 	if err != nil {
-		// Assume lost connection to server
-		stmt.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
-		return os.NewError("An error occured receiving packet from MySQL")
+		return
 	}
-	// Check sequence number
-	if hdr.sequence != mysql.sequence {
-		stmt.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		return os.NewError("An error occured receiving packet from MySQL")
+	c, err := stmt.peekByte()
+	if err != nil {
+		return
 	}
-	// Read the next byte to identify the type of packet
-	c, err := mysql.reader.ReadByte()
-	mysql.reader.UnreadByte()
+
 	switch {
 	// Unknown packet, read it and leave it for now
 	default:
-		bytes := make([]byte, hdr.length)
-		_, err = io.ReadFull(mysql.reader, bytes)
-		// Set error response
-		if err != nil {
-			err = os.NewError("An unknown packet was received from MySQL, in addition an error occurred when attempting to read the packet from the buffer: " + err.String());
-		} else {
-			err = os.NewError("An unknown packet was received from MySQL")
-		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
-		}
+		err = stmt.discardPacket(hdr)
 	// OK Packet 00
 	case c == ResultPacketOK:
-		pkt := new(packetOKPrepared)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		pkt, err := stmt.readOKPreparedPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			return
 		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received ok for prepared statement packet from server")
-		}
+
 		// Save statement info
 		stmt.result = new(MySQLResult)
 		stmt.StatementId = pkt.statementId
@@ -421,17 +374,11 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 		stmt.result.Fields = make([]*MySQLField, pkt.columnCount)
 	// Error Packet ff
 	case c == ResultPacketError:
-		pkt := new(packetError)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		_, err := stmt.readErrorPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-		} else {
-			stmt.error(int(pkt.errno), pkt.error)
+			return
 		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
-		}
+
 		// Return error response
 		err = os.NewError("An error was received from MySQL")
 	// Making assumption that statement packets follow similar format to result packets
@@ -439,30 +386,20 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 	// After this should get standard field packets followed by EOF
 	// Parameter packet
 	case c >= 0x01 && c <= 0xfa && stmt.ParamCount > 0 && !stmt.paramsEOF:
-		// This packet simply reads the number of bytes in the buffer per header length param
-		// The packet specification for these packets is wrong also within MySQL code it states:
-		// skip parameters data: we don't support it yet (in libmysql/libmysql.c)
-		pkt := new(packetParameter)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		_, err := stmt.readParameterPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			return
 		}
+
 		// Increment params read
 		stmt.paramsRead++
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received param packet from server (ignored)")
-		}
 	// Field packet
 	case c >= 0x01 && c <= 0xfa && stmt.result.FieldCount > 0 && !stmt.result.fieldsEOF:
-		pkt := new(packetField)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		pkt, err := stmt.readFieldPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			return
 		}
+
 		// Populate field data (ommiting anything which doesnt seam useful at time of writing)
 		field := new(MySQLField)
 		field.Name = pkt.name
@@ -479,16 +416,11 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 		}
 	// EOF Packet fe
 	case c == ResultPacketEOF:
-		pkt := new(packetEOF)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		_, err := stmt.readEOFPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			return
 		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server")
-		}
+
 		// Change EOF flag
 		if stmt.ParamCount > 0 && !stmt.paramsEOF {
 			stmt.paramsEOF = true
@@ -512,49 +444,27 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
  */
 func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 	mysql := stmt.mysql
-	// Get header and validate header info
-	hdr := new(packetHeader)
-	err = hdr.read(mysql.reader)
-	// Read error
+	hdr, err := stmt.readHeader()
 	if err != nil {
-		// Assume lost connection to server
-		stmt.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
-		return os.NewError("An error occured receiving packet from MySQL")
+		return
 	}
-	// Check sequence number
-	if hdr.sequence != mysql.sequence {
-		stmt.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		return os.NewError("An error occured receiving packet from MySQL")
+	c, err := stmt.peekByte()
+	if err != nil {
+		return
 	}
-	// Read the next byte to identify the type of packet
-	c, err := mysql.reader.ReadByte()
-	mysql.reader.UnreadByte()
+
 	switch {
-	// Unknown packet, read it and leave it for now
 	default:
-		bytes := make([]byte, hdr.length)
-		_, err = io.ReadFull(mysql.reader, bytes)
-		// Set error response
-		if err != nil {
-			err = os.NewError("An unknown packet was received from MySQL, in addition an error occurred when attempting to read the packet from the buffer: " + err.String());
-		} else {
-			err = os.NewError("An unknown packet was received from MySQL")
-		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
-		}
+		err = stmt.discardPacket(hdr)
+
 	// OK Packet 00
 	case c == ResultPacketOK && !stmt.resExecuted:
-		pkt := new(packetOK)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		// Read packet
+		pkt, err := stmt.readOKPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			return
 		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received ok packet from server")
-		}
+
 		// Create result
 		stmt.result = new(MySQLResult)
 		stmt.result.RowCount = 0
@@ -565,31 +475,22 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 		stmt.resExecuted = true
 	// Error Packet ff
 	case c == ResultPacketError:
-		pkt := new(packetError)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		// Read packet
+		_, err := stmt.readErrorPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
-		} else {
-			stmt.error(int(pkt.errno), pkt.error)
+			return
 		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
-		}
+
 		// Return error response
 		err = os.NewError("An error was received from MySQL")
 	// Result Set Packet 1-250 (first byte of Length-Coded Binary)
 	case c >= 0x01 && c <= 0xfa && !stmt.resExecuted:
-		pkt := new(packetResultSet)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		// Read packet
+		pkt, err := stmt.readResultSetPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			return
 		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server")
-		}
+
 		stmt.result = new(MySQLResult)
 		// If fields sent again re-read incase for some reason something changed
 		if pkt.fieldCount > 0 {
@@ -601,13 +502,12 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 		stmt.resExecuted = true
 	// Field Packet 1-250 ("")
 	case c >= 0x01 && c <= 0xfa && stmt.result.FieldCount > stmt.result.fieldsRead && !stmt.result.fieldsEOF:
-		pkt := new(packetField)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		// Read packet
+		pkt, err := stmt.readFieldPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			return
 		}
+
 		// Populate field data (ommiting anything which doesnt seam useful at time of writing)
 		field := new(MySQLField)
 		field.Name = pkt.name
@@ -619,19 +519,14 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 		stmt.result.Fields[stmt.result.fieldsRead] = field
 		// Increment fields read count
 		stmt.result.fieldsRead++
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server")
-		}
 	// Binary row packets appear to always start 00
 	case c == ResultPacketOK && stmt.resExecuted:
-		pkt := new(packetBinaryRowData)
-		pkt.header = hdr
-		pkt.fields = stmt.result.Fields
-		err = pkt.read(mysql.reader)
+		// Read packet
+		pkt, err := stmt.readBinaryRowDataPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			return
 		}
+
 		// Create row
 		row := new(MySQLRow)
 		row.Data = pkt.values
@@ -646,21 +541,14 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 		}
 		// Increment row count
 		stmt.result.RowCount++
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received binary row data packet from server")
-		}
 	// EOF Packet fe
 	case c == ResultPacketEOF:
-		pkt := new(packetEOF)
-		pkt.header = hdr
-		err = pkt.read(mysql.reader)
+		// Read packet
+		_, err := stmt.readEOFPacket(hdr)
 		if err != nil {
-			stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
 			return
 		}
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server")
-		}
+
 		// Change EOF flag
 		if stmt.result.FieldCount > 0 && !stmt.result.fieldsEOF {
 			stmt.result.fieldsEOF = true
@@ -676,6 +564,206 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 	}
 	// Increment sequence
 	mysql.sequence++
+	return
+}
+
+/**
+ * Read packet header.
+ */
+func (stmt *MySQLStatement) readHeader() (hdr *packetHeader, err os.Error) {
+	mysql := stmt.mysql
+	// Get header and validate header info
+	hdr = new(packetHeader)
+	err = hdr.read(mysql.reader)
+	// Read error
+	if err != nil {
+		// Assume lost connection to server
+		stmt.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
+		err = os.NewError("An error occured receiving packet from MySQL")
+		return
+	}
+	// Check sequence number
+	if hdr.sequence != mysql.sequence {
+		stmt.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
+		err = os.NewError("An error occured receiving packet from MySQL")
+		return
+	}
+	return
+}
+
+/**
+ * Read OK packet.
+ */
+func (stmt *MySQLStatement) readOKPacket(hdr *packetHeader) (pkt *packetOK, err os.Error) {
+	mysql := stmt.mysql
+	pkt = new(packetOK)
+	pkt.header = hdr
+	err = pkt.read(mysql.reader)
+	if err != nil {
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		return
+	}
+	if mysql.Logging {
+		log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received ok packet from server")
+	}
+	return
+}
+
+/**
+ * Read OK response from a prepare call.
+ */
+func (stmt *MySQLStatement) readOKPreparedPacket(hdr *packetHeader) (pkt *packetOKPrepared, err os.Error) {
+	mysql := stmt.mysql
+	pkt = new(packetOKPrepared)
+	pkt.header = hdr
+	err = pkt.read(mysql.reader)
+	if err != nil {
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		return
+	}
+	if mysql.Logging {
+		log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received ok for prepared statement packet from server")
+	}
+	return
+}
+
+/**
+ * Read error packet.
+ */
+func (stmt *MySQLStatement) readErrorPacket(hdr *packetHeader) (pkt* packetError, err os.Error) {
+	mysql := stmt.mysql
+	pkt = new(packetError)
+	pkt.header = hdr
+	err = pkt.read(mysql.reader)
+	if err != nil {
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+	} else {
+		stmt.error(int(pkt.errno), pkt.error)
+	}
+	if mysql.Logging {
+		log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received error packet from server")
+	}
+	return
+}
+
+/**
+ * Read result set packet.
+ */
+func (stmt *MySQLStatement) readResultSetPacket(hdr *packetHeader) (pkt* packetResultSet, err os.Error) {
+	mysql := stmt.mysql
+	pkt = new(packetResultSet)
+	pkt.header = hdr
+	err = pkt.read(mysql.reader)
+	if err != nil {
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		return
+	}
+	if mysql.Logging {
+		log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received result set packet from server")
+	}
+	return
+}
+
+/**
+ * Read field packet.
+ */
+func (stmt *MySQLStatement) readFieldPacket(hdr *packetHeader) (pkt *packetField, err os.Error) {
+	mysql := stmt.mysql
+	pkt = new(packetField)
+	pkt.header = hdr
+	err = pkt.read(mysql.reader)
+	if err != nil {
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		return
+	}
+	if mysql.Logging {
+		log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server")
+	}
+	return
+}
+
+/**
+ * Read binary row data packet.
+ */
+func (stmt *MySQLStatement) readBinaryRowDataPacket(hdr *packetHeader) (pkt *packetBinaryRowData, err os.Error) {
+	mysql := stmt.mysql
+	pkt = new(packetBinaryRowData)
+	pkt.header = hdr
+	pkt.fields = stmt.result.Fields
+	err = pkt.read(mysql.reader)
+	if err != nil {
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		return
+	}
+	if mysql.Logging {
+		log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received binary row data packet from server")
+	}
+	return
+}
+
+/**
+ * Read EOF packet.
+ */
+func (stmt *MySQLStatement) readEOFPacket(hdr *packetHeader) (pkt *packetEOF, err os.Error) {
+	mysql := stmt.mysql
+	pkt = new(packetEOF)
+	pkt.header = hdr
+	err = pkt.read(mysql.reader)
+	if err != nil {
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		return
+	}
+	if mysql.Logging {
+		log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received eof packet from server")
+	}
+	return
+}
+
+func (stmt *MySQLStatement) readParameterPacket(hdr *packetHeader) (pkt *packetParameter, err os.Error) {
+	mysql := stmt.mysql
+	// This packet simply reads the number of bytes in the buffer per header length param
+	// The packet specification for these packets is wrong also within MySQL code it states:
+	// skip parameters data: we don't support it yet (in libmysql/libmysql.c)
+	pkt = new(packetParameter)
+	pkt.header = hdr
+	err = pkt.read(mysql.reader)
+	if err != nil {
+		stmt.error(CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR)
+		return
+	}
+	if mysql.Logging {
+		log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received param packet from server (ignored)")
+	}
+	return
+}
+
+/**
+ * Discard packet data.
+ */
+func (stmt *MySQLStatement) discardPacket(hdr *packetHeader) os.Error {
+	mysql := stmt.mysql
+	bytes := make([]byte, hdr.length)
+	_, err := io.ReadFull(mysql.reader, bytes)
+	// Set error response
+	if err != nil {
+		err = os.NewError("An unknown packet was received from MySQL, in addition an error occurred when attempting to read the packet from the buffer: " + err.String());
+	} else {
+		err = os.NewError("An unknown packet was received from MySQL")
+	}
+	if mysql.Logging {
+		log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(bytes[0]))
+	}
+	return err
+}
+
+/**
+ * Peek at a byte on the socket.
+ */
+func (stmt *MySQLStatement) peekByte() (c byte, err os.Error) {
+	mysql := stmt.mysql
+	// Read the next byte to identify the type of packet
+	c, err = mysql.reader.ReadByte()
+	mysql.reader.UnreadByte()
 	return
 }
 
