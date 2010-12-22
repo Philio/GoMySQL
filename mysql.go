@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"bufio"
+	"io"
 	"os"
 	"log"
 	"sync"
@@ -570,12 +571,16 @@ func (mysql *MySQL) getResult() (err os.Error) {
 	// Unknown packet, remove it from the buffer
 	default:
 		bytes := make([]byte, hdr.length)
-		mysql.reader.Read(bytes)
-		if mysql.Logging {
-			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server")
+		_, err = io.ReadFull(mysql.reader, bytes)
+		// Set error response
+		if err != nil {
+			err = os.NewError("An unknown packet was received from MySQL, in addition an error occurred when attempting to read the packet from the buffer: " + err.String());
+		} else {
+			err = os.NewError("An unknown packet was received from MySQL")
 		}
-		// Return error response
-		err = os.NewError("An unknown packet was received from MySQL")
+		if mysql.Logging {
+			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
+		}
 	// OK Packet 00
 	case c == ResultPacketOK:
 		pkt := new(packetOK)

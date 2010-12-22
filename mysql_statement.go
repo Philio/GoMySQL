@@ -11,6 +11,7 @@ import (
 	"os"
 	"log"
 	"strconv"
+	"io"
 )
 
 const (
@@ -320,12 +321,16 @@ func (stmt *MySQLStatement) getResetResult() (err os.Error) {
 	switch c {
 	default:
 		bytes := make([]byte, hdr.length)
-		mysql.reader.Read(bytes)
+		_, err = io.ReadFull(mysql.reader, bytes)
+		// Set error response
+		if err != nil {
+			err = os.NewError("An unknown packet was received from MySQL, in addition an error occurred when attempting to read the packet from the buffer: " + err.String());
+		} else {
+			err = os.NewError("An unknown packet was received from MySQL")
+		}
 		if mysql.Logging {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
 		}
-		// Return error response
-		err = os.NewError("An unknown packet was received from MySQL")
 	// OK packet
 	case ResultPacketOK:
 		pkt := new(packetOK)
@@ -381,12 +386,16 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 	// Unknown packet, read it and leave it for now
 	default:
 		bytes := make([]byte, hdr.length)
-		mysql.reader.Read(bytes)
+		_, err = io.ReadFull(mysql.reader, bytes)
+		// Set error response
+		if err != nil {
+			err = os.NewError("An unknown packet was received from MySQL, in addition an error occurred when attempting to read the packet from the buffer: " + err.String());
+		} else {
+			err = os.NewError("An unknown packet was received from MySQL")
+		}
 		if mysql.Logging {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
 		}
-		// Return error response
-		err = os.NewError("An unknown packet was received from MySQL")
 	// OK Packet 00
 	case c == ResultPacketOK:
 		pkt := new(packetOKPrepared)
@@ -524,12 +533,16 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 	// Unknown packet, read it and leave it for now
 	default:
 		bytes := make([]byte, hdr.length)
-		mysql.reader.Read(bytes)
+		_, err = io.ReadFull(mysql.reader, bytes)
+		// Set error response
+		if err != nil {
+			err = os.NewError("An unknown packet was received from MySQL, in addition an error occurred when attempting to read the packet from the buffer: " + err.String());
+		} else {
+			err = os.NewError("An unknown packet was received from MySQL")
+		}
 		if mysql.Logging {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
 		}
-		// Return error response
-		err = os.NewError("An unknown packet was received from MySQL")
 	// OK Packet 00
 	case c == ResultPacketOK && !stmt.resExecuted:
 		pkt := new(packetOK)
