@@ -300,6 +300,9 @@ func (stmt *MySQLStatement) reset() {
 	stmt.Error = ""
 }
 
+/**
+ * Function to read reset statment result packet
+ */
 func (stmt *MySQLStatement) getResetResult() (err os.Error) {
 	mysql := stmt.mysql
 	hdr := new(packetHeader)
@@ -323,6 +326,7 @@ func (stmt *MySQLStatement) getResetResult() (err os.Error) {
 		}
 		// Return error response
 		err = os.NewError("An unknown packet was received from MySQL")
+	// OK packet
 	case ResultPacketOK:
 		pkt := new(packetOK)
 		pkt.header = hdr
@@ -334,6 +338,7 @@ func (stmt *MySQLStatement) getResetResult() (err os.Error) {
 		if mysql.Logging {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received ok for reset statement packet from server")
 		}
+	// Error packet
 	case ResultPacketError:
 		pkt := new(packetError)
 		pkt.header = hdr
