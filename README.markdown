@@ -8,7 +8,7 @@ Revision History
 0.2.x series [current]
 
 * 0.2.4 - Fixes issue #7 and related issues with prepared statment - thanks to Tom Lee [thomaslee]. New faster Escape function - thanks to [jteeuwen]. Updated/fixed examples - thanks to [jteeuwen]. Fixes issues (#10, #21 probably) with reading full packet, due to some delay e.g. network lag - thanks to Michał Derkacz [ziutek] and Damian Reeves for submitting fixes for this.
-* 0.2.3 - Fixes issue #6 - thanks to Tom Lee [thomaslee].
+* 0.2.3 - Fixes issue #6 - thanks to Tom Lee [thomaslee](/thomaslee).
 * 0.2.2 - Resolves issue #16.
 * 0.2.1 - Updated to work with latest release of Go plus 1 or 2 minor tweaks.
 * 0.2.0 - Functions have been reworked and now always return os.Error to provide a generic and consistant design. Improved logging output. Improved client stability. Removed length vs buffered length checks as they don't work with packets > 4096 bytes. Added new Escape function, although this is currently only suitiable for short strings. Tested library with much larger databases such as multi-gigabyte tables and multi-megabyte blogs. Many minor bug fixes. Resolved issue #3, #4 and #5.
