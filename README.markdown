@@ -1,5 +1,5 @@
-GoMySQL Version 0.2.4-dev
-=========================
+GoMySQL Version 0.2.4
+=====================
 
 
 Revision History
