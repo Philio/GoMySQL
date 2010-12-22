@@ -7,7 +7,7 @@ Revision History
 
 0.2.x series [current]
 
-* 0.2.4 - Fixes issue #7 and related issues with prepared statment - thanks to Tom Lee (thomaslee).
+* 0.2.4 - Fixes issue #7 and related issues with prepared statment - thanks to Tom Lee (thomaslee). New faster Escape function - thanks to jteeuwen. Updated/fixed examples - thanks to jteeuwen.
 * 0.2.3 - Fixes issue #6 - thanks to Tom Lee (thomaslee).
 * 0.2.2 - Resolves issue #16.
 * 0.2.1 - Updated to work with latest release of Go plus 1 or 2 minor tweaks.
