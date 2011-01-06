@@ -42,6 +42,7 @@ type MySQLStatement struct {
 
 	result      *MySQLResult
 	resExecuted bool
+	resNorows   bool
 }
 
 /**
@@ -86,8 +87,8 @@ func (stmt *MySQLStatement) Prepare(sql string) (err os.Error) {
 		if err != nil {
 			return
 		}
-		// If buffer is empty break loop
-		if mysql.reader.Buffered() == 0 {
+		// Break when end of field packets reached
+		if stmt.result.fieldsEOF {
 			break
 		}
 	}
@@ -217,7 +218,7 @@ func (stmt *MySQLStatement) Execute() (res *MySQLResult, err os.Error) {
 			return
 		}
 		// If buffer is empty break loop
-		if mysql.reader.Buffered() == 0 && stmt.resExecuted {
+		if stmt.resExecuted && (stmt.resNorows || stmt.result.rowsEOF) {
 			break
 		}
 	}
@@ -563,6 +564,7 @@ func (stmt *MySQLStatement) getExecuteResult() (err os.Error) {
 		stmt.result.WarningCount = pkt.warningCount
 		stmt.result.Message = pkt.message
 		stmt.resExecuted = true
+		stmt.resNorows = true
 	// Error Packet ff
 	case c == ResultPacketError:
 		pkt := new(packetError)
