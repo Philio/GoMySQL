@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	Version       = "0.2.4"
+	Version       = "0.2.5"
 	DefaultPort   = 3306
 	DefaultSock   = "/var/run/mysqld/mysqld.sock"
 	MaxPacketSize = 1 << 24
@@ -202,7 +202,7 @@ func (mysql *MySQL) Query(sql string) (res *MySQLResult, err os.Error) {
 			return
 		}
 		// If result saved and buffer is empty break loop
-		if mysql.resultSaved && mysql.reader.Buffered() == 0 {
+		if mysql.resultSaved {
 			break
 		}
 	}
@@ -567,6 +567,7 @@ func (mysql *MySQL) getResult() (err os.Error) {
 	// Read the next byte to identify the type of packet
 	c, err := mysql.reader.ReadByte()
 	mysql.reader.UnreadByte()
+	log.Print(c)
 	switch {
 	// Unknown packet, remove it from the buffer
 	default:
@@ -582,7 +583,7 @@ func (mysql *MySQL) getResult() (err os.Error) {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received unknown packet from server with first byte: " + fmt.Sprint(c))
 		}
 	// OK Packet 00
-	case c == ResultPacketOK:
+	case c == ResultPacketOK && mysql.curRes == nil:
 		pkt := new(packetOK)
 		pkt.header = hdr
 		err = pkt.read(mysql.reader)
@@ -601,7 +602,7 @@ func (mysql *MySQL) getResult() (err os.Error) {
 		mysql.curRes.Message = pkt.message
 		mysql.addResult()
 	// Error Packet ff
-	case c == ResultPacketError:
+	case c == ResultPacketError && mysql.curRes == nil:
 		pkt := new(packetError)
 		pkt.header = hdr
 		err = pkt.read(mysql.reader)
@@ -656,7 +657,7 @@ func (mysql *MySQL) getResult() (err os.Error) {
 			log.Print("[" + fmt.Sprint(mysql.sequence) + "] Received field packet from server")
 		}
 	// Row Data Packet 1-250 ("")
-	case c >= 0x01 && c <= 0xfb && !mysql.curRes.rowsEOF:
+	case c >= 0x00 && c <= 0xfb && !mysql.curRes.rowsEOF:
 		pkt := new(packetRowData)
 		pkt.header = hdr
 		pkt.fields = mysql.curRes.Fields
