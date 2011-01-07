@@ -323,29 +323,36 @@ Prepared Statement Limitations
 ------------------------------
 
 When using prepared statements the data packets sent to/from the server are in binary format (normal queries send results as text).  
-Currently not all MySQL field types have been implemented.  
+
+Prior to version 0.2.7 not all MySQL field types had been implemented.
+As of version 0.2.7 all current types are implmented.
 
 **Supported parameter formats:**
 
 Format of list is Go type (MySQL type)
 
-Integers: int (int or bigint), uint (unsigned int or big int), int8 (tiny int), uint8 (unsigned tiny int), int16 (small int), uint16 (unsigned small int), int32 (int), uint32 (unsigned int), int64 (big int), uint64 (unsigned big int)
+Integers: int (int or bigint), uint (unsigned int or big int), int8 (tiny int), uint8 (unsigned tiny int), int16 (small int), uint16 (unsigned small int), int32 (int/medium int), uint32 (unsigned int/unsigned medium int), int64 (big int), uint64 (unsigned big int)
 
 Floats: float (float or double), float32 (float), float64 (double)
 
 Strings: all varchar/text/blob/enum/date fields should work when sent as string
 
-**Supported row formats:**
+**Go row data formats:**
 
-Format of list is MySQL type (Go type)
-
-Integers: tiny int (int8), unsigned tiny int (uint8), small int (int16), unsigned small int (uint16), int (int32), unsigned int (uint32), big int (int64), unsigned big int (uint64)
-
-Floats: float (float32), double (float64)
-
-Strings: varchar, *text, *blob
-
-Date/time: date, datetime, timestamp
+<table>
+	<tr>
+		<th>MySQL data type</th>
+		<th>Native Go type</th>
+	</tr>
+	<tr>
+		<td>TINYINT</td>
+		<td>int8</td>
+	</tr>
+	<tr>
+		<td>Unsigned TINYINT</td>
+		<td>uint8</td>
+	</tr>
+</table>
 
 
 Error handling
