@@ -1044,7 +1044,7 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 			}
 			bytesRead++
 		// Small int (16 bit int unsigned or signed)
-		case FIELD_TYPE_SHORT:
+		case FIELD_TYPE_SHORT, FIELD_TYPE_YEAR:
 			num, err := pkt.readNumber(reader, 2)
 			if err != nil {
 				return
@@ -1259,6 +1259,16 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				}
 			}
 			bytesRead += uint32(num) + uint32(n)
+		// Geometry types, get array of bytes
+		case FIELD_TYPE_GEOMETRY:
+			c, _, err := pkt.readlengthCodedBinary(reader)
+			if err != nil {
+				return
+			}
+			bytes := make([]byte, c)
+			_, err = io.ReadFull(reader, bytes)
+			pkt.values[i] = bytes
+			bytesRead += uint32(c) + 1
 		}
 	}
 	// In some circumstances packets seam to contain extra data, if not all
