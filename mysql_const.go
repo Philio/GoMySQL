@@ -86,20 +86,20 @@ const (
 	FIELD_TYPE_DATE        = 0x0a // Done
 	FIELD_TYPE_TIME        = 0x0b // Done
 	FIELD_TYPE_DATETIME    = 0x0c // Done
-	FIELD_TYPE_YEAR        = 0x0d
-	FIELD_TYPE_NEWDATE     = 0x0e
+	FIELD_TYPE_YEAR        = 0x0d // Done
+	FIELD_TYPE_NEWDATE     = 0x0e // Appears not to be in use (yet?)
 	FIELD_TYPE_VARCHAR     = 0x0f // Done
-	FIELD_TYPE_BIT         = 0x10 // Testing
+	FIELD_TYPE_BIT         = 0x10 // Done
 	FIELD_TYPE_NEWDECIMAL  = 0xf6 // Done
-	FIELD_TYPE_ENUM        = 0xf7
-	FIELD_TYPE_SET         = 0xf8
+	FIELD_TYPE_ENUM        = 0xf7 // Enums are sent as strings (0xfe)
+	FIELD_TYPE_SET         = 0xf8 // Sets are sent as strings (0xfe)
 	FIELD_TYPE_TINY_BLOB   = 0xf9 // Done
 	FIELD_TYPE_MEDIUM_BLOB = 0xfa // Done
 	FIELD_TYPE_LONG_BLOB   = 0xfb // Done
 	FIELD_TYPE_BLOB        = 0xfc // Done
 	FIELD_TYPE_VAR_STRING  = 0xfd // Done
 	FIELD_TYPE_STRING      = 0xfe // Done
-	FIELD_TYPE_GEOMETRY    = 0xff
+	FIELD_TYPE_GEOMETRY    = 0xff // Done, as byte array
 )
 
 type FieldAttribs uint16
