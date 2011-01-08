@@ -1,9 +1,13 @@
-GoMySQL Version 0.2.4
-=====================
+GoMySQL Version 0.3.0-dev
+=========================
 
 
 Revision History
 ----------------
+
+0.3.x series [development]
+
+* 0.3.0 - Not yet released
 
 0.2.x series [current]
 
