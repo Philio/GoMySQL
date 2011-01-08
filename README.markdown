@@ -349,8 +349,104 @@ Strings: all varchar/text/blob/enum/date fields should work when sent as string
 		<td>int8</td>
 	</tr>
 	<tr>
-		<td>Unsigned TINYINT</td>
+		<td>TINYINT (unsigned)</td>
 		<td>uint8</td>
+	</tr>
+	<tr>
+		<td>SMALLINT</td>
+		<td>int16</td>
+	</tr>
+	<tr>
+		<td>SMALLINT (unsigned)</td>
+		<td>uint16</td>
+	</tr>
+	<tr>
+		<td>MEDIUMINT</td>
+		<td>int32</td>
+	</tr>
+	<tr>
+		<td>MEDIUMINT (unsigned)</td>
+		<td>uint32</td>
+	</tr>
+	<tr>
+		<td>INT</td>
+		<td>int32</td>
+	</tr>
+	<tr>
+		<td>INT (unsigned)</td>
+		<td>uint32</td>
+	</tr>
+	<tr>
+		<td>BIGINT</td>
+		<td>int64</td>
+	</tr>
+	<tr>
+		<td>BIGINT (unsigned)</td>
+		<td>uint64</td>
+	</tr>
+	<tr>
+		<td>TIMESTAMP</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>DATE</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>TIME</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>DATETIME</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>YEAR</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>VARCHAR</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>TINYTEXT</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>MEDIUMTEXT</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>LONGTEXT</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>TEXT</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>TINYBLOB</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>MEDIUMBLOB</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>LONGBLOB</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>BLOB</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>BIT</td>
+		<td>[]byte</td>
+	</tr>
+	<tr>
+		<td>GEOMETRY</td>
+		<td>[]byte</td>
 	</tr>
 </table>
 
