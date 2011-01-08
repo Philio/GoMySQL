@@ -326,7 +326,7 @@ When using prepared statements the data packets sent to/from the server are in b
 
 Prior to version 0.2.7 there were a number of unsupported data types in the library which limited the use of prepared statement selects to the most common field types.
 
-As of version 0.2.7 all currently supported MySQL data types are fully supported, as well as a wide range of support of Go types for binding paramaters. There are some minor limitations in the usage of unsigned numeric types, as Go does not natively support unsigned decimal numbers unsigned floats and doubles are limited to the maximum value of a signed float or double.
+As of version 0.2.7 all currently supported MySQL data types are fully supported, as well as a wide range of support of Go types for binding paramaters. There are some minor limitations in the usage of unsigned numeric types, as Go does not natively support unsigned floating point numbers unsigned floats and doubles are limited to the maximum value of a signed float or double.
 
 **Supported parameter types:**
 
