@@ -319,23 +319,22 @@ Example:
 `ok := stmt.Close()`
 
 
-Prepared Statement Limitations
-------------------------------
+Prepared Statement Notes (previously limitations)
+-------------------------------------------------
 
 When using prepared statements the data packets sent to/from the server are in binary format (normal queries send results as text).  
 
-Prior to version 0.2.7 not all MySQL field types had been implemented.
-As of version 0.2.7 all current types are implmented.
+Prior to version 0.2.7 there were a number of unsupported data types in the library which limited the use of prepared statement selects to the most common field types.
 
-**Supported parameter formats:**
+As of version 0.2.7 all currently supported MySQL data types are fully supported, as well as a wide range of support for Go types for binding paramaters. There are some minor limitations in the usage of unsigned numeric types, as Go does not natively support unsigned decimal numbers unsigned floats and doubles are limited to the maximum value of a signed float or double.
 
-Format of list is Go type (MySQL type)
+**Supported parameter types:**
 
-Integers: int (int or bigint), uint (unsigned int or big int), int8 (tiny int), uint8 (unsigned tiny int), int16 (small int), uint16 (unsigned small int), int32 (int/medium int), uint32 (unsigned int/unsigned medium int), int64 (big int), uint64 (unsigned big int)
+Integer types: int, uint, int8, uint8, int16, uint16, int32, uint32, int64, uint64
 
-Floats: float (float or double), float32 (float), float64 (double)
+Float types: float, float32, float64
 
-Strings: all varchar/text/blob/enum/date fields should work when sent as string
+Strings/other tyes: string
 
 **Go row data formats:**
 
