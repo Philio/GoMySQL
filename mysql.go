@@ -33,16 +33,16 @@ type Client struct {
 	// Errors
 	Errno Errno
 	Error Error
-	
+
 	// Logging
 	Logging bool
 	LogType uint8
-	
+
 	// Connection
-	conn net.Conn
+	conn   net.Conn
 	reader *bufio.Reader
 	writer *bufio.Writer
-	
+
 	// Mutex for thread safety
 	mutex sync.Mutex
 }
