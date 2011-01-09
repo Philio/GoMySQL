@@ -394,7 +394,11 @@ func (mysql *MySQL) parseParams(p []interface{}) {
 	mysql.auth = new(MySQLAuth)
 	// Assign default values
 	mysql.auth.port = DefaultPort
-	mysql.auth.socket = DefaultSock
+	if os.Getenv("TERM_PROGRAM") == "Apple_Terminal" {
+		mysql.auth.socket = "/tmp/mysql.sock"
+	} else {
+		mysql.auth.socket = DefaultSock
+	}
 	// Host / username are required
 	mysql.auth.host = p[0].(string)
 	mysql.auth.username = p[1].(string)
@@ -557,7 +561,7 @@ func (mysql *MySQL) getResult() (err os.Error) {
 		} else {
 			mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR)
 		}
-		return os.NewError("An error occured receiving packet from MySQL")
+		return os.NewError("An error occurred receiving packet from MySQL")
 	}
 	// Check sequence number
 	if hdr.sequence != mysql.sequence {

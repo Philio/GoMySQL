@@ -496,7 +496,8 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 			if mysql.Logging {
 				log.Print("End of param packets")
 			}
-		} else if !stmt.result.fieldsEOF {
+		}
+		if !stmt.result.fieldsEOF {
 			stmt.result.fieldsEOF = true
 			if mysql.Logging {
 				log.Print("End of field packets")
