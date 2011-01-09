@@ -8,6 +8,7 @@ package mysql
 // Imports
 import (
 	"os"
+	"fmt"
 	"log"
 	"strings"
 	"net"
@@ -30,8 +31,8 @@ const (
 // Client struct
 type Client struct {
 	// Errors
-	Errno int
-	Error string
+	Errno Errno
+	Error Error
 	
 	// Logging
 	Logging bool
@@ -64,7 +65,7 @@ func DialTCP(raddr, user, passwd string, dbname ...string) (client *Client, err 
 	return
 }
 
-// Connect to server via socket
+// Connect to server via unix socket
 func DialUnix(raddr, user, passwd string, dbname ...string) (client *Client, err os.Error) {
 	client = NewClient()
 	// Use default socket if socket is empty
@@ -77,7 +78,7 @@ func DialUnix(raddr, user, passwd string, dbname ...string) (client *Client, err
 }
 
 // Error handling
-func (client *Client) error(errno int, error string) {
+func (client *Client) error(errno Errno, error Error) {
 	client.Errno = errno
 	client.Error = error
 }
@@ -96,10 +97,22 @@ func (client *Client) log(msg string) {
 }
 
 // Connect to the server
-func (client *Client) Connect(netwk, raddr, user, passwd string, dbname ...string) (err os.Error) {
+func (client *Client) Connect(network, raddr, user, passwd string, dbname ...string) (err os.Error) {
 	// Connect to server
-	client.conn, err = net.Dial(netwk, "", raddr)
+	client.conn, err = net.Dial(network, "", raddr)
 	if err != nil {
+		// Store error state
+		if network == NetUnix {
+			client.error(CR_CONNECTION_ERROR, Error(fmt.Sprintf(CR_CONNECTION_ERROR_STR, raddr)))
+		}
+		if network == NetTCP {
+			parts := strings.Split(raddr, ":", -1)
+			if len(parts) == 2 {
+				client.error(CR_CONN_HOST_ERROR, Error(fmt.Sprintf(CR_CONN_HOST_ERROR_STR, parts[0], parts[1])))
+			}
+		}
+		// Log error
+		client.log(err.String())
 		return
 	}
 	return

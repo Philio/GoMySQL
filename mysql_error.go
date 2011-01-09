@@ -6,7 +6,7 @@
  */
 package mysql
 
-type ErrorNo int
+type Errno int
 
 const (
 	CR_UNKNOWN_ERROR        = 2000
@@ -21,7 +21,7 @@ const (
 	CR_PARAMS_NOT_BOUND     = 2031
 )
 
-type ErrorStr string
+type Error string
 
 const (
 	CR_UNKNOWN_ERROR_STR        = "Unknown MySQL error"
