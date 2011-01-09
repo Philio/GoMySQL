@@ -1044,7 +1044,7 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 			}
 			bytesRead++
 		// Small int (16 bit int unsigned or signed)
-		case FIELD_TYPE_SHORT:
+		case FIELD_TYPE_SHORT, FIELD_TYPE_YEAR:
 			num, err := pkt.readNumber(reader, 2)
 			if err != nil {
 				return
@@ -1055,8 +1055,8 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				pkt.values[i] = int16(num)
 			}
 			bytesRead += 2
-		// Int (32 bit int unsigned or signed)
-		case FIELD_TYPE_LONG:
+		// Int (32 bit int unsigned or signed) and medium int which is actually in int32 format
+		case FIELD_TYPE_LONG, FIELD_TYPE_INT24:
 			num, err := pkt.readNumber(reader, 4)
 			if err != nil {
 				return
@@ -1095,8 +1095,18 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 			}
 			pkt.values[i] = math.Float64frombits(num)
 			bytesRead += 8
-		// Strings, all length coded binary strings
-		case FIELD_TYPE_VARCHAR, FIELD_TYPE_TINY_BLOB, FIELD_TYPE_MEDIUM_BLOB, FIELD_TYPE_LONG_BLOB,
+		// Bit
+		case FIELD_TYPE_BIT:
+			c, err := reader.ReadByte()
+			if err != nil {
+				return
+			}
+			bytes := make([]byte, c)
+			_, err = io.ReadFull(reader, bytes)
+			pkt.values[i] = bytes
+			bytesRead += uint32(c) + 1
+		// Decimal and all strings, all length coded binary strings
+		case FIELD_TYPE_DECIMAL, FIELD_TYPE_NEWDECIMAL, FIELD_TYPE_VARCHAR, FIELD_TYPE_TINY_BLOB, FIELD_TYPE_MEDIUM_BLOB, FIELD_TYPE_LONG_BLOB,
 			FIELD_TYPE_BLOB, FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING:
 			str, n, err := pkt.readlengthCodedString(reader)
 			if err != nil {
@@ -1249,6 +1259,16 @@ func (pkt *packetBinaryRowData) read(reader *bufio.Reader) (err os.Error) {
 				}
 			}
 			bytesRead += uint32(num) + uint32(n)
+		// Geometry types, get array of bytes
+		case FIELD_TYPE_GEOMETRY:
+			c, _, err := pkt.readlengthCodedBinary(reader)
+			if err != nil {
+				return
+			}
+			bytes := make([]byte, c)
+			_, err = io.ReadFull(reader, bytes)
+			pkt.values[i] = bytes
+			bytesRead += uint32(c) + 1
 		}
 	}
 	// In some circumstances packets seam to contain extra data, if not all

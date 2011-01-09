@@ -7,15 +7,18 @@ Revision History
 
 0.3.x series [development]
 
-* 0.3.0 - Not yet released
+* 0.3.0 - Not yet released.
 
 0.2.x series [current]
 
+* 0.2.7 - Added additional binary type support: medium int (int32/uint32), decimal (string), new decimal (string), bit ([]byte), year (uint16), set ([]byte), enum/set use string type.
+* 0.2.6 - Replaced buffer checks in prepared statements, similar to change in 0.2.5, more robust method to handle end of packets.
+* 0.2.5 - Fixes issue #10, removed buffer check from query function as no longer needed.
 * 0.2.4 - Fixes issue #7 and related issues with prepared statment - thanks to Tom Lee [[thomaslee]](/thomaslee). New faster Escape function - thanks to [[jteeuwen]](/jteeuwen). Updated/fixed examples - thanks to [[jteeuwen]](/jteeuwen). Fixes issues (#10, #21) with reading full packet, due to some delay e.g. network lag - thanks to Michał Derkacz [[ziutek]](/ziutek) and Damian Reeves for submitting fixes for this.
 * 0.2.3 - Fixes issue #6 - thanks to Tom Lee [[thomaslee]](/thomaslee).
 * 0.2.2 - Resolves issue #16.
 * 0.2.1 - Updated to work with latest release of Go plus 1 or 2 minor tweaks.
-* 0.2.0 - Functions have been reworked and now always return os.Error to provide a generic and consistant design. Improved logging output. Improved client stability. Removed length vs buffered length checks as they don't work with packets > 4096 bytes. Added new Escape function, although this is currently only suitiable for short strings. Tested library with much larger databases such as multi-gigabyte tables and multi-megabyte blogs. Many minor bug fixes. Resolved issue #3, #4 and #5.
+* 0.2.0 - Functions have been reworked and now always return os.Error to provide a generic and consistent design. Improved logging output. Improved client stability. Removed length vs buffered length checks as they don't work with packets > 4096 bytes. Added new Escape function, although this is currently only suitiable for short strings. Tested library with much larger databases such as multi-gigabyte tables and multi-megabyte blogs. Many minor bug fixes. Resolved issue #3, #4 and #5.
 
 0.1.x series [deprecated]
 
@@ -31,23 +34,15 @@ Revision History
 * 0.1.5 - Clean up packet visibility all should have been private, add packet handlers for prepare/execute and related packets.
 * 0.1.4 - Connect now uses ...interface{} for parameters to remove (or reduce) 'junk' required params to call the function. [not released]
 * 0.1.3 - Added ChangeDb function to change the active database. [not released]
-* 0.1.2 - Added MultiQuery function to return mutliple result sets as an array. [not released]
+* 0.1.2 - Added MultiQuery function to return multiple result sets as an array. [not released]
 * 0.1.1 - Added support for multiple queries in a single command. [not released]
 * 0.1.0 - Initial release, supporting connect, close and query functions. [not released]
-
-
-To Do
------
-
-* Continue to add support for additional binary format options
 
 
 About
 -----
 
-A MySQL client library written in Go. The aim of this project is to provide a library with a high level of usability, good interal error handling and to emulate similar libraries available for other languages to provide an easy migration of MySQL based systems into the Go language.
-
-As of version 0.1.14 development on the MySQL protocol has been completed and the library is stable in numerous tests, future updates will be more focused on code optimisation and improvements.
+A MySQL client library written in Go. The aim of this project is to provide a library with a high level of usability, good internal error handling and to emulate similar libraries available for other languages to provide an easy migration of MySQL based systems into the Go language.
 
 Please report bugs via the GitHub issue tracker, also comments and suggestions are very welcome.
 
@@ -58,7 +53,7 @@ License
 GoMySQL is licensed under a Creative Commons Attribution-Share Alike 2.0 UK: England & Wales License.
 
 
-Compatability
+Compatibility
 -------------
 
 Implements the MySQL protocol version 4.1 so should work with MySQL server versions 4.1, 5.0, 5.1 and future releases.
@@ -99,7 +94,7 @@ Build / install:
 `make`  
 `make install`
 
-This installs the package as 'mysql' so can be importated as so:
+This installs the package as 'mysql' so can be imported as so:
 
 `import "mysql"`
 
@@ -232,7 +227,7 @@ MySQL Result Functions
 
 **MySQLResult.FetchRow()**
 
-Get the next row in the resut set.  
+Get the next row in the result set.  
 Returns an array or nil if there are no more rows.
 
 Example:
@@ -241,7 +236,7 @@ Example:
 
 **MySQLResult.FetchMap()**
 
-Get the next row in the resut set as a map.  
+Get the next row in the result set as a map.  
 Returns a map or nil if there are no more rows.
 
 Example:
@@ -283,7 +278,7 @@ Example:
 
 **MySQLStatement.SendLongData(num uint16, data string)**
 
-Send paramater as long data.  
+Send parameter as long data.  
 Multiple packets can be sent per parameter, each up to the maximum packet size.  
 Parameters that are sent as long data should be bound as nil (NULL).
 Returns os.Error.  
@@ -320,39 +315,141 @@ Example:
 `ok := stmt.Close()`
 
 
-Prepared Statement Limitations
-------------------------------
+Prepared Statement Notes (previously limitations)
+-------------------------------------------------
 
 When using prepared statements the data packets sent to/from the server are in binary format (normal queries send results as text).  
-Currently not all MySQL field types have been implemented.  
 
-**Supported parameter formats:**
+Prior to version 0.2.7 there were a number of unsupported data types in the library which limited the use of prepared statement selects to the most common field types.
 
-Format of list is Go type (MySQL type)
+As of version 0.2.7 all currently supported MySQL data types are fully supported, as well as a wide range of support of Go types for binding paramaters. There are some minor limitations in the usage of unsigned numeric types, as Go does not natively support unsigned floating point numbers unsigned floats and doubles are limited to the maximum value of a signed float or double.
 
-Integers: int (int or bigint), uint (unsigned int or big int), int8 (tiny int), uint8 (unsigned tiny int), int16 (small int), uint16 (unsigned small int), int32 (int), uint32 (unsigned int), int64 (big int), uint64 (unsigned big int)
+**Supported parameter types:**
 
-Floats: float (float or double), float32 (float), float64 (double)
+Integer types: int, uint, int8, uint8, int16, uint16, int32, uint32, int64, uint64
 
-Strings: all varchar/text/blob/enum/date fields should work when sent as string
+Float types: float, float32, float64
 
-**Supported row formats:**
+Strings/other tyes: string
 
-Format of list is MySQL type (Go type)
+**Go row data formats:**
 
-Integers: tiny int (int8), unsigned tiny int (uint8), small int (int16), unsigned small int (uint16), int (int32), unsigned int (uint32), big int (int64), unsigned big int (uint64)
-
-Floats: float (float32), double (float64)
-
-Strings: varchar, *text, *blob
-
-Date/time: date, datetime, timestamp
+<table>
+	<tr>
+		<th>MySQL data type</th>
+		<th>Native Go type</th>
+	</tr>
+	<tr>
+		<td>TINYINT</td>
+		<td>int8</td>
+	</tr>
+	<tr>
+		<td>TINYINT (unsigned)</td>
+		<td>uint8</td>
+	</tr>
+	<tr>
+		<td>SMALLINT</td>
+		<td>int16</td>
+	</tr>
+	<tr>
+		<td>SMALLINT (unsigned)</td>
+		<td>uint16</td>
+	</tr>
+	<tr>
+		<td>MEDIUMINT</td>
+		<td>int32</td>
+	</tr>
+	<tr>
+		<td>MEDIUMINT (unsigned)</td>
+		<td>uint32</td>
+	</tr>
+	<tr>
+		<td>INT</td>
+		<td>int32</td>
+	</tr>
+	<tr>
+		<td>INT (unsigned)</td>
+		<td>uint32</td>
+	</tr>
+	<tr>
+		<td>BIGINT</td>
+		<td>int64</td>
+	</tr>
+	<tr>
+		<td>BIGINT (unsigned)</td>
+		<td>uint64</td>
+	</tr>
+	<tr>
+		<td>TIMESTAMP</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>DATE</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>TIME</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>DATETIME</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>YEAR</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>VARCHAR</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>TINYTEXT</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>MEDIUMTEXT</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>LONGTEXT</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>TEXT</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>TINYBLOB</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>MEDIUMBLOB</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>LONGBLOB</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>BLOB</td>
+		<td>string</td>
+	</tr>
+	<tr>
+		<td>BIT</td>
+		<td>[]byte</td>
+	</tr>
+	<tr>
+		<td>GEOMETRY</td>
+		<td>[]byte</td>
+	</tr>
+</table>
 
 
 Error handling
 --------------
 
 As of version 0.2.0 all functions return os.Error. If the command succeeded the return value will be nil, otherwise it will contain the error.
-If returned value is not nil then mysql error code and description can then be retreived from Errno and Error properties for additional info/debugging.
+If returned value is not nil then MySQL error code and description can then be retrieved from Errno and Error properties for additional info/debugging.
 Prepared statements have their own copy of the Errno and Error properties.  
 Generated errors attempt to follow MySQL protocol/specifications as closely as possible.
