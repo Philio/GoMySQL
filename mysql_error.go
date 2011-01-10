@@ -1,9 +1,8 @@
-/**
- * GoMySQL - A MySQL client library for Go
- * Copyright 2010 Phil Bayfield
- * This software is licensed under a Creative Commons Attribution-Share Alike 2.0 UK: England & Wales License
- * Further information on this license can be found here: http://creativecommons.org/licenses/by-sa/2.0/uk/
- */
+// GoMySQL - A MySQL client library for Go
+//
+// Copyright 2010-2011 Phil Bayfield. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 package mysql
 
 type Errno int
