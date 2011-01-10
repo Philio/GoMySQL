@@ -117,3 +117,53 @@ func (client *Client) Connect(network, raddr, user, passwd string, dbname ...str
 	}
 	return
 }
+
+// Close connection to server
+func (client *Client) Close() (err os.Error) {
+	return
+}
+
+// Change the current database
+func (client *Client) ChangeDb(dbname string) (err os.Error) {
+	return
+}
+
+// Send a query to the server
+func (client *Client) Query(sql string) (res *Result, err os.Error) {
+	return
+}
+
+// Send multiple queries to the server
+func (client *Client) MultiQuery(sql string) (res []*Result, err os.Error) {
+	return
+}
+
+// Enable or disable autocommit
+func (client *Client) AutoCommit(state bool) (err os.Error) {
+	return
+}
+
+// Commit a transaction
+func (client *Client) Commit() (err os.Error) {
+	return
+}
+
+// Rollback a transaction
+func (client *Client) Rollback() (err os.Error) {
+	return
+}
+
+// Escape a string
+func (client *Client) Escape(str string) (esc string) {
+	return
+}
+
+// Initialise and prepare a new statement
+func (client *Client) Prepare(sql string) (stmt *Statement, err os.Error) {
+	return
+}
+
+// Initialise a new statment
+func (client *Client) StmtInit() (stmt *Statement, err os.Error) {
+	return
+}

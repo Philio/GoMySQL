@@ -1,9 +1,8 @@
-/**
- * GoMySQL - A MySQL client library for Go
- * Copyright 2010 Phil Bayfield
- * This software is licensed under a Creative Commons Attribution-Share Alike 2.0 UK: England & Wales License
- * Further information on this license can be found here: http://creativecommons.org/licenses/by-sa/2.0/uk/
- */
+// GoMySQL - A MySQL client library for Go
+//
+// Copyright 2010-2011 Phil Bayfield. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 package mysql
 
 type ClientFlags uint32
@@ -62,47 +61,39 @@ const (
 	COM_STMT_FETCH          = 0x1c
 )
 
-type ResultPacket byte
-
-const (
-	ResultPacketOK    = 0x00
-	ResultPacketError = 0xff
-	ResultPacketEOF   = 0xfe
-)
-
 type FieldTypes byte
 
 const (
-	FIELD_TYPE_DECIMAL     = 0x00 // Done
-	FIELD_TYPE_TINY        = 0x01 // Done
-	FIELD_TYPE_SHORT       = 0x02 // Done
-	FIELD_TYPE_LONG        = 0x03 // Done
-	FIELD_TYPE_FLOAT       = 0x04 // Done
-	FIELD_TYPE_DOUBLE      = 0x05 // Done
-	FIELD_TYPE_NULL        = 0x06 // Via NULL bit map
-	FIELD_TYPE_TIMESTAMP   = 0x07 // Done
-	FIELD_TYPE_LONGLONG    = 0x08 // Done
-	FIELD_TYPE_INT24       = 0x09 // Done
-	FIELD_TYPE_DATE        = 0x0a // Done
-	FIELD_TYPE_TIME        = 0x0b // Done
-	FIELD_TYPE_DATETIME    = 0x0c // Done
-	FIELD_TYPE_YEAR        = 0x0d // Done
-	FIELD_TYPE_NEWDATE     = 0x0e // Appears not to be in use (yet?)
-	FIELD_TYPE_VARCHAR     = 0x0f // Done
-	FIELD_TYPE_BIT         = 0x10 // Done
-	FIELD_TYPE_NEWDECIMAL  = 0xf6 // Done
-	FIELD_TYPE_ENUM        = 0xf7 // Enums are sent as strings (0xfe)
-	FIELD_TYPE_SET         = 0xf8 // Sets are sent as strings (0xfe)
-	FIELD_TYPE_TINY_BLOB   = 0xf9 // Done
-	FIELD_TYPE_MEDIUM_BLOB = 0xfa // Done
-	FIELD_TYPE_LONG_BLOB   = 0xfb // Done
-	FIELD_TYPE_BLOB        = 0xfc // Done
-	FIELD_TYPE_VAR_STRING  = 0xfd // Done
-	FIELD_TYPE_STRING      = 0xfe // Done
-	FIELD_TYPE_GEOMETRY    = 0xff // Done, as byte array
+	FIELD_TYPE_DECIMAL     = 0x00
+	FIELD_TYPE_TINY        = 0x01
+	FIELD_TYPE_SHORT       = 0x02
+	FIELD_TYPE_LONG        = 0x03
+	FIELD_TYPE_FLOAT       = 0x04
+	FIELD_TYPE_DOUBLE      = 0x05
+	FIELD_TYPE_NULL        = 0x06
+	FIELD_TYPE_TIMESTAMP   = 0x07
+	FIELD_TYPE_LONGLONG    = 0x08
+	FIELD_TYPE_INT24       = 0x09
+	FIELD_TYPE_DATE        = 0x0a
+	FIELD_TYPE_TIME        = 0x0b
+	FIELD_TYPE_DATETIME    = 0x0c
+	FIELD_TYPE_YEAR        = 0x0d
+	FIELD_TYPE_NEWDATE     = 0x0e
+	FIELD_TYPE_VARCHAR     = 0x0f
+	FIELD_TYPE_BIT         = 0x10
+	FIELD_TYPE_NEWDECIMAL  = 0xf6
+	FIELD_TYPE_ENUM        = 0xf7
+	FIELD_TYPE_SET         = 0xf8
+	FIELD_TYPE_TINY_BLOB   = 0xf9
+	FIELD_TYPE_MEDIUM_BLOB = 0xfa
+	FIELD_TYPE_LONG_BLOB   = 0xfb
+	FIELD_TYPE_BLOB        = 0xfc
+	FIELD_TYPE_VAR_STRING  = 0xfd
+	FIELD_TYPE_STRING      = 0xfe
+	FIELD_TYPE_GEOMETRY    = 0xff
 )
 
-type FieldAttribs uint16
+type FieldFlags uint16
 
 const (
 	FLAG_NOT_NULL       = 1 << iota
