@@ -129,12 +129,32 @@ func (client *Client) ChangeDb(dbname string) (err os.Error) {
 }
 
 // Send a query to the server
-func (client *Client) Query(sql string) (res *Result, err os.Error) {
+func (client *Client) Query(sql string) (err os.Error) {
 	return
 }
 
 // Send multiple queries to the server
-func (client *Client) MultiQuery(sql string) (res []*Result, err os.Error) {
+func (client *Client) MultiQuery(sql string) (err os.Error) {
+	return
+}
+
+// Fetch all rows for a result and store it, returning the result set
+func (client *Client) StoreResult() (result *Result, err os.Error) {
+	return
+}
+
+// Use a result set, does not store rows
+func (client *Client) UseResult() (result *Result, err os.Error) {
+	return
+}
+
+// Check if more results are available
+func (client *Client) MoreResults() (ok bool, err os.Error) {
+	return
+}
+
+// Move to the next available result
+func (client *Client) NextResult() (ok bool, err os.Error) {
 	return
 }
 
