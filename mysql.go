@@ -479,6 +479,7 @@ func (mysql *MySQL) init() (err os.Error) {
 	}
 	// Get packet
 	pkt := new(packetInit)
+	pkt.header = hdr
 	err = pkt.read(mysql.reader)
 	if err != nil {
 		mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR)
@@ -567,7 +568,6 @@ func (mysql *MySQL) getResult() (err os.Error) {
 	// Read the next byte to identify the type of packet
 	c, err := mysql.reader.ReadByte()
 	mysql.reader.UnreadByte()
-	log.Print(c)
 	switch {
 	// Unknown packet, remove it from the buffer
 	default:
