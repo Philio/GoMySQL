@@ -1,4 +1,4 @@
-GoMySQL Version 0.2.8
+GoMySQL Version 0.2.9
 =====================
 
 
