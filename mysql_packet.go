@@ -78,65 +78,83 @@ type packetInit struct {
  * Read initialisation packet from buffer
  */
 func (pkt *packetInit) read(reader *bufio.Reader) (err os.Error) {
+	// Need to keep track of bytes read for 5.5 compatibility
+	bytesRead := uint32(0)
 	// Protocol version
 	c, err := reader.ReadByte()
 	if err != nil {
 		return
 	}
 	pkt.protocolVersion = uint8(c)
+	bytesRead += 1
 	// Server version
 	line, err := reader.ReadString(0x00)
 	if err != nil {
 		return
 	}
 	pkt.serverVersion = line
+	bytesRead += uint32(len(line))
 	// Thread id
 	num, err := pkt.readNumber(reader, 4)
 	if err != nil {
 		return
 	}
 	pkt.threadId = uint32(num)
+	bytesRead += 4
 	// Scramble buffer (first part)
 	pkt.scrambleBuff = make([]byte, 20)
 	_, err = io.ReadFull(reader, pkt.scrambleBuff[0:8])
 	if err != nil {
 		return
 	}
+	bytesRead += 8
 	// Skip next byte
 	err = pkt.readFill(reader, 1)
 	if err != nil {
 		return
 	}
+	bytesRead += 1
 	// Server capabilities
 	num, err = pkt.readNumber(reader, 2)
 	if err != nil {
 		return
 	}
 	pkt.serverCaps = uint16(num)
+	bytesRead += 2
 	// Server language
 	c, err = reader.ReadByte()
 	if err != nil {
 		return
 	}
 	pkt.serverLanguage = uint8(c)
+	bytesRead += 1
 	// Server status
 	num, err = pkt.readNumber(reader, 2)
 	if err != nil {
 		return
 	}
 	pkt.serverStatus = uint16(num)
+	bytesRead += 2
 	// Skip next 13 bytes
 	err = pkt.readFill(reader, 13)
 	if err != nil {
 		return
 	}
+	bytesRead += 13
 	// Scramble buffer (second part)
 	_, err = io.ReadFull(reader, pkt.scrambleBuff[8:20])
 	if err != nil {
 		return
 	}
+	bytesRead += 12
 	// Read final byte
 	err = pkt.readFill(reader, 1)
+	bytesRead += 1
+	// Read additional bytes (5.5 support)
+	if bytesRead < pkt.header.length {
+		bytes := make([]byte, pkt.header.length-bytesRead)
+		_, err = io.ReadFull(reader, bytes)
+	}
 	return
 }
 
