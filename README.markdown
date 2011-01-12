@@ -7,6 +7,7 @@ Revision History
 
 0.2.x series [current]
 
+* 0.2.9 - Added support for MySQL 5.5
 * 0.2.8 - Fixes issue #38.
 * 0.2.7 - Added additional binary type support: medium int (int32/uint32), decimal (string), new decimal (string), bit ([]byte), year (uint16), set ([]byte), enum/set use string type.
 * 0.2.6 - Replaced buffer checks in prepared statements, similar to change in 0.2.5, more robust method to handle end of packets.
