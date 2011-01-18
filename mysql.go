@@ -37,6 +37,7 @@ type Client struct {
 	// Logging
 	Logging bool
 	LogType uint8
+	LogFile *os.File
 
 	// Connection
 	conn   net.Conn
@@ -48,142 +49,155 @@ type Client struct {
 }
 
 // Create new client
-func NewClient() (client *Client) {
-	client = &Client{}
+func NewClient() (cl *Client) {
+	cl = &Client{}
 	return
 }
 
 // Connect to server via TCP
-func DialTCP(raddr, user, passwd string, dbname ...string) (client *Client, err os.Error) {
-	client = NewClient()
+func DialTCP(raddr, user, passwd string, dbname ...string) (cl *Client, err os.Error) {
+	cl = NewClient()
 	// Add port if not set
 	if strings.Index(raddr, ":") == -1 {
 		raddr += ":" + DefaultSock
 	}
 	// Connect to server
-	err = client.Connect(NetTCP, raddr, user, passwd, dbname...)
+	err = cl.Connect(NetTCP, raddr, user, passwd, dbname...)
 	return
 }
 
 // Connect to server via unix socket
-func DialUnix(raddr, user, passwd string, dbname ...string) (client *Client, err os.Error) {
-	client = NewClient()
+func DialUnix(raddr, user, passwd string, dbname ...string) (cl *Client, err os.Error) {
+	cl = NewClient()
 	// Use default socket if socket is empty
 	if raddr == "" {
 		raddr = DefaultSock
 	}
 	// Connect to server
-	err = client.Connect(NetUnix, raddr, user, passwd, dbname...)
+	err = cl.Connect(NetUnix, raddr, user, passwd, dbname...)
 	return
 }
 
 // Error handling
-func (client *Client) error(errno Errno, error Error) {
-	client.Errno = errno
-	client.Error = error
+func (cl *Client) error(errno Errno, error Error) {
+	cl.Errno = errno
+	cl.Error = error
 }
 
 // Logging
-func (client *Client) log(msg string) {
+func (cl *Client) log(msg string) {
 	// If logging is disabled, ignore
-	if !client.Logging {
+	if !cl.Logging {
 		return
 	}
 	// Log based on logging type
-	switch client.LogType {
+	switch cl.LogType {
+	// Log to screen
 	case LogScreen:
 		log.Print(msg)
+	// Log to file
+	case LogFile:
+		// If file pointer is nil return
+		if cl.LogFile == nil {
+			return
+		}
+		// This is the same as log package does internally for logging
+		// to the screen (via stderr) just requires an io.Writer
+		l := log.New(cl.LogFile, "", log.Ldate | log.Ltime)
+		l.Print(msg)
 	}
 }
 
 // Connect to the server
-func (client *Client) Connect(network, raddr, user, passwd string, dbname ...string) (err os.Error) {
+func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string) (err os.Error) {
 	// Connect to server
-	client.conn, err = net.Dial(network, "", raddr)
+	cl.conn, err = net.Dial(network, "", raddr)
 	if err != nil {
 		// Store error state
 		if network == NetUnix {
-			client.error(CR_CONNECTION_ERROR, Error(fmt.Sprintf(CR_CONNECTION_ERROR_STR, raddr)))
+			cl.error(CR_CONNECTION_ERROR, Error(fmt.Sprintf(CR_CONNECTION_ERROR_STR, raddr)))
 		}
 		if network == NetTCP {
 			parts := strings.Split(raddr, ":", -1)
 			if len(parts) == 2 {
-				client.error(CR_CONN_HOST_ERROR, Error(fmt.Sprintf(CR_CONN_HOST_ERROR_STR, parts[0], parts[1])))
+				cl.error(CR_CONN_HOST_ERROR, Error(fmt.Sprintf(CR_CONN_HOST_ERROR_STR, parts[0], parts[1])))
+			} else {
+				cl.error(CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR)
 			}
 		}
 		// Log error
-		client.log(err.String())
+		cl.log(err.String())
 		return
 	}
 	return
 }
 
 // Close connection to server
-func (client *Client) Close() (err os.Error) {
+func (cl *Client) Close() (err os.Error) {
 	return
 }
 
 // Change the current database
-func (client *Client) ChangeDb(dbname string) (err os.Error) {
+func (cl *Client) ChangeDb(dbname string) (err os.Error) {
 	return
 }
 
 // Send a query to the server
-func (client *Client) Query(sql string) (err os.Error) {
+func (cl *Client) Query(sql string) (err os.Error) {
 	return
 }
 
 // Send multiple queries to the server
-func (client *Client) MultiQuery(sql string) (err os.Error) {
+func (cl *Client) MultiQuery(sql string) (err os.Error) {
 	return
 }
 
 // Fetch all rows for a result and store it, returning the result set
-func (client *Client) StoreResult() (result *Result, err os.Error) {
+func (cl *Client) StoreResult() (result *Result, err os.Error) {
 	return
 }
 
 // Use a result set, does not store rows
-func (client *Client) UseResult() (result *Result, err os.Error) {
+func (cl *Client) UseResult() (result *Result, err os.Error) {
 	return
 }
 
 // Check if more results are available
-func (client *Client) MoreResults() (ok bool, err os.Error) {
+func (cl *Client) MoreResults() (ok bool, err os.Error) {
 	return
 }
 
 // Move to the next available result
-func (client *Client) NextResult() (ok bool, err os.Error) {
+func (cl *Client) NextResult() (ok bool, err os.Error) {
 	return
 }
 
 // Enable or disable autocommit
-func (client *Client) AutoCommit(state bool) (err os.Error) {
+func (cl *Client) AutoCommit(state bool) (err os.Error) {
 	return
 }
 
 // Commit a transaction
-func (client *Client) Commit() (err os.Error) {
+func (cl *Client) Commit() (err os.Error) {
 	return
 }
 
 // Rollback a transaction
-func (client *Client) Rollback() (err os.Error) {
+func (cl *Client) Rollback() (err os.Error) {
 	return
 }
 
 // Escape a string
-func (client *Client) Escape(str string) (esc string) {
+func (cl *Client) Escape(str string) (esc string) {
 	return
 }
 
 // Initialise and prepare a new statement
-func (client *Client) Prepare(sql string) (stmt *Statement, err os.Error) {
+func (cl *Client) Prepare(sql string) (stmt *Statement, err os.Error) {
 	return
 }
 
 // Initialise a new statment
-func (client *Client) StmtInit() (stmt *Statement, err os.Error) {
+func (cl *Client) StmtInit() (stmt *Statement, err os.Error) {
 	return
 }
