@@ -12,7 +12,6 @@ import (
 	"log"
 	"strings"
 	"net"
-	"bufio"
 	"sync"
 )
 
@@ -41,8 +40,8 @@ type Client struct {
 
 	// Connection
 	conn   net.Conn
-	reader *bufio.Reader
-	writer *bufio.Writer
+	rd     *reader
+	wr     *writer
 
 	// Mutex for thread safety
 	mutex sync.Mutex
@@ -129,6 +128,9 @@ func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string)
 		cl.log(err.String())
 		return
 	}
+	// Create reader and writer
+	cl.rd = newReader(cl.conn)
+	cl.wr = newWriter(cl.conn)
 	return
 }
 
