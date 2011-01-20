@@ -917,17 +917,6 @@ func (pkt *packetExecute) encodeParams(params []interface{}) {
 				pkt.paramData[i] = pkt.packNumber(uint64(value), 8)
 				pkt.paramLength += 8
 			// Floats
-			case float:
-				if strconv.FloatSize == 32 {
-					n = uint16(FIELD_TYPE_FLOAT)
-					pkt.paramData[i] = pkt.packNumber(uint64(math.Float32bits(float32(value))), 4)
-					pkt.paramLength += 4
-				} else {
-					n = uint16(FIELD_TYPE_DOUBLE)
-					pkt.paramData[i] = pkt.packNumber(uint64(math.Float64bits(float64(value))), 8)
-					pkt.paramLength += 8
-				}
-
 			case float32:
 				n = uint16(FIELD_TYPE_FLOAT)
 				pkt.paramData[i] = pkt.packNumber(uint64(math.Float32bits(float32(value))), 4)

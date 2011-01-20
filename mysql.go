@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	Version       = "0.2.9"
+	Version       = "0.2.10"
 	DefaultPort   = 3306
 	DefaultSock   = "/var/run/mysqld/mysqld.sock"
 	MaxPacketSize = 1 << 24
