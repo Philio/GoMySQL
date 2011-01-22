@@ -12,12 +12,12 @@ import (
 
 // Packet writer struct
 type writer struct {
-	wr *bufio.Writer
+	bw *bufio.Writer
 }
 
 // Create a new reader
 func newWriter(conn net.Conn) *writer {
 	return &writer {
-		wr: bufio.NewWriter(conn),
+		bw: bufio.NewWriter(conn),
 	}
 }

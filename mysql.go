@@ -21,8 +21,8 @@ const (
 	DefaultPort   = 3306
 	DefaultSock   = "/var/run/mysqld/mysqld.sock"
 	MaxPacketSize = 1 << 24
-	NetTCP        = "tcp"
-	NetUnix       = "unix"
+	TCP           = "tcp"
+	Unix          = "unix"
 	LogScreen     = 0x00
 	LogFile       = 0x01
 )
@@ -61,7 +61,7 @@ func DialTCP(raddr, user, passwd string, dbname ...string) (cl *Client, err os.E
 		raddr += ":" + DefaultSock
 	}
 	// Connect to server
-	err = cl.Connect(NetTCP, raddr, user, passwd, dbname...)
+	err = cl.Connect(TCP, raddr, user, passwd, dbname...)
 	return
 }
 
@@ -73,7 +73,7 @@ func DialUnix(raddr, user, passwd string, dbname ...string) (cl *Client, err os.
 		raddr = DefaultSock
 	}
 	// Connect to server
-	err = cl.Connect(NetUnix, raddr, user, passwd, dbname...)
+	err = cl.Connect(Unix, raddr, user, passwd, dbname...)
 	return
 }
 
@@ -113,10 +113,10 @@ func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string)
 	cl.conn, err = net.Dial(network, "", raddr)
 	if err != nil {
 		// Store error state
-		if network == NetUnix {
+		if network == Unix {
 			cl.error(CR_CONNECTION_ERROR, Error(fmt.Sprintf(CR_CONNECTION_ERROR_STR, raddr)))
 		}
-		if network == NetTCP {
+		if network == TCP {
 			parts := strings.Split(raddr, ":", -1)
 			if len(parts) == 2 {
 				cl.error(CR_CONN_HOST_ERROR, Error(fmt.Sprintf(CR_CONN_HOST_ERROR_STR, parts[0], parts[1])))

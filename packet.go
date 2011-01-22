@@ -5,7 +5,9 @@
 // license that can be found in the LICENSE file.
 package mysql
 
-// Packet interface
-type packet interface {
-
+// Raw binary packet
+type packetBin struct {
+	length   uint32
+	sequence uint8
+	data     []byte
 }
