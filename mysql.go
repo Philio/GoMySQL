@@ -17,14 +17,19 @@ import (
 
 // Constants
 const (
-	Version       = "0.3.0-dev"
-	DefaultPort   = 3306
-	DefaultSock   = "/var/run/mysqld/mysqld.sock"
-	MaxPacketSize = 1 << 24
-	TCP           = "tcp"
-	Unix          = "unix"
-	LogScreen     = 0x00
-	LogFile       = 0x01
+	// General
+	VERSION         = "0.3.0-dev"
+	DEFAULT_PORT    = 3306
+	DEFAULT_SOCKET  = "/var/run/mysqld/mysqld.sock"
+	MAX_PACKET_SIZE = 1 << 24
+
+	// Connection types
+	TCP  = "tcp"
+	UNIX = "unix"
+
+	// Log methods
+	LOG_SCREEN = 0x00
+	LOG_FILE   = 0x01
 )
 
 // Client struct
@@ -39,9 +44,9 @@ type Client struct {
 	LogFile *os.File
 
 	// Connection
-	conn   net.Conn
-	rd     *reader
-	wr     *writer
+	conn net.Conn
+	rd   *reader
+	wr   *writer
 
 	// Mutex for thread safety
 	mutex sync.Mutex
@@ -58,7 +63,7 @@ func DialTCP(raddr, user, passwd string, dbname ...string) (cl *Client, err os.E
 	cl = NewClient()
 	// Add port if not set
 	if strings.Index(raddr, ":") == -1 {
-		raddr += ":" + DefaultSock
+		raddr += ":" + fmt.Sprintf("%d", DEFAULT_PORT)
 	}
 	// Connect to server
 	err = cl.Connect(TCP, raddr, user, passwd, dbname...)
@@ -70,10 +75,10 @@ func DialUnix(raddr, user, passwd string, dbname ...string) (cl *Client, err os.
 	cl = NewClient()
 	// Use default socket if socket is empty
 	if raddr == "" {
-		raddr = DefaultSock
+		raddr = DEFAULT_SOCKET
 	}
 	// Connect to server
-	err = cl.Connect(Unix, raddr, user, passwd, dbname...)
+	err = cl.Connect(UNIX, raddr, user, passwd, dbname...)
 	return
 }
 
@@ -92,18 +97,21 @@ func (cl *Client) log(msg string) {
 	// Log based on logging type
 	switch cl.LogType {
 	// Log to screen
-	case LogScreen:
+	case LOG_SCREEN:
 		log.Print(msg)
 	// Log to file
-	case LogFile:
+	case LOG_FILE:
 		// If file pointer is nil return
 		if cl.LogFile == nil {
 			return
 		}
 		// This is the same as log package does internally for logging
 		// to the screen (via stderr) just requires an io.Writer
-		l := log.New(cl.LogFile, "", log.Ldate | log.Ltime)
+		l := log.New(cl.LogFile, "", log.Ldate|log.Ltime)
 		l.Print(msg)
+	// Not set
+	default:
+		return
 	}
 }
 
@@ -113,13 +121,13 @@ func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string)
 	cl.conn, err = net.Dial(network, "", raddr)
 	if err != nil {
 		// Store error state
-		if network == Unix {
-			cl.error(CR_CONNECTION_ERROR, Error(fmt.Sprintf(CR_CONNECTION_ERROR_STR, raddr)))
+		if network == UNIX {
+			cl.error(CR_CONNECTION_ERROR, Error(fmt.Sprintf(string(CR_CONNECTION_ERROR_STR), raddr)))
 		}
 		if network == TCP {
 			parts := strings.Split(raddr, ":", -1)
 			if len(parts) == 2 {
-				cl.error(CR_CONN_HOST_ERROR, Error(fmt.Sprintf(CR_CONN_HOST_ERROR_STR, parts[0], parts[1])))
+				cl.error(CR_CONN_HOST_ERROR, Error(fmt.Sprintf(string(CR_CONN_HOST_ERROR_STR), parts[0], parts[1])))
 			} else {
 				cl.error(CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR)
 			}
@@ -131,6 +139,8 @@ func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string)
 	// Create reader and writer
 	cl.rd = newReader(cl.conn)
 	cl.wr = newWriter(cl.conn)
+	init, err := cl.rd.readPacket(PACKET_INIT)
+	fmt.Printf("Init: %#v\n", init)
 	return
 }
 

@@ -6,5 +6,4 @@
 package mysql
 
 // Result struct
-type Result struct {
-}
+type Result struct{}

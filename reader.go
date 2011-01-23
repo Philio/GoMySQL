@@ -9,44 +9,55 @@ import (
 	"os"
 	"net"
 	"io"
-	"bufio"
 )
 
 // Packet reader struct
 type reader struct {
-	br *bufio.Reader
+	conn net.Conn
 }
 
 // Create a new reader
 func newReader(conn net.Conn) *reader {
-	return &reader {
-		br: bufio.NewReader(conn),
+	return &reader{
+		conn: conn,
 	}
 }
 
 // Read the next packet
-func (r *reader) readPacket() (p *packetBin, err os.Error) {
+func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 	// Read packet length
-	pLen, err := r.readNumber(3)
+	pktLen, err := r.readNumber(3)
 	if err != nil {
 		return
 	}
 	// Read sequence
-	pSeq, err := r.readNumber(1)
+	pktSeq, err := r.readNumber(1)
 	if err != nil {
 		return
 	}
-	// Create new packet
-	p = &packetBin {
-		length:   uint32(pLen),
-		sequence: uint8(pSeq),
-	}
 	// Read rest of packet
-	buf := make([]byte, p.length)
-	nr, err := io.ReadFull(r.br, buf)
-	if err == nil && nr != int(p.length) {
+	pktData := make([]byte, pktLen)
+	nr, err := io.ReadFull(r.conn, pktData)
+	if err == nil && nr != int(pktLen) {
 		err = os.NewError("Number of bytes read does not match packet length")
-	}	
+	}
+	// Create header
+	hdr := &header {
+		length: uint32(pktLen),
+		sequence: uint8(pktSeq),	
+	}
+	// Work out packet type
+	switch {
+		// Unknown packet
+		default:
+			err = os.NewError("Unknown packet or packet type")
+		// Initialisation / handshake packet, server > client
+		case types & PACKET_INIT != 0:
+			p = &packetInit {
+				header: hdr,
+			}
+			p.read(pktData)
+	}
 	return
 }
 
@@ -54,12 +65,12 @@ func (r *reader) readPacket() (p *packetBin, err os.Error) {
 func (r *reader) readNumber(n uint8) (num uint64, err os.Error) {
 	// Check max length
 	if n > 8 {
-		err = os.NewError("Cannot read a number greater than 64 bits/8 bytes long")
+		err = os.NewError("Cannot read a number greater than 8 bytes long")
 		return
 	}
 	// Read bytes into array
 	buf := make([]byte, n)
-	nr, err := io.ReadFull(r.br, buf)
+	nr, err := io.ReadFull(r.conn, buf)
 	if err != nil {
 		return
 	}

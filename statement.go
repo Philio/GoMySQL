@@ -6,5 +6,4 @@
 package mysql
 
 // Prepared statement struct
-type Statement struct {
-}
+type Statement struct{}

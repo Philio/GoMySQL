@@ -7,17 +7,16 @@ package mysql
 
 import (
 	"net"
-	"bufio"
 )
 
 // Packet writer struct
 type writer struct {
-	bw *bufio.Writer
+	conn net.Conn
 }
 
 // Create a new reader
 func newWriter(conn net.Conn) *writer {
-	return &writer {
-		bw: bufio.NewWriter(conn),
+	return &writer{
+		conn: conn,
 	}
 }
