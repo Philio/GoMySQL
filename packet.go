@@ -88,14 +88,14 @@ type packetInit struct {
 
 // Init packet reader
 func (p *packetInit) read(data []byte) (err os.Error) {
-	// Position
-	pos := 0
-	// Recover from premature EOF
+	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
-			err = os.NewError(fmt.Sprintf("%v", e))
+			err = os.NewError(fmt.Sprintf("%s", e))
 		}
 	}()
+	// Position
+	pos := 0
 	// Protocol version [8 bit uint]
 	p.protocolVersion = data[pos]
 	pos ++
@@ -129,6 +129,5 @@ func (p *packetInit) read(data []byte) (err os.Error) {
 		copy(p.scrambleBuff[0:8], sBuff)
 		copy(p.scrambleBuff[8:20], data[pos:])
 	}
-	fmt.Printf("This should panic! %#v\n", data[pos+15:pos+20])
 	return
 }
