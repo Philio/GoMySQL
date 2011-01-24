@@ -124,10 +124,7 @@ func (p *packetInit) read(data []byte) (err os.Error) {
 	pos += 15
 	// Second part of scramble buffer, if exists (4.1+) [13 bytes]
 	if pos < len(data) {
-		sBuff := p.scrambleBuff
-		p.scrambleBuff = make([]byte, 20)
-		copy(p.scrambleBuff[0:8], sBuff)
-		copy(p.scrambleBuff[8:20], data[pos:])
+		p.scrambleBuff = append(p.scrambleBuff, data[pos:]...)
 	}
 	return
 }
