@@ -7,6 +7,8 @@ package mysql
 
 import (
 	"os"
+	"bytes"
+	"fmt"
 )
 
 // Packet type identifier
@@ -46,15 +48,35 @@ type packet interface {
 	packetWriteable
 }
 
-// Packet header
-type header struct {
-	length   uint32
+// Packet base struct
+type packetBase struct {
 	sequence uint8
+}
+
+// Read a slice from the data
+func (p *packetBase) readSlice(data []byte, offset int, delim byte) (slice []byte, err os.Error) {
+	 pos := bytes.IndexByte(data[offset:], delim)
+	 if pos > -1 {
+	 	slice = data[offset:pos+offset]
+	 } else {
+	 	slice = data[offset:]
+	 	err = os.EOF
+	 }
+	 return
+}
+
+// Convert byte array into a number
+func (p *packetBase) packNumber(data []byte) uint64 {
+	num := uint64(0)
+	for i := uint8(0); i < uint8(len(data)); i++ {
+		num |= uint64(data[i]) << (i * 8)
+	}
+	return num
 }
 
 // Init packet
 type packetInit struct {
-	*header
+	packetBase
 	protocolVersion uint8
 	serverVersion   string
 	threadId        uint32
@@ -64,7 +86,49 @@ type packetInit struct {
 	serverStatus    uint16
 }
 
+// Init packet reader
 func (p *packetInit) read(data []byte) (err os.Error) {
-	p.protocolVersion = data[0]
+	// Position
+	pos := 0
+	// Recover from premature EOF
+	defer func() {
+		if e := recover(); e != nil {
+			err = os.NewError(fmt.Sprintf("%v", e))
+		}
+	}()
+	// Protocol version [8 bit uint]
+	p.protocolVersion = data[pos]
+	pos ++
+	// Server version [null terminated string]
+	slice, err := p.readSlice(data, pos, 0x00)
+	if err != nil {
+		return
+	}
+	p.serverVersion = string(slice)
+	pos += len(slice) + 1
+	// Thread id [32 bit uint]
+	p.threadId = uint32(p.packNumber(data[pos:pos+4]))
+	pos += 4
+	// First part of scramble buffer [8 bytes]
+	p.scrambleBuff = make([]byte, 8)
+	p.scrambleBuff = data[pos:pos+8]
+	pos += 9
+	// Server capabilities [16 bit uint]
+	p.serverCaps = uint16(p.packNumber(data[pos:pos+2]))
+	pos += 2
+	// Server language [8 bit uint]
+	p.serverLanguage = data[pos]
+	pos ++
+	// Server status [16 bit uint]
+	p.serverStatus = uint16(p.packNumber(data[pos:pos+2]))
+	pos += 15
+	// Second part of scramble buffer, if exists (4.1+) [13 bytes]
+	if pos < len(data) {
+		sBuff := p.scrambleBuff
+		p.scrambleBuff = make([]byte, 20)
+		copy(p.scrambleBuff[0:8], sBuff)
+		copy(p.scrambleBuff[8:20], data[pos:])
+	}
+	fmt.Printf("This should panic! %#v\n", data[pos+15:pos+20])
 	return
 }

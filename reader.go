@@ -41,11 +41,6 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 	if err == nil && nr != int(pktLen) {
 		err = os.NewError("Number of bytes read does not match packet length")
 	}
-	// Create header
-	hdr := &header {
-		length: uint32(pktLen),
-		sequence: uint8(pktSeq),	
-	}
 	// Work out packet type
 	switch {
 		// Unknown packet
@@ -53,10 +48,10 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 			err = os.NewError("Unknown packet or packet type")
 		// Initialisation / handshake packet, server > client
 		case types & PACKET_INIT != 0:
-			p = &packetInit {
-				header: hdr,
-			}
-			p.read(pktData)
+			pi := new(packetInit)
+			pi.sequence = uint8(pktSeq)
+			err = pi.read(pktData)
+			return pi, err
 	}
 	return
 }
