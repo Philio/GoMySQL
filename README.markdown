@@ -16,7 +16,7 @@ Planned features:
 * Proper implementation and usage of the server status flags, improves transaction handling, enables proper "more results" check.
 * Full compatibility with all MySQL versions (including pre-4.1), MariaDB and Percona.
 
-Comments and suggestions are always welcome, please visit our Google Group for any discussions related to thie new version.  
+Comments and suggestions are always welcome, please visit our Google Group for any discussions related to this new version.  
 
 * 0.3.0 - [WORK IN PROGRESS]
 
