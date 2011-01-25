@@ -38,14 +38,14 @@ type packetReadable interface {
 }
 
 // Writable packet interface
-type packetWriteable interface {
-	write() (err os.Error)
+type packetWritable interface {
+	write() (data []byte, err os.Error)
 }
 
 // Generic packet interface (read/writable)
 type packet interface {
 	packetReadable
-	packetWriteable
+	packetWritable
 }
 
 // Packet base struct
@@ -126,5 +126,21 @@ func (p *packetInit) read(data []byte) (err os.Error) {
 	if pos < len(data) {
 		p.scrambleBuff = append(p.scrambleBuff, data[pos:]...)
 	}
+	return
+}
+
+// Auth packet
+type packetAuth struct {
+	packetBase
+	clientFlags   uint32
+	maxPacketSize uint32
+	charsetNumber uint8
+	user          string
+	scrambleBuff  []byte
+	database      string
+}
+
+// Auth packet writer
+func (p *packetAuth) write() (data []byte, err os.Error) {
 	return
 }

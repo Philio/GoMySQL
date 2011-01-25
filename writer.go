@@ -6,6 +6,7 @@
 package mysql
 
 import (
+	"os"
 	"net"
 )
 
@@ -19,4 +20,9 @@ func newWriter(conn net.Conn) *writer {
 	return &writer{
 		conn: conn,
 	}
+}
+
+// Write packet to the server
+func (w *writer) writePacket(p packetWritable) (err os.Error) {
+	return
 }

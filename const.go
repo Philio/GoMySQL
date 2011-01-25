@@ -61,6 +61,21 @@ const (
 	CLIENT_MULTI_RESULTS    ClientFlags = 1 << iota
 )
 
+type ServerStatus uint16
+
+const (
+	SERVER_STATUS_IN_TRANS             ServerStatus = 0x01
+	SERVER_STATUS_AUTOCOMMIT           ServerStatus = 0x02
+	SERVER_MORE_RESULTS_EXISTS         ServerStatus = 0x08
+	SERVER_QUERY_NO_GOOD_INDEX_USED    ServerStatus = 0x10
+	SERVER_QUERY_NO_INDEX_USED         ServerStatus = 0x20
+	SERVER_STATUS_CURSOR_EXISTS        ServerStatus = 0x40
+	SERVER_STATUS_LAST_ROW_SENT        ServerStatus = 0x80
+	SERVER_STATUS_DB_DROPPED           ServerStatus = 0x100
+	SERVER_STATUS_NO_BACKSLASH_ESCAPES ServerStatus = 0x200
+	SERVER_STATUS_METADATA_CHANGED     ServerStatus = 0x400
+)
+
 type FieldTypes byte
 
 const (

@@ -39,14 +39,32 @@ type Client struct {
 	Error Error
 
 	// Logging
-	Logging bool
-	LogType uint8
-	LogFile *os.File
+	LogLevel uint8
+	LogType  uint8
+	LogFile  *os.File
+	
+	// Credentials
+	network string
+	raddr   string
+	user    string
+	passwd  string
+	dbname  string
 
 	// Connection
 	conn net.Conn
 	rd   *reader
 	wr   *writer
+
+	// Sequence
+	sequence     uint8
+	
+	// Server settings
+	serverVersion  string
+	serverProtocol uint8
+	serverFlags    ClientFlags
+	serverCharset  uint8
+	serverStatus   ServerStatus
+	scrambleBuff   []byte
 
 	// Mutex for thread safety
 	mutex sync.Mutex
@@ -89,9 +107,9 @@ func (cl *Client) error(errno Errno, error Error) {
 }
 
 // Logging
-func (cl *Client) log(msg string) {
+func (cl *Client) log(level uint8, msg string) {
 	// If logging is disabled, ignore
-	if !cl.Logging {
+	if level > cl.LogLevel {
 		return
 	}
 	// Log based on logging type
@@ -115,17 +133,98 @@ func (cl *Client) log(msg string) {
 	}
 }
 
+// Provide detailed log output for server capabilities
+func (cl *Client) logCaps() {
+	cl.log(3, fmt.Sprintf("Long password support: %d", cl.serverFlags & CLIENT_LONG_PASSWORD))
+	cl.log(3, fmt.Sprintf("Found rows: %d", cl.serverFlags & CLIENT_FOUND_ROWS >> 1))
+	cl.log(3, fmt.Sprintf("All column flags: %d", cl.serverFlags & CLIENT_LONG_FLAG >> 2))
+	cl.log(3, fmt.Sprintf("Connect with database support: %d", cl.serverFlags & CLIENT_CONNECT_WITH_DB >> 3))
+	cl.log(3, fmt.Sprintf("No schema support: %d", cl.serverFlags & CLIENT_NO_SCHEMA >> 4))
+	cl.log(3, fmt.Sprintf("Compression support: %d", cl.serverFlags & CLIENT_COMPRESS >> 5))
+	cl.log(3, fmt.Sprintf("ODBC support: %d", cl.serverFlags & CLIENT_ODBC >> 6))
+	cl.log(3, fmt.Sprintf("Load data local support: %d", cl.serverFlags & CLIENT_LOCAL_FILES >> 7))
+	cl.log(3, fmt.Sprintf("Ignore spaces: %d", cl.serverFlags & CLIENT_IGNORE_SPACE >> 8))
+	cl.log(3, fmt.Sprintf("4.1 protocol support: %d", cl.serverFlags & CLIENT_PROTOCOL_41 >> 9))
+	cl.log(3, fmt.Sprintf("Interactive client: %d", cl.serverFlags & CLIENT_INTERACTIVE >> 10))
+	cl.log(3, fmt.Sprintf("Switch to SSL: %d", cl.serverFlags & CLIENT_SSL >> 11))
+	cl.log(3, fmt.Sprintf("Ignore sigpipes: %d", cl.serverFlags & CLIENT_IGNORE_SIGPIPE >> 12))
+	cl.log(3, fmt.Sprintf("Transaction support: %d", cl.serverFlags & CLIENT_TRANSACTIONS >> 13))
+	cl.log(3, fmt.Sprintf("4.1 protocol authentication: %d", cl.serverFlags & CLIENT_SECURE_CONN >> 15))
+}
+
+// Provide detailed log output for the server status flags
+func (cl *Client) logStatus() {
+	cl.log(3, fmt.Sprintf("In transaction: %d", cl.serverStatus & SERVER_STATUS_IN_TRANS))
+	cl.log(3, fmt.Sprintf("Auto commit enabled: %d", cl.serverStatus & SERVER_STATUS_AUTOCOMMIT >> 1))
+	cl.log(3, fmt.Sprintf("More results exist: %d", cl.serverStatus & SERVER_MORE_RESULTS_EXISTS >> 3))
+	cl.log(3, fmt.Sprintf("No good indexes were used: %d", cl.serverStatus & SERVER_QUERY_NO_GOOD_INDEX_USED >> 4))
+	cl.log(3, fmt.Sprintf("No indexes were used: %d", cl.serverStatus & SERVER_QUERY_NO_INDEX_USED >> 5))
+	cl.log(3, fmt.Sprintf("Cursor exists: %d", cl.serverStatus & SERVER_STATUS_CURSOR_EXISTS >> 6))
+	cl.log(3, fmt.Sprintf("Last row has been sent: %d", cl.serverStatus & SERVER_STATUS_LAST_ROW_SENT >> 7))
+	cl.log(3, fmt.Sprintf("Database dropped: %d", cl.serverStatus & SERVER_STATUS_DB_DROPPED >> 8))
+	cl.log(3, fmt.Sprintf("No backslash escapes: %d", cl.serverStatus & SERVER_STATUS_NO_BACKSLASH_ESCAPES >> 9))
+	cl.log(3, fmt.Sprintf("Metadata has changed: %d", cl.serverStatus & SERVER_STATUS_METADATA_CHANGED >> 10))
+}
+
+// Reset the client
+func (cl *Client) reset() {
+	cl.Errno = 0
+	cl.Error = ""
+	cl.sequence = 0
+}
+
+// Sequence check
+func (cl *Client) checkSequence(sequence uint8) (err os.Error) {
+	if sequence != cl.sequence {
+		cl.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
+		cl.log(1, "Sequence doesn't match, commands out of sync")
+		err = os.NewError("Bad sequence number")
+	}
+	return
+}
+
 // Connect to the server
 func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string) (err os.Error) {
+	// Reset client
+	cl.reset()
+	// Lock mutex/defer unlock
+	cl.mutex.Lock()
+	defer cl.mutex.Unlock()
+	// Store connection credentials
+	cl.network = network
+	cl.raddr = raddr
+	cl.user = user
+	cl.passwd = passwd
+	if len(dbname) > 0 {
+		cl.dbname = dbname[0]
+	}
 	// Connect to server
-	cl.conn, err = net.Dial(network, "", raddr)
+	err = cl.dial()
+	if err != nil {
+		return
+	}
+	// Read initial packet from server
+	err = cl.init()
+	if err != nil {
+		return
+	}
+	// Send auth packet to server
+	return
+}
+
+// Connect to server
+func (cl *Client) dial() (err os.Error) {
+	// Log connect info
+	cl.log(1, fmt.Sprintf("Connecting to server via %s to %s", cl.network, cl.raddr))
+	// Connect to server
+	cl.conn, err = net.Dial(cl.network, "", cl.raddr)
 	if err != nil {
 		// Store error state
-		if network == UNIX {
-			cl.error(CR_CONNECTION_ERROR, Error(fmt.Sprintf(string(CR_CONNECTION_ERROR_STR), raddr)))
+		if cl.network == UNIX {
+			cl.error(CR_CONNECTION_ERROR, Error(fmt.Sprintf(string(CR_CONNECTION_ERROR_STR), cl.raddr)))
 		}
-		if network == TCP {
-			parts := strings.Split(raddr, ":", -1)
+		if cl.network == TCP {
+			parts := strings.Split(cl.raddr, ":", -1)
 			if len(parts) == 2 {
 				cl.error(CR_CONN_HOST_ERROR, Error(fmt.Sprintf(string(CR_CONN_HOST_ERROR_STR), parts[0], parts[1])))
 			} else {
@@ -133,14 +232,46 @@ func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string)
 			}
 		}
 		// Log error
-		cl.log(err.String())
+		cl.log(1, err.String())
 		return
 	}
+	// Log connect success
+	cl.log(1, "Connected to server")
 	// Create reader and writer
 	cl.rd = newReader(cl.conn)
 	cl.wr = newWriter(cl.conn)
+	return
+}
+
+// Read initial packet from server
+func (cl *Client) init() (err os.Error) {
+	// Read packet
 	init, err := cl.rd.readPacket(PACKET_INIT)
-	fmt.Printf("Init: %#v\n", init)
+	if err != nil {
+		return
+	}
+	err = cl.checkSequence(init.(*packetInit).sequence)
+	if err != nil {
+		return
+	}
+	// Assign values
+	cl.serverVersion = init.(*packetInit).serverVersion
+	cl.serverProtocol = init.(*packetInit).protocolVersion
+	cl.serverFlags = ClientFlags(init.(*packetInit).serverCaps)
+	cl.serverCharset = init.(*packetInit).serverLanguage
+	cl.serverStatus = ServerStatus(init.(*packetInit).serverStatus)
+	cl.scrambleBuff = init.(*packetInit).scrambleBuff
+	// Extended logging [level 2+]
+	if cl.LogLevel > 1 {
+		// Log server info
+		cl.log(2, fmt.Sprintf("Server version: %s", cl.serverVersion))
+		cl.log(2, fmt.Sprintf("Protocol version: %d", cl.serverProtocol))
+	}
+	// Full logging [level 3]
+	if cl.LogLevel > 2 {
+		cl.logCaps()
+		cl.logStatus()
+	}
 	return
 }
 
