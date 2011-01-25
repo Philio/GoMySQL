@@ -20,19 +20,19 @@ type rand struct {
 
 // Initialise rand struct, see libmysql/password.c
 func randominit(seed1, seed2 uint32) *rand {
-	return &rand {
-		maxValue: 0x3FFFFFFF,
+	return &rand{
+		maxValue:    0x3FFFFFFF,
 		maxValueDbl: 0x3FFFFFFF,
-		seed1: seed1 % 0x3FFFFFFF,
-		seed2: seed2 % 0x3FFFFFFF,
+		seed1:       seed1 % 0x3FFFFFFF,
+		seed2:       seed2 % 0x3FFFFFFF,
 	}
 }
 
 // Generate a random number, see libmysql/password.c
 func (r *rand) myRnd() float64 {
-	r.seed1 = (r.seed1 * 3 + r.seed2) % r.maxValue;
-	r.seed2 = (r.seed1 + r.seed2 + 33) % r.maxValue;
-	return float64(r.seed1) / r.maxValueDbl;
+	r.seed1 = (r.seed1*3 + r.seed2) % r.maxValue
+	r.seed2 = (r.seed1 + r.seed2 + 33) % r.maxValue
+	return float64(r.seed1) / r.maxValueDbl
 }
 
 // Password hash used in pre-4.1, see libmysql/password.c
@@ -65,18 +65,18 @@ func scramble323(message, password []byte) (result []byte) {
 		message = message[:SCRAMBLE_LENGTH_323]
 	}
 	// Generate hashes
-	hashPass:= hashPassword(password)
+	hashPass := hashPassword(password)
 	hashMessage := hashPassword(message)
 	// Initialise random struct
-	rand := randominit(hashPass[0] ^ hashMessage[0], hashPass[1] ^ hashMessage[1])
+	rand := randominit(hashPass[0]^hashMessage[0], hashPass[1]^hashMessage[1])
 	// Generate result
 	result = make([]byte, SCRAMBLE_LENGTH_323)
-	for i := 0; i < SCRAMBLE_LENGTH_323; i ++ {
-		result[i] = byte(math.Floor(rand.myRnd() * 31) + 64)
+	for i := 0; i < SCRAMBLE_LENGTH_323; i++ {
+		result[i] = byte(math.Floor(rand.myRnd()*31) + 64)
 	}
-	extra := byte(math.Floor(rand.myRnd() * 31));
-	for i := 0; i < SCRAMBLE_LENGTH_323; i ++ {
-		result[i] ^= extra;
+	extra := byte(math.Floor(rand.myRnd() * 31))
+	for i := 0; i < SCRAMBLE_LENGTH_323; i++ {
+		result[i] ^= extra
 	}
 	return
 }
