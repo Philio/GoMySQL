@@ -55,14 +55,14 @@ type packetBase struct {
 
 // Read a slice from the data
 func (p *packetBase) readSlice(data []byte, offset int, delim byte) (slice []byte, err os.Error) {
-	 pos := bytes.IndexByte(data[offset:], delim)
-	 if pos > -1 {
-	 	slice = data[offset:pos+offset]
-	 } else {
-	 	slice = data[offset:]
-	 	err = os.EOF
-	 }
-	 return
+	pos := bytes.IndexByte(data[offset:], delim)
+	if pos > -1 {
+		slice = data[offset : pos+offset]
+	} else {
+		slice = data[offset:]
+		err = os.EOF
+	}
+	return
 }
 
 // Convert byte array into a number
@@ -98,7 +98,7 @@ func (p *packetInit) read(data []byte) (err os.Error) {
 	pos := 0
 	// Protocol version [8 bit uint]
 	p.protocolVersion = data[pos]
-	pos ++
+	pos++
 	// Server version [null terminated string]
 	slice, err := p.readSlice(data, pos, 0x00)
 	if err != nil {
@@ -107,20 +107,20 @@ func (p *packetInit) read(data []byte) (err os.Error) {
 	p.serverVersion = string(slice)
 	pos += len(slice) + 1
 	// Thread id [32 bit uint]
-	p.threadId = uint32(p.packNumber(data[pos:pos+4]))
+	p.threadId = uint32(p.packNumber(data[pos : pos+4]))
 	pos += 4
 	// First part of scramble buffer [8 bytes]
 	p.scrambleBuff = make([]byte, 8)
-	p.scrambleBuff = data[pos:pos+8]
+	p.scrambleBuff = data[pos : pos+8]
 	pos += 9
 	// Server capabilities [16 bit uint]
-	p.serverCaps = uint16(p.packNumber(data[pos:pos+2]))
+	p.serverCaps = uint16(p.packNumber(data[pos : pos+2]))
 	pos += 2
 	// Server language [8 bit uint]
 	p.serverLanguage = data[pos]
-	pos ++
+	pos++
 	// Server status [16 bit uint]
-	p.serverStatus = uint16(p.packNumber(data[pos:pos+2]))
+	p.serverStatus = uint16(p.packNumber(data[pos : pos+2]))
 	pos += 15
 	// Second part of scramble buffer, if exists (4.1+) [13 bytes]
 	if pos < len(data) {

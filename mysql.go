@@ -13,7 +13,6 @@ import (
 	"strings"
 	"net"
 	"sync"
-	"crypto/sha1"
 )
 
 // Constants
@@ -43,7 +42,7 @@ type Client struct {
 	LogLevel uint8
 	LogType  uint8
 	LogFile  *os.File
-	
+
 	// Credentials
 	network string
 	raddr   string
@@ -57,8 +56,8 @@ type Client struct {
 	wr   *writer
 
 	// Sequence
-	sequence     uint8
-	
+	sequence uint8
+
 	// Server settings
 	serverVersion  string
 	serverProtocol uint8
@@ -136,35 +135,35 @@ func (cl *Client) log(level uint8, msg string) {
 
 // Provide detailed log output for server capabilities
 func (cl *Client) logCaps() {
-	cl.log(3, fmt.Sprintf("Long password support: %d", cl.serverFlags & CLIENT_LONG_PASSWORD))
-	cl.log(3, fmt.Sprintf("Found rows: %d", cl.serverFlags & CLIENT_FOUND_ROWS >> 1))
-	cl.log(3, fmt.Sprintf("All column flags: %d", cl.serverFlags & CLIENT_LONG_FLAG >> 2))
-	cl.log(3, fmt.Sprintf("Connect with database support: %d", cl.serverFlags & CLIENT_CONNECT_WITH_DB >> 3))
-	cl.log(3, fmt.Sprintf("No schema support: %d", cl.serverFlags & CLIENT_NO_SCHEMA >> 4))
-	cl.log(3, fmt.Sprintf("Compression support: %d", cl.serverFlags & CLIENT_COMPRESS >> 5))
-	cl.log(3, fmt.Sprintf("ODBC support: %d", cl.serverFlags & CLIENT_ODBC >> 6))
-	cl.log(3, fmt.Sprintf("Load data local support: %d", cl.serverFlags & CLIENT_LOCAL_FILES >> 7))
-	cl.log(3, fmt.Sprintf("Ignore spaces: %d", cl.serverFlags & CLIENT_IGNORE_SPACE >> 8))
-	cl.log(3, fmt.Sprintf("4.1 protocol support: %d", cl.serverFlags & CLIENT_PROTOCOL_41 >> 9))
-	cl.log(3, fmt.Sprintf("Interactive client: %d", cl.serverFlags & CLIENT_INTERACTIVE >> 10))
-	cl.log(3, fmt.Sprintf("Switch to SSL: %d", cl.serverFlags & CLIENT_SSL >> 11))
-	cl.log(3, fmt.Sprintf("Ignore sigpipes: %d", cl.serverFlags & CLIENT_IGNORE_SIGPIPE >> 12))
-	cl.log(3, fmt.Sprintf("Transaction support: %d", cl.serverFlags & CLIENT_TRANSACTIONS >> 13))
-	cl.log(3, fmt.Sprintf("4.1 protocol authentication: %d", cl.serverFlags & CLIENT_SECURE_CONN >> 15))
+	cl.log(3, fmt.Sprintf("Long password support: %d", cl.serverFlags&CLIENT_LONG_PASSWORD))
+	cl.log(3, fmt.Sprintf("Found rows: %d", cl.serverFlags&CLIENT_FOUND_ROWS>>1))
+	cl.log(3, fmt.Sprintf("All column flags: %d", cl.serverFlags&CLIENT_LONG_FLAG>>2))
+	cl.log(3, fmt.Sprintf("Connect with database support: %d", cl.serverFlags&CLIENT_CONNECT_WITH_DB>>3))
+	cl.log(3, fmt.Sprintf("No schema support: %d", cl.serverFlags&CLIENT_NO_SCHEMA>>4))
+	cl.log(3, fmt.Sprintf("Compression support: %d", cl.serverFlags&CLIENT_COMPRESS>>5))
+	cl.log(3, fmt.Sprintf("ODBC support: %d", cl.serverFlags&CLIENT_ODBC>>6))
+	cl.log(3, fmt.Sprintf("Load data local support: %d", cl.serverFlags&CLIENT_LOCAL_FILES>>7))
+	cl.log(3, fmt.Sprintf("Ignore spaces: %d", cl.serverFlags&CLIENT_IGNORE_SPACE>>8))
+	cl.log(3, fmt.Sprintf("4.1 protocol support: %d", cl.serverFlags&CLIENT_PROTOCOL_41>>9))
+	cl.log(3, fmt.Sprintf("Interactive client: %d", cl.serverFlags&CLIENT_INTERACTIVE>>10))
+	cl.log(3, fmt.Sprintf("Switch to SSL: %d", cl.serverFlags&CLIENT_SSL>>11))
+	cl.log(3, fmt.Sprintf("Ignore sigpipes: %d", cl.serverFlags&CLIENT_IGNORE_SIGPIPE>>12))
+	cl.log(3, fmt.Sprintf("Transaction support: %d", cl.serverFlags&CLIENT_TRANSACTIONS>>13))
+	cl.log(3, fmt.Sprintf("4.1 protocol authentication: %d", cl.serverFlags&CLIENT_SECURE_CONN>>15))
 }
 
 // Provide detailed log output for the server status flags
 func (cl *Client) logStatus() {
-	cl.log(3, fmt.Sprintf("In transaction: %d", cl.serverStatus & SERVER_STATUS_IN_TRANS))
-	cl.log(3, fmt.Sprintf("Auto commit enabled: %d", cl.serverStatus & SERVER_STATUS_AUTOCOMMIT >> 1))
-	cl.log(3, fmt.Sprintf("More results exist: %d", cl.serverStatus & SERVER_MORE_RESULTS_EXISTS >> 3))
-	cl.log(3, fmt.Sprintf("No good indexes were used: %d", cl.serverStatus & SERVER_QUERY_NO_GOOD_INDEX_USED >> 4))
-	cl.log(3, fmt.Sprintf("No indexes were used: %d", cl.serverStatus & SERVER_QUERY_NO_INDEX_USED >> 5))
-	cl.log(3, fmt.Sprintf("Cursor exists: %d", cl.serverStatus & SERVER_STATUS_CURSOR_EXISTS >> 6))
-	cl.log(3, fmt.Sprintf("Last row has been sent: %d", cl.serverStatus & SERVER_STATUS_LAST_ROW_SENT >> 7))
-	cl.log(3, fmt.Sprintf("Database dropped: %d", cl.serverStatus & SERVER_STATUS_DB_DROPPED >> 8))
-	cl.log(3, fmt.Sprintf("No backslash escapes: %d", cl.serverStatus & SERVER_STATUS_NO_BACKSLASH_ESCAPES >> 9))
-	cl.log(3, fmt.Sprintf("Metadata has changed: %d", cl.serverStatus & SERVER_STATUS_METADATA_CHANGED >> 10))
+	cl.log(3, fmt.Sprintf("In transaction: %d", cl.serverStatus&SERVER_STATUS_IN_TRANS))
+	cl.log(3, fmt.Sprintf("Auto commit enabled: %d", cl.serverStatus&SERVER_STATUS_AUTOCOMMIT>>1))
+	cl.log(3, fmt.Sprintf("More results exist: %d", cl.serverStatus&SERVER_MORE_RESULTS_EXISTS>>3))
+	cl.log(3, fmt.Sprintf("No good indexes were used: %d", cl.serverStatus&SERVER_QUERY_NO_GOOD_INDEX_USED>>4))
+	cl.log(3, fmt.Sprintf("No indexes were used: %d", cl.serverStatus&SERVER_QUERY_NO_INDEX_USED>>5))
+	cl.log(3, fmt.Sprintf("Cursor exists: %d", cl.serverStatus&SERVER_STATUS_CURSOR_EXISTS>>6))
+	cl.log(3, fmt.Sprintf("Last row has been sent: %d", cl.serverStatus&SERVER_STATUS_LAST_ROW_SENT>>7))
+	cl.log(3, fmt.Sprintf("Database dropped: %d", cl.serverStatus&SERVER_STATUS_DB_DROPPED>>8))
+	cl.log(3, fmt.Sprintf("No backslash escapes: %d", cl.serverStatus&SERVER_STATUS_NO_BACKSLASH_ESCAPES>>9))
+	cl.log(3, fmt.Sprintf("Metadata has changed: %d", cl.serverStatus&SERVER_STATUS_METADATA_CHANGED>>10))
 }
 
 // Reset the client
@@ -210,7 +209,7 @@ func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string)
 		return
 	}
 	// Send auth packet to server
-	cl.sequence ++
+	cl.sequence++
 	err = cl.auth()
 	if err != nil {
 		return
@@ -284,72 +283,38 @@ func (cl *Client) init() (err os.Error) {
 // Send auth packet to the server
 func (cl *Client) auth() (err os.Error) {
 	// Construct packet
-	auth := &packetAuth {
-		clientFlags: uint32(CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS),
+	auth := &packetAuth{
+		clientFlags:   uint32(CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS),
 		maxPacketSize: MAX_PACKET_SIZE,
 		charsetNumber: cl.serverCharset,
-		user: cl.user,
+		user:          cl.user,
 	}
 	// Add sequence
 	auth.sequence = cl.sequence
 	// Adjust client flags based on server support
-	if cl.serverFlags & CLIENT_LONG_PASSWORD > 0 {
+	if cl.serverFlags&CLIENT_LONG_PASSWORD > 0 {
 		auth.clientFlags += uint32(CLIENT_LONG_PASSWORD)
 	}
-	if cl.serverFlags & CLIENT_LONG_FLAG > 0 {
+	if cl.serverFlags&CLIENT_LONG_FLAG > 0 {
 		auth.clientFlags += uint32(CLIENT_LONG_FLAG)
 	}
-	if cl.serverFlags & CLIENT_TRANSACTIONS > 0 {
+	if cl.serverFlags&CLIENT_TRANSACTIONS > 0 {
 		auth.clientFlags += uint32(CLIENT_TRANSACTIONS)
 	}
-	if cl.serverFlags & (CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONN) > 0{
+	if cl.serverFlags&(CLIENT_PROTOCOL_41|CLIENT_SECURE_CONN) > 0 {
 		auth.clientFlags += uint32(CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONN)
-		auth.scrambleBuff = cl.encrypt41()
+		auth.scrambleBuff = scramble41(cl.scrambleBuff, []byte(cl.passwd))
 	} else {
-		auth.scrambleBuff = cl.encrypt323()
+		auth.scrambleBuff = scramble323(cl.scrambleBuff, []byte(cl.passwd))
 	}
 	// To specify a db name
-	if cl.serverFlags & CLIENT_CONNECT_WITH_DB > 0 && len(cl.dbname) > 0 {
+	if cl.serverFlags&CLIENT_CONNECT_WITH_DB > 0 && len(cl.dbname) > 0 {
 		auth.clientFlags += uint32(CLIENT_CONNECT_WITH_DB)
 		auth.database = cl.dbname
 	}
 	// Write packet
 	err = cl.wr.writePacket(auth)
 	return
-}
-
-// Encrypt password the pre-4.1 way
-// @todo
-func (cl *Client) encrypt323() []byte {
-	return make([]byte, 1)
-}
-
-// Encrypt password using 4.1+ method
-func (cl *Client) encrypt41() []byte {
-	// Convert password to byte array
-	passbytes := []byte(cl.passwd)
-	// stage1_hash = SHA1(password)
-	// SHA1 encode
-	crypt := sha1.New()
-	crypt.Write(passbytes)
-	stg1Hash := crypt.Sum()
-	// token = SHA1(SHA1(stage1_hash), scramble) XOR stage1_hash
-	// SHA1 encode again
-	crypt.Reset()
-	crypt.Write(stg1Hash)
-	stg2Hash := crypt.Sum()
-	// SHA1 2nd hash and scramble
-	crypt.Reset()
-	crypt.Write(cl.scrambleBuff)
-	crypt.Write(stg2Hash)
-	stg3Hash := crypt.Sum()
-	// XOR with first hash
-	scrambleBuff := make([]byte, 21)
-	scrambleBuff[0] = 0x14
-	for i := 0; i < 20; i++ {
-		scrambleBuff[i+1] = stg3Hash[i] ^ stg1Hash[i]
-	}
-	return scrambleBuff
 }
 
 // Close connection to server
