@@ -13,6 +13,7 @@ import (
 	"strings"
 	"net"
 	"sync"
+	"crypto/sha1"
 )
 
 // Constants
@@ -209,6 +210,11 @@ func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string)
 		return
 	}
 	// Send auth packet to server
+	cl.sequence ++
+	err = cl.auth()
+	if err != nil {
+		return
+	}
 	return
 }
 
@@ -273,6 +279,77 @@ func (cl *Client) init() (err os.Error) {
 		cl.logStatus()
 	}
 	return
+}
+
+// Send auth packet to the server
+func (cl *Client) auth() (err os.Error) {
+	// Construct packet
+	auth := &packetAuth {
+		clientFlags: uint32(CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS),
+		maxPacketSize: MAX_PACKET_SIZE,
+		charsetNumber: cl.serverCharset,
+		user: cl.user,
+	}
+	// Add sequence
+	auth.sequence = cl.sequence
+	// Adjust client flags based on server support
+	if cl.serverFlags & CLIENT_LONG_PASSWORD > 0 {
+		auth.clientFlags += uint32(CLIENT_LONG_PASSWORD)
+	}
+	if cl.serverFlags & CLIENT_LONG_FLAG > 0 {
+		auth.clientFlags += uint32(CLIENT_LONG_FLAG)
+	}
+	if cl.serverFlags & CLIENT_TRANSACTIONS > 0 {
+		auth.clientFlags += uint32(CLIENT_TRANSACTIONS)
+	}
+	if cl.serverFlags & (CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONN) > 0{
+		auth.clientFlags += uint32(CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONN)
+		auth.scrambleBuff = cl.encrypt41()
+	} else {
+		auth.scrambleBuff = cl.encrypt323()
+	}
+	// To specify a db name
+	if cl.serverFlags & CLIENT_CONNECT_WITH_DB > 0 && len(cl.dbname) > 0 {
+		auth.clientFlags += uint32(CLIENT_CONNECT_WITH_DB)
+		auth.database = cl.dbname
+	}
+	// Write packet
+	err = cl.wr.writePacket(auth)
+	return
+}
+
+// Encrypt password the pre-4.1 way
+// @todo
+func (cl *Client) encrypt323() []byte {
+	return make([]byte, 1)
+}
+
+// Encrypt password using 4.1+ method
+func (cl *Client) encrypt41() []byte {
+	// Convert password to byte array
+	passbytes := []byte(cl.passwd)
+	// stage1_hash = SHA1(password)
+	// SHA1 encode
+	crypt := sha1.New()
+	crypt.Write(passbytes)
+	stg1Hash := crypt.Sum()
+	// token = SHA1(SHA1(stage1_hash), scramble) XOR stage1_hash
+	// SHA1 encode again
+	crypt.Reset()
+	crypt.Write(stg1Hash)
+	stg2Hash := crypt.Sum()
+	// SHA1 2nd hash and scramble
+	crypt.Reset()
+	crypt.Write(cl.scrambleBuff)
+	crypt.Write(stg2Hash)
+	stg3Hash := crypt.Sum()
+	// XOR with first hash
+	scrambleBuff := make([]byte, 21)
+	scrambleBuff[0] = 0x14
+	for i := 0; i < 20; i++ {
+		scrambleBuff[i+1] = stg3Hash[i] ^ stg1Hash[i]
+	}
+	return scrambleBuff
 }
 
 // Close connection to server
