@@ -7,10 +7,24 @@ Revision History
 
 0.3.x series [development]
 
-* 0.3.0 - Not yet released.
+This brand new version of GoMySQL is a complete rewrite of the library, focusing on refactoring duplicate code, improving performance, implementing any missing features, resolving any outstanding bugs. As this is a huge task and the authors of the library all work on their spare time, there is no fixed release schedule, however we expect to release a beta version in early Febrary.  
+
+Planned features:  
+
+* New way to handle packets, read first, process later. Reduces code, removes complexity, removes duplication, makes error handling much easier.
+* Numerous new methods, including transaction handling and more advanced result handling.
+* Proper implementation and usage of the server status flags, improves transaction handling, enables proper "more results" check.
+* Full compatibility with all MySQL versions (including pre-4.1), MariaDB and Percona.
+
+Comments and suggestions are always welcome, please visit our Google Group for any discussions related to thie new version.  
+
+* 0.3.0 - [WORK IN PROGRESS]
 
 0.2.x series [current]
 
+* 0.2.10 - Compatability update for Go release.2011-01-20
+* 0.2.9 - Added support for MySQL 5.5
+* 0.2.8 - Fixes issue #38.
 * 0.2.7 - Added additional binary type support: medium int (int32/uint32), decimal (string), new decimal (string), bit ([]byte), year (uint16), set ([]byte), enum/set use string type.
 * 0.2.6 - Replaced buffer checks in prepared statements, similar to change in 0.2.5, more robust method to handle end of packets.
 * 0.2.5 - Fixes issue #10, removed buffer check from query function as no longer needed.
