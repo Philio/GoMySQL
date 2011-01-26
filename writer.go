@@ -12,7 +12,7 @@ import (
 
 // Packet writer struct
 type writer struct {
-	conn net.Conn
+	conn     net.Conn
 }
 
 // Create a new reader

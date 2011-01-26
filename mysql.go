@@ -18,10 +18,13 @@ import (
 // Constants
 const (
 	// General
-	VERSION         = "0.3.0-dev"
-	DEFAULT_PORT    = 3306
-	DEFAULT_SOCKET  = "/var/run/mysqld/mysqld.sock"
-	MAX_PACKET_SIZE = 1 << 24 - 1
+	VERSION          = "0.3.0-dev"
+	DEFAULT_PORT     = 3306
+	DEFAULT_SOCKET   = "/var/run/mysqld/mysqld.sock"
+	MAX_PACKET_SIZE  = 1 << 24 - 1
+	PROTOCOL_41      = 41
+	PROTOCOL_40      = 40
+	DEFAULT_PROTOCOL = PROTOCOL_41
 
 	// Connection types
 	TCP  = "tcp"
@@ -56,6 +59,7 @@ type Client struct {
 	wr   *writer
 
 	// Sequence
+	protocol uint8
 	sequence uint8
 
 	// Server settings
@@ -71,14 +75,20 @@ type Client struct {
 }
 
 // Create new client
-func NewClient() (cl *Client) {
-	cl = &Client{}
+func NewClient(protocol ...uint8) (cl *Client) {
+	if len(protocol) == 0 {
+		protocol = make([]uint8, 1)
+		protocol[0] = DEFAULT_PROTOCOL
+	}
+	cl = &Client{
+		protocol: protocol[0],
+	}
 	return
 }
 
 // Connect to server via TCP
 func DialTCP(raddr, user, passwd string, dbname ...string) (cl *Client, err os.Error) {
-	cl = NewClient()
+	cl = NewClient(DEFAULT_PROTOCOL)
 	// Add port if not set
 	if strings.Index(raddr, ":") == -1 {
 		raddr += ":" + fmt.Sprintf("%d", DEFAULT_PORT)
@@ -90,7 +100,7 @@ func DialTCP(raddr, user, passwd string, dbname ...string) (cl *Client, err os.E
 
 // Connect to server via unix socket
 func DialUnix(raddr, user, passwd string, dbname ...string) (cl *Client, err os.Error) {
-	cl = NewClient()
+	cl = NewClient(DEFAULT_PROTOCOL)
 	// Use default socket if socket is empty
 	if raddr == "" {
 		raddr = DEFAULT_SOCKET
@@ -135,6 +145,7 @@ func (cl *Client) log(level uint8, msg string) {
 
 // Provide detailed log output for server capabilities
 func (cl *Client) logCaps() {
+	cl.log(3, "=== Server Capabilities ===")
 	cl.log(3, fmt.Sprintf("Long password support: %d", cl.serverFlags&CLIENT_LONG_PASSWORD))
 	cl.log(3, fmt.Sprintf("Found rows: %d", cl.serverFlags&CLIENT_FOUND_ROWS>>1))
 	cl.log(3, fmt.Sprintf("All column flags: %d", cl.serverFlags&CLIENT_LONG_FLAG>>2))
@@ -154,6 +165,7 @@ func (cl *Client) logCaps() {
 
 // Provide detailed log output for the server status flags
 func (cl *Client) logStatus() {
+	cl.log(3, "=== Server Status ===")
 	cl.log(3, fmt.Sprintf("In transaction: %d", cl.serverStatus&SERVER_STATUS_IN_TRANS))
 	cl.log(3, fmt.Sprintf("Auto commit enabled: %d", cl.serverStatus&SERVER_STATUS_AUTOCOMMIT>>1))
 	cl.log(3, fmt.Sprintf("More results exist: %d", cl.serverStatus&SERVER_MORE_RESULTS_EXISTS>>3))
@@ -198,6 +210,13 @@ func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string)
 	if len(dbname) > 0 {
 		cl.dbname = dbname[0]
 	}
+	// Call connect
+	err = cl.connect()
+	return
+}
+
+// Performs the actual connect
+func (cl *Client) connect() (err os.Error) {
 	// Connect to server
 	err = cl.dial()
 	if err != nil {
@@ -214,14 +233,9 @@ func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string)
 	if err != nil {
 		return
 	}
-	// Read response packet
+	// Read auth result from server
 	cl.sequence++
-	p, err := cl.rd.readPacket(PACKET_OK|PACKET_ERROR)
-	if err != nil {
-		return
-	}
-	switch i := p.(type) {
-	}
+	err = cl.authResult()
 	return
 }
 
@@ -253,11 +267,15 @@ func (cl *Client) dial() (err os.Error) {
 	// Create reader and writer
 	cl.rd = newReader(cl.conn)
 	cl.wr = newWriter(cl.conn)
+	// Set the reader default protocol
+	cl.rd.protocol = cl.protocol
 	return
 }
 
 // Read initial packet from server
 func (cl *Client) init() (err os.Error) {
+	// Log read packet
+	cl.log(1, "Reading handshake initialization packet from server")
 	// Read packet
 	init, err := cl.rd.readPacket(PACKET_INIT)
 	if err != nil {
@@ -267,6 +285,8 @@ func (cl *Client) init() (err os.Error) {
 	if err != nil {
 		return
 	}
+	// Log success
+	cl.log(1, "Received handshake initialization packet")
 	// Assign values
 	cl.serverVersion = init.(*packetInit).serverVersion
 	cl.serverProtocol = init.(*packetInit).protocolVersion
@@ -285,11 +305,18 @@ func (cl *Client) init() (err os.Error) {
 		cl.logCaps()
 		cl.logStatus()
 	}
+	// If we're using 4.1 protocol and server doesn't support, drop to 4.0
+	if cl.protocol == PROTOCOL_41 && cl.serverFlags&CLIENT_PROTOCOL_41 == 0 {
+		cl.protocol = PROTOCOL_40
+		cl.rd.protocol = PROTOCOL_40
+	}
 	return
 }
 
 // Send auth packet to the server
 func (cl *Client) auth() (err os.Error) {
+	// Log write packet
+	cl.log(1, "Sending authentication packet to server")
 	// Construct packet
 	auth := &packetAuth{
 		clientFlags:   uint32(CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS),
@@ -297,31 +324,64 @@ func (cl *Client) auth() (err os.Error) {
 		charsetNumber: cl.serverCharset,
 		user:          cl.user,
 	}
-	// Add sequence
+	// Add protocol and sequence
+	auth.protocol = cl.protocol
 	auth.sequence = cl.sequence
 	// Adjust client flags based on server support
 	if cl.serverFlags&CLIENT_LONG_PASSWORD > 0 {
-		auth.clientFlags += uint32(CLIENT_LONG_PASSWORD)
+		auth.clientFlags |= uint32(CLIENT_LONG_PASSWORD)
 	}
 	if cl.serverFlags&CLIENT_LONG_FLAG > 0 {
-		auth.clientFlags += uint32(CLIENT_LONG_FLAG)
+		auth.clientFlags |= uint32(CLIENT_LONG_FLAG)
 	}
 	if cl.serverFlags&CLIENT_TRANSACTIONS > 0 {
-		auth.clientFlags += uint32(CLIENT_TRANSACTIONS)
+		auth.clientFlags |= uint32(CLIENT_TRANSACTIONS)
 	}
-	if cl.serverFlags&(CLIENT_PROTOCOL_41|CLIENT_SECURE_CONN) > 0 {
-		auth.clientFlags += uint32(CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONN)
+	// Check protocol
+	if cl.protocol == PROTOCOL_41 {
+		auth.clientFlags |= uint32(CLIENT_PROTOCOL_41|CLIENT_SECURE_CONN)
 		auth.scrambleBuff = scramble41(cl.scrambleBuff, []byte(cl.passwd))
+		// To specify a db name
+		if cl.serverFlags&CLIENT_CONNECT_WITH_DB > 0 && len(cl.dbname) > 0 {
+			auth.clientFlags |= uint32(CLIENT_CONNECT_WITH_DB)
+			auth.database = cl.dbname
+		}
 	} else {
 		auth.scrambleBuff = scramble323(cl.scrambleBuff, []byte(cl.passwd))
 	}
-	// To specify a db name
-	if cl.serverFlags&CLIENT_CONNECT_WITH_DB > 0 && len(cl.dbname) > 0 {
-		auth.clientFlags += uint32(CLIENT_CONNECT_WITH_DB)
-		auth.database = cl.dbname
-	}
 	// Write packet
 	err = cl.wr.writePacket(auth)
+	if err != nil {
+		return
+	}
+	// Log write success
+	cl.log(1, "Sent authentication packet")
+	return
+}
+
+// Get auth response
+func (cl *Client) authResult() (err os.Error) {
+	// Log read result
+	cl.log(1, "Reading auth result packet from server")
+	// Get result packet
+	p, err := cl.rd.readPacket(PACKET_OK|PACKET_ERROR)
+	if err != nil {
+		return
+	}
+	// Process result packet
+	switch i := p.(type) {
+		case *packetOK:
+			// Log OK result
+			cl.log(1, "Received OK packet")
+			cl.serverStatus = ServerStatus(p.(*packetOK).serverStatus)
+		case *packetError:
+			// Log error result
+			cl.log(1, "Received error packet")
+	}
+	// Full logging [level 3]
+	if cl.LogLevel > 2 {
+		cl.logStatus()
+	}
 	return
 }
 

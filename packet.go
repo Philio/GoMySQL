@@ -51,18 +51,52 @@ type packet interface {
 
 // Packet base struct
 type packetBase struct {
+	protocol uint8
 	sequence uint8
 }
 
 // Read a slice from the data
-func (p *packetBase) readSlice(data []byte, offset int, delim byte) (slice []byte, err os.Error) {
-	pos := bytes.IndexByte(data[offset:], delim)
+func (p *packetBase) readSlice(data []byte, delim byte) (slice []byte, err os.Error) {
+	pos := bytes.IndexByte(data, delim)
 	if pos > -1 {
-		slice = data[offset : pos+offset]
+		slice = data[:pos]
 	} else {
-		slice = data[offset:]
+		slice = data
 		err = os.EOF
 	}
+	return
+}
+
+// Read length coded binary
+func (p *packetBase) readLengthCodedBinary(data []byte) (num uint64, n int, err os.Error) {
+	switch {
+	// 0-250 = value of first byte
+	case data[0] <= 250:
+		num = uint64(data[0])
+		n = 1
+		return
+	// 251 column value = NULL
+	case data[0] == 251:
+		num = 0
+		n = 1
+		return
+	// 252 following 2 = value of following 16-bit word
+	case data[0] == 252:
+		n = 3
+	// 253 following 3 = value of following 24-bit word
+	case data[0] == 253:
+		n = 4
+	// 254 following 8 = value of following 64-bit word
+	case data[0] == 254:
+		n = 9
+	}
+	// Check there are enough bytes
+	if len(data) < n {
+		err = os.EOF
+		return
+	}
+	// Unpack number
+	num = p.unpackNumber(data[1:n])
 	return
 }
 
@@ -119,7 +153,7 @@ func (p *packetInit) read(data []byte) (err os.Error) {
 	p.protocolVersion = data[pos]
 	pos++
 	// Server version [null terminated string]
-	slice, err := p.readSlice(data, pos, 0x00)
+	slice, err := p.readSlice(data[pos:], 0x00)
 	if err != nil {
 		return
 	}
@@ -142,8 +176,8 @@ func (p *packetInit) read(data []byte) (err os.Error) {
 	p.serverStatus = uint16(p.unpackNumber(data[pos : pos+2]))
 	pos += 15
 	// Second part of scramble buffer, if exists (4.1+) [13 bytes]
-	if ClientFlags(p.serverCaps)&CLIENT_PROTOCOL_41 > 0 && pos < len(data) {
-		p.scrambleBuff = append(p.scrambleBuff, data[pos:]...)
+	if ClientFlags(p.serverCaps)&CLIENT_PROTOCOL_41 > 0 {
+		p.scrambleBuff = append(p.scrambleBuff, data[pos:pos+12]...)
 	}
 	return
 }
@@ -161,14 +195,8 @@ type packetAuth struct {
 
 // Auth packet writer
 func (p *packetAuth) write() (data []byte, err os.Error) {
-	// Recover errors
-	defer func() {
-		if e := recover(); e != nil {
-			err = os.NewError(fmt.Sprintf("%s", e))
-		}
-	}()
 	// For MySQL 4.1+
-	if ClientFlags(p.clientFlags)&CLIENT_PROTOCOL_41 > 0 {
+	if p.protocol == PROTOCOL_41 {
 		// Client flags
 		data = p.packNumber(uint64(p.clientFlags), 4)
 		// Max packet size
@@ -215,5 +243,75 @@ func (p *packetAuth) write() (data []byte, err os.Error) {
 	}
 	// Add the packet header
 	data = p.addHeader(data)
+	return
+}
+
+// Ok packet struct
+type packetOK struct {
+	packetBase
+	affectedRows uint64
+	insertId     uint64
+	serverStatus uint16
+	warningCount uint16
+	message      string
+}
+
+// OK packet reader
+func (p *packetOK) read(data []byte) (err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = os.NewError(fmt.Sprintf("%s", e))
+		}
+	}()
+	// Position (skip first byte/field count)
+	pos := 1
+	// Affected rows [length coded binary]
+	num, n, err := p.readLengthCodedBinary(data[pos:])
+	if err != nil {
+		return
+	}
+	p.affectedRows = num
+	pos += n
+	// Insert id [length coded binary]
+	num, n, err = p.readLengthCodedBinary(data[pos:])
+	if err != nil {
+		return
+	}
+	p.insertId = num
+	pos += n
+	// Server status [16 bit uint]
+	p.serverStatus = uint16(p.unpackNumber(data[pos : pos+2]))
+	pos += 2
+	// Warning (4.1 only) [16 bit uint]
+	if p.protocol == PROTOCOL_41 {
+		p.warningCount = uint16(p.unpackNumber(data[pos : pos+2]))
+		pos += 2
+	}
+	// Message (optional) [string]
+	if pos < len(data) {
+		p.message = string(data[pos:])
+	}
+	return
+}
+
+// Error packet struct
+type packetError struct {
+	packetBase
+	errno uint16
+	state string
+	error string
+}
+
+// Error packet reader
+func (p *packetError) read(data []byte) (err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = os.NewError(fmt.Sprintf("%s", e))
+		}
+	}()
+	// Position
+	//pos := 0
 	return
 }
