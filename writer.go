@@ -24,5 +24,18 @@ func newWriter(conn net.Conn) *writer {
 
 // Write packet to the server
 func (w *writer) writePacket(p packetWritable) (err os.Error) {
+	// Get data in binary format
+	pktData, err := p.write()
+	if err != nil {
+		return
+	}
+	// Write packet
+	nw, err := w.conn.Write(pktData)
+	if err != nil {
+		return
+	}
+	if nw != len(pktData) {
+		err = os.NewError("Number of bytes written does not match packet length")
+	}
 	return
 }

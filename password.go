@@ -102,10 +102,9 @@ func scramble41(message, password []byte) (result []byte) {
 	crypt.Write(stg2Hash)
 	stg3Hash := crypt.Sum()
 	// XOR with first hash
-	result = make([]byte, 21)
-	result[0] = 0x14
+	result = make([]byte, 20)
 	for i := 0; i < 20; i++ {
-		result[i+1] = stg3Hash[i] ^ stg1Hash[i]
+		result[i] = stg3Hash[i] ^ stg1Hash[i]
 	}
 	return
 }

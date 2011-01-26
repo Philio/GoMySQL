@@ -38,7 +38,10 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 	// Read rest of packet
 	pktData := make([]byte, pktLen)
 	nr, err := io.ReadFull(r.conn, pktData)
-	if err == nil && nr != int(pktLen) {
+	if err != nil {
+		return
+	}
+	if nr != int(pktLen) {
 		err = os.NewError("Number of bytes read does not match packet length")
 	}
 	// Work out packet type

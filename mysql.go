@@ -21,7 +21,7 @@ const (
 	VERSION         = "0.3.0-dev"
 	DEFAULT_PORT    = 3306
 	DEFAULT_SOCKET  = "/var/run/mysqld/mysqld.sock"
-	MAX_PACKET_SIZE = 1 << 24
+	MAX_PACKET_SIZE = 1 << 24 - 1
 
 	// Connection types
 	TCP  = "tcp"
@@ -213,6 +213,14 @@ func (cl *Client) Connect(network, raddr, user, passwd string, dbname ...string)
 	err = cl.auth()
 	if err != nil {
 		return
+	}
+	// Read response packet
+	cl.sequence++
+	p, err := cl.rd.readPacket(PACKET_OK|PACKET_ERROR)
+	if err != nil {
+		return
+	}
+	switch i := p.(type) {
 	}
 	return
 }
