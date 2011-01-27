@@ -312,6 +312,17 @@ func (p *packetError) read(data []byte) (err os.Error) {
 		}
 	}()
 	// Position
-	//pos := 0
+	pos := 1
+	// Error number [16 bit uint]
+	p.errno = uint16(p.unpackNumber(data[pos : pos+2]))
+	pos += 2
+	// State (4.1 only) [string]
+	if p.protocol == PROTOCOL_41 {
+		pos ++
+		p.state = string(data[pos:pos+5])
+		pos += 5
+	}
+	// Message [string]
+	p.error = string(data[pos:])
 	return
 }

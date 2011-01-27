@@ -324,7 +324,11 @@ func (cl *Client) auth() (err os.Error) {
 		charsetNumber: cl.serverCharset,
 		user:          cl.user,
 	}
-	// Add protocol and sequence
+	// Add protocol and sequence	// Full logging [level 3]
+	if cl.LogLevel > 2 {
+		cl.logStatus()
+	}
+
 	auth.protocol = cl.protocol
 	auth.sequence = cl.sequence
 	// Adjust client flags based on server support
@@ -371,16 +375,28 @@ func (cl *Client) authResult() (err os.Error) {
 	// Process result packet
 	switch i := p.(type) {
 		case *packetOK:
+			// Check sequence
+			err = cl.checkSequence(p.(*packetOK).sequence)
+			if err != nil {
+				return
+			}
 			// Log OK result
 			cl.log(1, "Received OK packet")
 			cl.serverStatus = ServerStatus(p.(*packetOK).serverStatus)
+			// Full logging [level 3]
+			if cl.LogLevel > 2 {
+				cl.logStatus()
+			}
 		case *packetError:
+			// Check sequence
+			err = cl.checkSequence(p.(*packetError).sequence)
+			if err != nil {
+				return
+			}
 			// Log error result
 			cl.log(1, "Received error packet")
-	}
-	// Full logging [level 3]
-	if cl.LogLevel > 2 {
-		cl.logStatus()
+			cl.error(Errno(p.(*packetError).errno), Error(p.(*packetError).error))
+			err = os.NewError(p.(*packetError).error)
 	}
 	return
 }

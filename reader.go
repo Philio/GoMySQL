@@ -50,31 +50,25 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 	switch {
 	// Unknown packet
 	default:
-		err = os.NewError("Unknown packet or packet type")
+		err = os.NewError("Unknown/unexpected packet or packet type")
 	// Initialisation / handshake packet, server > client
 	case types&PACKET_INIT != 0:
 		pi := new(packetInit)
 		pi.protocol = r.protocol
 		pi.sequence = uint8(pktSeq)
-		err = pi.read(pktData)
-		return pi, err
+		return pi, pi.read(pktData)
 	// Ok packet
 	case types&PACKET_OK != 0 && pktData[0] == 0x00:
 		pok := new(packetOK)
 		pok.protocol = r.protocol
 		pok.sequence = uint8(pktSeq)
-		err = pok.read(pktData)
-		return pok, err
+		return pok, pok.read(pktData)
 	// Error packet
 	case types&PACKET_ERROR != 0 && pktData[0] == 0xff:
 		per := new(packetError)
 		per.protocol = r.protocol
 		per.sequence = uint8(pktSeq)
-		err = per.read(pktData)
-		if err != nil {
-			return per, err
-		}
-		return per, os.NewError(per.error)
+		return per, per.read(pktData)
 	}
 	return
 }
