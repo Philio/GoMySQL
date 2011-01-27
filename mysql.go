@@ -57,6 +57,7 @@ type Client struct {
 	conn net.Conn
 	r    *reader
 	w    *writer
+	connected bool
 
 	// Sequence
 	protocol uint8
@@ -185,16 +186,6 @@ func (c *Client) reset() {
 	c.sequence = 0
 }
 
-// Sequence check
-func (c *Client) checkSequence(sequence uint8) (err os.Error) {
-	if sequence != c.sequence {
-		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		c.log(1, "Sequence doesn't match, commands out of sync")
-		err = os.NewError("Bad sequence number")
-	}
-	return
-}
-
 // Connect to the server
 func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) (err os.Error) {
 	// Reset client
@@ -212,6 +203,76 @@ func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) 
 	}
 	// Call connect
 	err = c.connect()
+	return
+}
+
+// Close connection to server
+func (c *Client) Close() (err os.Error) {
+	return
+}
+
+// Change the current database
+func (c *Client) ChangeDb(dbname string) (err os.Error) {
+	return
+}
+
+// Send a query to the server
+func (c *Client) Query(sql string) (err os.Error) {
+	return
+}
+
+// Send multiple queries to the server
+func (c *Client) MultiQuery(sql string) (err os.Error) {
+	return
+}
+
+// Fetch all rows for a result and store it, returning the result set
+func (c *Client) StoreResult() (result *Result, err os.Error) {
+	return
+}
+
+// Use a result set, does not store rows
+func (c *Client) UseResult() (result *Result, err os.Error) {
+	return
+}
+
+// Check if more results are available
+func (c *Client) MoreResults() (ok bool, err os.Error) {
+	return
+}
+
+// Move to the next available result
+func (c *Client) NextResult() (ok bool, err os.Error) {
+	return
+}
+
+// Enable or disable autocommit
+func (c *Client) AutoCommit(state bool) (err os.Error) {
+	return
+}
+
+// Commit a transaction
+func (c *Client) Commit() (err os.Error) {
+	return
+}
+
+// Rollback a transaction
+func (c *Client) Rollback() (err os.Error) {
+	return
+}
+
+// Escape a string
+func (c *Client) Escape(str string) (esc string) {
+	return
+}
+
+// Initialise and prepare a new statement
+func (c *Client) Prepare(sql string) (stmt *Statement, err os.Error) {
+	return
+}
+
+// Initialise a new statment
+func (c *Client) StmtInit() (stmt *Statement, err os.Error) {
 	return
 }
 
@@ -236,6 +297,11 @@ func (c *Client) connect() (err os.Error) {
 	// Read auth result from server
 	c.sequence++
 	err = c.authResult()
+	if err != nil {
+		return
+	}
+	// Set connected
+	c.connected = true
 	return
 }
 
@@ -375,98 +441,51 @@ func (c *Client) authResult() (err os.Error) {
 	// Process result packet
 	switch i := p.(type) {
 	case *packetOK:
-		// Check sequence
-		err = c.checkSequence(p.(*packetOK).sequence)
-		if err != nil {
-			return
-		}
-		// Log OK result
-		c.log(1, "Received OK packet")
-		c.serverStatus = ServerStatus(p.(*packetOK).serverStatus)
-		// Full logging [level 3]
-		if c.LogLevel > 2 {
-			c.logStatus()
-		}
+		err = c.processOKResult(p.(*packetOK))
 	case *packetError:
-		// Check sequence
-		err = c.checkSequence(p.(*packetError).sequence)
-		if err != nil {
-			return
-		}
-		// Log error result
-		c.log(1, "Received error packet")
-		c.error(Errno(p.(*packetError).errno), Error(p.(*packetError).error))
-		err = os.NewError(p.(*packetError).error)
+		err = c.processErrorResult(p.(*packetError))
 	}
 	return
 }
 
-// Close connection to server
-func (c *Client) Close() (err os.Error) {
+// Sequence check
+func (c *Client) checkSequence(sequence uint8) (err os.Error) {
+	if sequence != c.sequence {
+		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
+		c.log(1, "Sequence doesn't match, commands out of sync")
+		err = os.NewError("Bad sequence number")
+	}
 	return
 }
 
-// Change the current database
-func (c *Client) ChangeDb(dbname string) (err os.Error) {
+// Process OK packet
+func (c *Client) processOKResult(p *packetOK) (err os.Error) {
+	// Log OK result
+	c.log(1, "Received OK packet")
+	// Check sequence
+	err = c.checkSequence(p.sequence)
+	if err != nil {
+		return
+	}
+	c.serverStatus = ServerStatus(p.serverStatus)
+	// Full logging [level 3]
+	if c.LogLevel > 2 {
+		c.logStatus()
+	}
 	return
 }
 
-// Send a query to the server
-func (c *Client) Query(sql string) (err os.Error) {
-	return
-}
-
-// Send multiple queries to the server
-func (c *Client) MultiQuery(sql string) (err os.Error) {
-	return
-}
-
-// Fetch all rows for a result and store it, returning the result set
-func (c *Client) StoreResult() (result *Result, err os.Error) {
-	return
-}
-
-// Use a result set, does not store rows
-func (c *Client) UseResult() (result *Result, err os.Error) {
-	return
-}
-
-// Check if more results are available
-func (c *Client) MoreResults() (ok bool, err os.Error) {
-	return
-}
-
-// Move to the next available result
-func (c *Client) NextResult() (ok bool, err os.Error) {
-	return
-}
-
-// Enable or disable autocommit
-func (c *Client) AutoCommit(state bool) (err os.Error) {
-	return
-}
-
-// Commit a transaction
-func (c *Client) Commit() (err os.Error) {
-	return
-}
-
-// Rollback a transaction
-func (c *Client) Rollback() (err os.Error) {
-	return
-}
-
-// Escape a string
-func (c *Client) Escape(str string) (esc string) {
-	return
-}
-
-// Initialise and prepare a new statement
-func (c *Client) Prepare(sql string) (stmt *Statement, err os.Error) {
-	return
-}
-
-// Initialise a new statment
-func (c *Client) StmtInit() (stmt *Statement, err os.Error) {
+// Process error packet
+func (c *Client) processErrorResult(p *packetError) (err os.Error) {
+	// Log error result
+	c.log(1, "Received error packet")
+	// Check sequence
+	err = c.checkSequence(p.sequence)
+	if err != nil {
+		return
+	}
+	c.error(Errno(p.errno), Error(p.error))
+	// Return error string as error
+	err = os.NewError(p.error)
 	return
 }
