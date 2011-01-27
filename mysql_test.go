@@ -21,16 +21,36 @@ const (
 	TEST_DBNAME     = "gomysql_test"
 )
 
+// Test connect to server via TCP
 func TestDialTCP(t *testing.T) {
-	_, err := DialTCP(TEST_HOST, TEST_USER, TEST_PASSWD, TEST_DBNAME)
+	t.Logf("Running DialTCP test to %s:%s", TEST_HOST, TEST_PORT)
+	c, err := DialTCP(TEST_HOST, TEST_USER, TEST_PASSWD, TEST_DBNAME)
 	if err != nil {
+		t.Logf("Error #%d: %s", c.Errno, c.Error)
 		t.Fail()
 	}
 }
 
+// Test connect to server via Unix socket
 func TestDialUnix(t *testing.T) {
-	_, err := DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAME)
+	t.Logf("Running DialUnix test to %s", TEST_SOCK)
+	c, err := DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAME)
 	if err != nil {
+		t.Logf("Error #%d: %s", c.Errno, c.Error)
 		t.Fail()
+	}
+}
+
+// Benchmark connect/handshake via TCP
+func BenchmarkDialTCP(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		DialTCP(TEST_HOST, TEST_USER, TEST_PASSWD, TEST_DBNAME)
+	}
+}
+
+// Benchmark connect/handshake via Unix socket
+func BenchmarkDialUnix(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAME)
 	}
 }
