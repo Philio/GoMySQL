@@ -21,7 +21,7 @@ const (
 	VERSION          = "0.3.0-dev"
 	DEFAULT_PORT     = 3306
 	DEFAULT_SOCKET   = "/var/run/mysqld/mysqld.sock"
-	MAX_PACKET_SIZE  = 1 << 24 - 1
+	MAX_PACKET_SIZE  = 1<<24 - 1
 	PROTOCOL_41      = 41
 	PROTOCOL_40      = 40
 	DEFAULT_PROTOCOL = PROTOCOL_41
@@ -343,7 +343,7 @@ func (cl *Client) auth() (err os.Error) {
 	}
 	// Check protocol
 	if cl.protocol == PROTOCOL_41 {
-		auth.clientFlags |= uint32(CLIENT_PROTOCOL_41|CLIENT_SECURE_CONN)
+		auth.clientFlags |= uint32(CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONN)
 		auth.scrambleBuff = scramble41(cl.scrambleBuff, []byte(cl.passwd))
 		// To specify a db name
 		if cl.serverFlags&CLIENT_CONNECT_WITH_DB > 0 && len(cl.dbname) > 0 {
@@ -368,35 +368,35 @@ func (cl *Client) authResult() (err os.Error) {
 	// Log read result
 	cl.log(1, "Reading auth result packet from server")
 	// Get result packet
-	p, err := cl.rd.readPacket(PACKET_OK|PACKET_ERROR)
+	p, err := cl.rd.readPacket(PACKET_OK | PACKET_ERROR)
 	if err != nil {
 		return
 	}
 	// Process result packet
 	switch i := p.(type) {
-		case *packetOK:
-			// Check sequence
-			err = cl.checkSequence(p.(*packetOK).sequence)
-			if err != nil {
-				return
-			}
-			// Log OK result
-			cl.log(1, "Received OK packet")
-			cl.serverStatus = ServerStatus(p.(*packetOK).serverStatus)
-			// Full logging [level 3]
-			if cl.LogLevel > 2 {
-				cl.logStatus()
-			}
-		case *packetError:
-			// Check sequence
-			err = cl.checkSequence(p.(*packetError).sequence)
-			if err != nil {
-				return
-			}
-			// Log error result
-			cl.log(1, "Received error packet")
-			cl.error(Errno(p.(*packetError).errno), Error(p.(*packetError).error))
-			err = os.NewError(p.(*packetError).error)
+	case *packetOK:
+		// Check sequence
+		err = cl.checkSequence(p.(*packetOK).sequence)
+		if err != nil {
+			return
+		}
+		// Log OK result
+		cl.log(1, "Received OK packet")
+		cl.serverStatus = ServerStatus(p.(*packetOK).serverStatus)
+		// Full logging [level 3]
+		if cl.LogLevel > 2 {
+			cl.logStatus()
+		}
+	case *packetError:
+		// Check sequence
+		err = cl.checkSequence(p.(*packetError).sequence)
+		if err != nil {
+			return
+		}
+		// Log error result
+		cl.log(1, "Received error packet")
+		cl.error(Errno(p.(*packetError).errno), Error(p.(*packetError).error))
+		err = os.NewError(p.(*packetError).error)
 	}
 	return
 }

@@ -20,7 +20,7 @@ type reader struct {
 // Create a new reader
 func newReader(conn net.Conn) *reader {
 	return &reader{
-		conn: conn,
+		conn:     conn,
 		protocol: DEFAULT_PROTOCOL,
 	}
 }

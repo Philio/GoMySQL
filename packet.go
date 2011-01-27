@@ -125,7 +125,7 @@ func (p *packetBase) addHeader(data []byte) (pkt []byte) {
 	pkt = append(pkt, data...)
 	return
 }
-	
+
 
 // Init packet
 type packetInit struct {
@@ -222,7 +222,7 @@ func (p *packetAuth) write() (data []byte, err os.Error) {
 			// Terminator
 			data = append(data, 0x00)
 		}
-	// For MySQL < 4.1
+		// For MySQL < 4.1
 	} else {
 		// Client flags
 		data = p.packNumber(uint64(p.clientFlags), 2)
@@ -318,8 +318,8 @@ func (p *packetError) read(data []byte) (err os.Error) {
 	pos += 2
 	// State (4.1 only) [string]
 	if p.protocol == PROTOCOL_41 {
-		pos ++
-		p.state = string(data[pos:pos+5])
+		pos++
+		p.state = string(data[pos : pos+5])
 		pos += 5
 	}
 	// Message [string]
