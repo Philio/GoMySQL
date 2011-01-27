@@ -111,81 +111,6 @@ func DialUnix(raddr, user, passwd string, dbname ...string) (c *Client, err os.E
 	return
 }
 
-// Error handling
-func (c *Client) error(errno Errno, error Error) {
-	c.Errno = errno
-	c.Error = error
-}
-
-// Logging
-func (c *Client) log(level uint8, msg string) {
-	// If logging is disabled, ignore
-	if level > c.LogLevel {
-		return
-	}
-	// Log based on logging type
-	switch c.LogType {
-	// Log to screen
-	case LOG_SCREEN:
-		log.Print(msg)
-	// Log to file
-	case LOG_FILE:
-		// If file pointer is nil return
-		if c.LogFile == nil {
-			return
-		}
-		// This is the same as log package does internally for logging
-		// to the screen (via stderr) just requires an io.Writer
-		l := log.New(c.LogFile, "", log.Ldate|log.Ltime)
-		l.Print(msg)
-	// Not set
-	default:
-		return
-	}
-}
-
-// Provide detailed log output for server capabilities
-func (c *Client) logCaps() {
-	c.log(3, "=== Server Capabilities ===")
-	c.log(3, fmt.Sprintf("Long password support: %d", c.serverFlags&CLIENT_LONG_PASSWORD))
-	c.log(3, fmt.Sprintf("Found rows: %d", c.serverFlags&CLIENT_FOUND_ROWS>>1))
-	c.log(3, fmt.Sprintf("All column flags: %d", c.serverFlags&CLIENT_LONG_FLAG>>2))
-	c.log(3, fmt.Sprintf("Connect with database support: %d", c.serverFlags&CLIENT_CONNECT_WITH_DB>>3))
-	c.log(3, fmt.Sprintf("No schema support: %d", c.serverFlags&CLIENT_NO_SCHEMA>>4))
-	c.log(3, fmt.Sprintf("Compression support: %d", c.serverFlags&CLIENT_COMPRESS>>5))
-	c.log(3, fmt.Sprintf("ODBC support: %d", c.serverFlags&CLIENT_ODBC>>6))
-	c.log(3, fmt.Sprintf("Load data local support: %d", c.serverFlags&CLIENT_LOCAL_FILES>>7))
-	c.log(3, fmt.Sprintf("Ignore spaces: %d", c.serverFlags&CLIENT_IGNORE_SPACE>>8))
-	c.log(3, fmt.Sprintf("4.1 protocol support: %d", c.serverFlags&CLIENT_PROTOCOL_41>>9))
-	c.log(3, fmt.Sprintf("Interactive client: %d", c.serverFlags&CLIENT_INTERACTIVE>>10))
-	c.log(3, fmt.Sprintf("Switch to SSL: %d", c.serverFlags&CLIENT_SSL>>11))
-	c.log(3, fmt.Sprintf("Ignore sigpipes: %d", c.serverFlags&CLIENT_IGNORE_SIGPIPE>>12))
-	c.log(3, fmt.Sprintf("Transaction support: %d", c.serverFlags&CLIENT_TRANSACTIONS>>13))
-	c.log(3, fmt.Sprintf("4.1 protocol authentication: %d", c.serverFlags&CLIENT_SECURE_CONN>>15))
-}
-
-// Provide detailed log output for the server status flags
-func (c *Client) logStatus() {
-	c.log(3, "=== Server Status ===")
-	c.log(3, fmt.Sprintf("In transaction: %d", c.serverStatus&SERVER_STATUS_IN_TRANS))
-	c.log(3, fmt.Sprintf("Auto commit enabled: %d", c.serverStatus&SERVER_STATUS_AUTOCOMMIT>>1))
-	c.log(3, fmt.Sprintf("More results exist: %d", c.serverStatus&SERVER_MORE_RESULTS_EXISTS>>3))
-	c.log(3, fmt.Sprintf("No good indexes were used: %d", c.serverStatus&SERVER_QUERY_NO_GOOD_INDEX_USED>>4))
-	c.log(3, fmt.Sprintf("No indexes were used: %d", c.serverStatus&SERVER_QUERY_NO_INDEX_USED>>5))
-	c.log(3, fmt.Sprintf("Cursor exists: %d", c.serverStatus&SERVER_STATUS_CURSOR_EXISTS>>6))
-	c.log(3, fmt.Sprintf("Last row has been sent: %d", c.serverStatus&SERVER_STATUS_LAST_ROW_SENT>>7))
-	c.log(3, fmt.Sprintf("Database dropped: %d", c.serverStatus&SERVER_STATUS_DB_DROPPED>>8))
-	c.log(3, fmt.Sprintf("No backslash escapes: %d", c.serverStatus&SERVER_STATUS_NO_BACKSLASH_ESCAPES>>9))
-	c.log(3, fmt.Sprintf("Metadata has changed: %d", c.serverStatus&SERVER_STATUS_METADATA_CHANGED>>10))
-}
-
-// Reset the client
-func (c *Client) reset() {
-	c.Errno = 0
-	c.Error = ""
-	c.sequence = 0
-}
-
 // Connect to the server
 func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) (err os.Error) {
 	// Reset client
@@ -274,6 +199,81 @@ func (c *Client) Prepare(sql string) (stmt *Statement, err os.Error) {
 // Initialise a new statment
 func (c *Client) StmtInit() (stmt *Statement, err os.Error) {
 	return
+}
+
+// Error handling
+func (c *Client) error(errno Errno, error Error) {
+	c.Errno = errno
+	c.Error = error
+}
+
+// Logging
+func (c *Client) log(level uint8, msg string) {
+	// If logging is disabled, ignore
+	if level > c.LogLevel {
+		return
+	}
+	// Log based on logging type
+	switch c.LogType {
+	// Log to screen
+	case LOG_SCREEN:
+		log.Print(msg)
+	// Log to file
+	case LOG_FILE:
+		// If file pointer is nil return
+		if c.LogFile == nil {
+			return
+		}
+		// This is the same as log package does internally for logging
+		// to the screen (via stderr) just requires an io.Writer
+		l := log.New(c.LogFile, "", log.Ldate|log.Ltime)
+		l.Print(msg)
+	// Not set
+	default:
+		return
+	}
+}
+
+// Provide detailed log output for server capabilities
+func (c *Client) logCaps() {
+	c.log(3, "=== Server Capabilities ===")
+	c.log(3, fmt.Sprintf("Long password support: %d", c.serverFlags&CLIENT_LONG_PASSWORD))
+	c.log(3, fmt.Sprintf("Found rows: %d", c.serverFlags&CLIENT_FOUND_ROWS>>1))
+	c.log(3, fmt.Sprintf("All column flags: %d", c.serverFlags&CLIENT_LONG_FLAG>>2))
+	c.log(3, fmt.Sprintf("Connect with database support: %d", c.serverFlags&CLIENT_CONNECT_WITH_DB>>3))
+	c.log(3, fmt.Sprintf("No schema support: %d", c.serverFlags&CLIENT_NO_SCHEMA>>4))
+	c.log(3, fmt.Sprintf("Compression support: %d", c.serverFlags&CLIENT_COMPRESS>>5))
+	c.log(3, fmt.Sprintf("ODBC support: %d", c.serverFlags&CLIENT_ODBC>>6))
+	c.log(3, fmt.Sprintf("Load data local support: %d", c.serverFlags&CLIENT_LOCAL_FILES>>7))
+	c.log(3, fmt.Sprintf("Ignore spaces: %d", c.serverFlags&CLIENT_IGNORE_SPACE>>8))
+	c.log(3, fmt.Sprintf("4.1 protocol support: %d", c.serverFlags&CLIENT_PROTOCOL_41>>9))
+	c.log(3, fmt.Sprintf("Interactive client: %d", c.serverFlags&CLIENT_INTERACTIVE>>10))
+	c.log(3, fmt.Sprintf("Switch to SSL: %d", c.serverFlags&CLIENT_SSL>>11))
+	c.log(3, fmt.Sprintf("Ignore sigpipes: %d", c.serverFlags&CLIENT_IGNORE_SIGPIPE>>12))
+	c.log(3, fmt.Sprintf("Transaction support: %d", c.serverFlags&CLIENT_TRANSACTIONS>>13))
+	c.log(3, fmt.Sprintf("4.1 protocol authentication: %d", c.serverFlags&CLIENT_SECURE_CONN>>15))
+}
+
+// Provide detailed log output for the server status flags
+func (c *Client) logStatus() {
+	c.log(3, "=== Server Status ===")
+	c.log(3, fmt.Sprintf("In transaction: %d", c.serverStatus&SERVER_STATUS_IN_TRANS))
+	c.log(3, fmt.Sprintf("Auto commit enabled: %d", c.serverStatus&SERVER_STATUS_AUTOCOMMIT>>1))
+	c.log(3, fmt.Sprintf("More results exist: %d", c.serverStatus&SERVER_MORE_RESULTS_EXISTS>>3))
+	c.log(3, fmt.Sprintf("No good indexes were used: %d", c.serverStatus&SERVER_QUERY_NO_GOOD_INDEX_USED>>4))
+	c.log(3, fmt.Sprintf("No indexes were used: %d", c.serverStatus&SERVER_QUERY_NO_INDEX_USED>>5))
+	c.log(3, fmt.Sprintf("Cursor exists: %d", c.serverStatus&SERVER_STATUS_CURSOR_EXISTS>>6))
+	c.log(3, fmt.Sprintf("Last row has been sent: %d", c.serverStatus&SERVER_STATUS_LAST_ROW_SENT>>7))
+	c.log(3, fmt.Sprintf("Database dropped: %d", c.serverStatus&SERVER_STATUS_DB_DROPPED>>8))
+	c.log(3, fmt.Sprintf("No backslash escapes: %d", c.serverStatus&SERVER_STATUS_NO_BACKSLASH_ESCAPES>>9))
+	c.log(3, fmt.Sprintf("Metadata has changed: %d", c.serverStatus&SERVER_STATUS_METADATA_CHANGED>>10))
+}
+
+// Reset the client
+func (c *Client) reset() {
+	c.Errno = 0
+	c.Error = ""
+	c.sequence = 0
 }
 
 // Performs the actual connect
