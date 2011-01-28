@@ -7,6 +7,7 @@ Revision History
 
 0.2.x series [current]
 
+* 0.2.11 - Fix a bug in getPrepareResult() causing queries returning no fields (e.g. DROP TABLE ...) to hang.
 * 0.2.10 - Compatability update for Go release.2011-01-20
 * 0.2.9 - Added support for MySQL 5.5
 * 0.2.8 - Fixes issue #38.
