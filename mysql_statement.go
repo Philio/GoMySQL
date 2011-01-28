@@ -420,6 +420,7 @@ func (stmt *MySQLStatement) getPrepareResult() (err os.Error) {
 		stmt.paramData = make([]interface{}, pkt.paramCount)
 		stmt.paramSentLong = make([]bool, pkt.paramCount)
 		stmt.result.Fields = make([]*MySQLField, pkt.columnCount)
+		stmt.result.fieldsEOF = (pkt.columnCount == 0)
 	// Error Packet ff
 	case c == ResultPacketError:
 		pkt := new(packetError)
