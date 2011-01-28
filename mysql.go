@@ -19,7 +19,7 @@ import (
 const (
 	// General
 	VERSION          = "0.3.0-dev"
-	DEFAULT_PORT     = 3306
+	DEFAULT_PORT     = "3306"
 	DEFAULT_SOCKET   = "/var/run/mysqld/mysqld.sock"
 	MAX_PACKET_SIZE  = 1<<24 - 1
 	PROTOCOL_41      = 41
@@ -92,7 +92,7 @@ func DialTCP(raddr, user, passwd string, dbname ...string) (c *Client, err os.Er
 	c = NewClient(DEFAULT_PROTOCOL)
 	// Add port if not set
 	if strings.Index(raddr, ":") == -1 {
-		raddr += ":" + fmt.Sprintf("%d", DEFAULT_PORT)
+		raddr += ":" + DEFAULT_PORT
 	}
 	// Connect to server
 	err = c.Connect(TCP, raddr, user, passwd, dbname...)

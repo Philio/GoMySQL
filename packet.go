@@ -102,7 +102,6 @@ func (p *packetBase) readLengthCodedBinary(data []byte) (num uint64, n int, err 
 
 // Convert byte array into a number
 func (p *packetBase) unpackNumber(data []byte) (num uint64) {
-	num = 0
 	for i := uint8(0); i < uint8(len(data)); i++ {
 		num |= uint64(data[i]) << (i * 8)
 	}

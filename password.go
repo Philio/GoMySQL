@@ -105,7 +105,7 @@ func scramble41(message, password []byte) (result []byte) {
 	stg3Hash := crypt.Sum()
 	// XOR with first hash
 	result = make([]byte, 20)
-	for i := 0; i < 20; i++ {
+	for i := range result {
 		result[i] = stg3Hash[i] ^ stg1Hash[i]
 	}
 	return
