@@ -54,9 +54,9 @@ type Client struct {
 	dbname  string
 
 	// Connection
-	conn net.Conn
-	r    *reader
-	w    *writer
+	conn      net.Conn
+	r         *reader
+	w         *writer
 	connected bool
 
 	// Sequence
