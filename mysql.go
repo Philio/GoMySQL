@@ -128,11 +128,32 @@ func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) 
 	}
 	// Call connect
 	err = c.connect()
+	if err != nil {
+		return
+	}
+	// Set connected
+	c.connected = true
 	return
 }
 
 // Close connection to server
 func (c *Client) Close() (err os.Error) {
+	// Check connection
+	if !c.connected {
+		err = os.NewError("Must be connected to do this")
+		return
+	}
+	// Reset client
+	c.reset()
+	// Lock mutex/defer unlock
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	// Send close command
+	// @todo
+	// Close connection
+	c.conn.Close()
+	// Set connected
+	c.connected = false
 	return
 }
 
@@ -297,11 +318,6 @@ func (c *Client) connect() (err os.Error) {
 	// Read auth result from server
 	c.sequence++
 	err = c.authResult()
-	if err != nil {
-		return
-	}
-	// Set connected
-	c.connected = true
 	return
 }
 
@@ -426,6 +442,11 @@ func (c *Client) auth() (err os.Error) {
 	}
 	// Log write success
 	c.log(1, "Sent authentication packet")
+	return
+}
+
+// Send a command to the server
+func (c *Client) command() (err os.Error) {
 	return
 }
 
