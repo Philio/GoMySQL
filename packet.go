@@ -6,9 +6,9 @@
 package mysql
 
 import (
-	"os"
 	"bytes"
 	"fmt"
+	"os"
 )
 
 // Packet type identifier

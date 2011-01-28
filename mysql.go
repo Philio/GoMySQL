@@ -7,11 +7,11 @@ package mysql
 
 // Imports
 import (
-	"os"
 	"fmt"
 	"log"
-	"strings"
+	"os"
 	"net"
+	"strings"
 	"sync"
 )
 

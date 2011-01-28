@@ -5,8 +5,10 @@
 // license that can be found in the LICENSE file.
 package mysql
 
-import "math"
-import "crypto/sha1"
+import (
+	"crypto/sha1"
+	"math"
+)
 
 const SCRAMBLE_LENGTH_323 = 8
 

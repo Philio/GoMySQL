@@ -6,8 +6,8 @@
 package mysql
 
 import (
-	"os"
 	"net"
+	"os"
 )
 
 // Packet writer struct

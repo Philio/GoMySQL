@@ -6,9 +6,9 @@
 package mysql
 
 import (
-	"os"
-	"net"
 	"io"
+	"net"
+	"os"
 )
 
 // Packet reader struct
