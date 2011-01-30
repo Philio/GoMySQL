@@ -66,7 +66,7 @@ type Client struct {
 	// Server settings
 	serverVersion  string
 	serverProtocol uint8
-	serverFlags    ClientFlags
+	serverFlags    ClientFlag
 	serverCharset  uint8
 	serverStatus   ServerStatus
 	scrambleBuff   []byte
@@ -113,11 +113,13 @@ func DialUnix(raddr, user, passwd string, dbname ...string) (c *Client, err os.E
 
 // Connect to the server
 func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) (err os.Error) {
-	// Reset client
-	c.reset()
+	// Log connect
+	c.log(1, "=== Begin connect ===")
 	// Lock mutex/defer unlock
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	// Reset client
+	c.reset()
 	// Store connection credentials
 	c.network = network
 	c.raddr = raddr
@@ -138,20 +140,24 @@ func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) 
 
 // Close connection to server
 func (c *Client) Close() (err os.Error) {
+	// Log close
+	c.log(1, "=== Begin close ===")
 	// Check connection
 	if !c.connected {
 		err = os.NewError("Must be connected to do this")
 		return
 	}
-	// Reset client
-	c.reset()
 	// Lock mutex/defer unlock
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	// Reset client
+	c.reset()
 	// Send close command
-	// @todo
+	c.command(COM_QUIT)
 	// Close connection
 	c.conn.Close()
+	// Log disconnect
+	c.log(1, "Disconnected")
 	// Set connected
 	c.connected = false
 	return
@@ -223,9 +229,13 @@ func (c *Client) StmtInit() (stmt *Statement, err os.Error) {
 }
 
 // Error handling
-func (c *Client) error(errno Errno, error Error) {
+func (c *Client) error(errno Errno, error Error, args ...interface{}) {
 	c.Errno = errno
-	c.Error = error
+	if len(args) > 0 {
+		c.Error = Error(fmt.Sprintf(string(error), args...))
+	} else {
+		c.Error = error
+	}
 }
 
 // Logging
@@ -323,22 +333,17 @@ func (c *Client) connect() (err os.Error) {
 
 // Connect to server
 func (c *Client) dial() (err os.Error) {
-	// Log connect info
+	// Log connect
 	c.log(1, "Connecting to server via %s to %s", c.network, c.raddr)
 	// Connect to server
 	c.conn, err = net.Dial(c.network, "", c.raddr)
 	if err != nil {
 		// Store error state
 		if c.network == UNIX {
-			c.error(CR_CONNECTION_ERROR, Error(fmt.Sprintf(string(CR_CONNECTION_ERROR_STR), c.raddr)))
+			c.error(CR_CONNECTION_ERROR, CR_CONNECTION_ERROR_STR, c.raddr)
 		}
 		if c.network == TCP {
-			parts := strings.Split(c.raddr, ":", -1)
-			if len(parts) == 2 {
-				c.error(CR_CONN_HOST_ERROR, Error(fmt.Sprintf(string(CR_CONN_HOST_ERROR_STR), parts[0], parts[1])))
-			} else {
-				c.error(CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR)
-			}
+			c.error(CR_CONN_HOST_ERROR, CR_CONN_HOST_ERROR_STR, c.network, c.raddr)
 		}
 		// Log error
 		c.log(1, err.String())
@@ -359,23 +364,23 @@ func (c *Client) init() (err os.Error) {
 	// Log read packet
 	c.log(1, "Reading handshake initialization packet from server")
 	// Read packet
-	init, err := c.r.readPacket(PACKET_INIT)
+	p, err := c.r.readPacket(PACKET_INIT)
 	if err != nil {
 		return
 	}
-	err = c.checkSequence(init.(*packetInit).sequence)
+	err = c.checkSequence(p.(*packetInit).sequence)
 	if err != nil {
 		return
 	}
 	// Log success
 	c.log(1, "Received handshake initialization packet")
 	// Assign values
-	c.serverVersion = init.(*packetInit).serverVersion
-	c.serverProtocol = init.(*packetInit).protocolVersion
-	c.serverFlags = ClientFlags(init.(*packetInit).serverCaps)
-	c.serverCharset = init.(*packetInit).serverLanguage
-	c.serverStatus = ServerStatus(init.(*packetInit).serverStatus)
-	c.scrambleBuff = init.(*packetInit).scrambleBuff
+	c.serverVersion = p.(*packetInit).serverVersion
+	c.serverProtocol = p.(*packetInit).protocolVersion
+	c.serverFlags = ClientFlag(p.(*packetInit).serverCaps)
+	c.serverCharset = p.(*packetInit).serverLanguage
+	c.serverStatus = ServerStatus(p.(*packetInit).serverStatus)
+	c.scrambleBuff = p.(*packetInit).scrambleBuff
 	// Extended logging [level 2+]
 	if c.LogLevel > 1 {
 		// Log server info
@@ -400,7 +405,7 @@ func (c *Client) auth() (err os.Error) {
 	// Log write packet
 	c.log(1, "Sending authentication packet to server")
 	// Construct packet
-	auth := &packetAuth{
+	p := &packetAuth{
 		clientFlags:   uint32(CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS),
 		maxPacketSize: MAX_PACKET_SIZE,
 		charsetNumber: c.serverCharset,
@@ -411,32 +416,32 @@ func (c *Client) auth() (err os.Error) {
 		c.logStatus()
 	}
 
-	auth.protocol = c.protocol
-	auth.sequence = c.sequence
+	p.protocol = c.protocol
+	p.sequence = c.sequence
 	// Adjust client flags based on server support
 	if c.serverFlags&CLIENT_LONG_PASSWORD > 0 {
-		auth.clientFlags |= uint32(CLIENT_LONG_PASSWORD)
+		p.clientFlags |= uint32(CLIENT_LONG_PASSWORD)
 	}
 	if c.serverFlags&CLIENT_LONG_FLAG > 0 {
-		auth.clientFlags |= uint32(CLIENT_LONG_FLAG)
+		p.clientFlags |= uint32(CLIENT_LONG_FLAG)
 	}
 	if c.serverFlags&CLIENT_TRANSACTIONS > 0 {
-		auth.clientFlags |= uint32(CLIENT_TRANSACTIONS)
+		p.clientFlags |= uint32(CLIENT_TRANSACTIONS)
 	}
 	// Check protocol
 	if c.protocol == PROTOCOL_41 {
-		auth.clientFlags |= uint32(CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONN)
-		auth.scrambleBuff = scramble41(c.scrambleBuff, []byte(c.passwd))
+		p.clientFlags |= uint32(CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONN)
+		p.scrambleBuff = scramble41(c.scrambleBuff, []byte(c.passwd))
 		// To specify a db name
 		if c.serverFlags&CLIENT_CONNECT_WITH_DB > 0 && len(c.dbname) > 0 {
-			auth.clientFlags |= uint32(CLIENT_CONNECT_WITH_DB)
-			auth.database = c.dbname
+			p.clientFlags |= uint32(CLIENT_CONNECT_WITH_DB)
+			p.database = c.dbname
 		}
 	} else {
-		auth.scrambleBuff = scramble323(c.scrambleBuff, []byte(c.passwd))
+		p.scrambleBuff = scramble323(c.scrambleBuff, []byte(c.passwd))
 	}
 	// Write packet
-	err = c.w.writePacket(auth)
+	err = c.w.writePacket(p)
 	if err != nil {
 		return
 	}
@@ -446,7 +451,50 @@ func (c *Client) auth() (err os.Error) {
 }
 
 // Send a command to the server
-func (c *Client) command() (err os.Error) {
+func (c *Client) command(command command, args ...interface{}) (err os.Error) {
+	// Log write packet
+	c.log(1, "Sending command packet to server")
+	// Simple validation, arg count
+	switch command {
+	// No args
+	case COM_QUIT, COM_STATISTICS, COM_PROCESS_INFO, COM_DEBUG, COM_PING:
+		if len(args) != 0 {
+			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 0 but found %d", len(args)))
+		}
+	// 1 arg
+	case COM_INIT_DB, COM_QUERY, COM_CREATE_DB, COM_DROP_DB, COM_REFRESH, COM_SHUTDOWN, COM_PROCESS_KILL, COM_STMT_PREPARE, COM_STMT_CLOSE, COM_STMT_RESET:
+		if len(args) != 1 {
+			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 1 but found %d", len(args)))
+		}
+	// 2 args
+	case COM_FIELD_LIST, COM_STMT_FETCH:
+		if len(args) != 2 {
+			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 2 but found %d", len(args)))
+		}
+	// 4 args
+	case COM_CHANGE_USER:
+		if len(args) != 4 {
+			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 4 but found %d", len(args)))
+		}
+	// Commands with custom functions
+	case COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA:
+		err = os.NewError("This command should not be used here")
+	// Everything else e.g. replication unsupported
+	default:
+		err = os.NewError("This command is unsupported")
+	}
+	// Construct packet
+	p := &packetCommand {
+		command: command,
+		args: args,
+	}
+	// Write packet
+	err = c.w.writePacket(p)
+	if err != nil {
+		return
+	}
+	// Log write success
+	c.log(1, "Sent command packet")
 	return
 }
 
