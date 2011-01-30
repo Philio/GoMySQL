@@ -5,10 +5,10 @@
 // license that can be found in the LICENSE file.
 package mysql
 
-type commands byte
+type command byte
 
 const (
-	COM_QUIT commands = iota
+	COM_QUIT command = iota
 	COM_INIT_DB
 	COM_QUERY
 	COM_FIELD_LIST
@@ -38,10 +38,10 @@ const (
 	COM_STMT_FETCH
 )
 
-type ClientFlags uint32
+type ClientFlag uint32
 
 const (
-	CLIENT_LONG_PASSWORD ClientFlags = 1 << iota
+	CLIENT_LONG_PASSWORD ClientFlag = 1 << iota
 	CLIENT_FOUND_ROWS
 	CLIENT_LONG_FLAG
 	CLIENT_CONNECT_WITH_DB
@@ -79,10 +79,10 @@ const (
 	SERVER_STATUS_METADATA_CHANGED
 )
 
-type FieldTypes byte
+type FieldType byte
 
 const (
-	FIELD_TYPE_DECIMAL FieldTypes = iota
+	FIELD_TYPE_DECIMAL FieldType = iota
 	FIELD_TYPE_TINY
 	FIELD_TYPE_SHORT
 	FIELD_TYPE_LONG
@@ -102,7 +102,7 @@ const (
 )
 
 const (
-	FIELD_TYPE_NEWDECIMAL FieldTypes = iota + 0xf6
+	FIELD_TYPE_NEWDECIMAL FieldType = iota + 0xf6
 	FIELD_TYPE_ENUM
 	FIELD_TYPE_SET
 	FIELD_TYPE_TINY_BLOB
@@ -114,10 +114,10 @@ const (
 	FIELD_TYPE_GEOMETRY
 )
 
-type FieldFlags uint16
+type FieldFlag uint16
 
 const (
-	FLAG_NOT_NULL FieldFlags = 1 << iota
+	FLAG_NOT_NULL FieldFlag = 1 << iota
 	FLAG_PRI_KEY
 	FLAG_UNIQUE_KEY
 	FLAG_MULTIPLE_KEY
@@ -135,11 +135,11 @@ const (
 	FLAG_UNKNOWN_4
 )
 
-type ExecuteFlags uint8
+type ExecuteFlag uint8
 
 const (
-	CURSOR_TYPE_NO_CURSOR ExecuteFlags = 0
-	CURSOR_TYPE_READ_ONLY ExecuteFlags = 1 << iota
+	CURSOR_TYPE_NO_CURSOR ExecuteFlag = 0
+	CURSOR_TYPE_READ_ONLY ExecuteFlag = 1 << iota
 	CURSOR_TYPE_FOR_UPDATE
 	CURSOR_TYPE_SCROLLABLE
 )

@@ -175,7 +175,7 @@ func (p *packetInit) read(data []byte) (err os.Error) {
 	p.serverStatus = uint16(p.unpackNumber(data[pos : pos+2]))
 	pos += 15
 	// Second part of scramble buffer, if exists (4.1+) [13 bytes]
-	if ClientFlags(p.serverCaps)&CLIENT_PROTOCOL_41 > 0 {
+	if ClientFlag(p.serverCaps)&CLIENT_PROTOCOL_41 > 0 {
 		p.scrambleBuff = append(p.scrambleBuff, data[pos:pos+12]...)
 	}
 	return
@@ -323,5 +323,19 @@ func (p *packetError) read(data []byte) (err os.Error) {
 	}
 	// Message [string]
 	p.error = string(data[pos:])
+	return
+}
+
+// Command packet struct
+type packetCommand struct {
+	packetBase
+	command command
+	args    []interface{}
+}
+
+// Command packet writer
+func (p *packetCommand) write() (data []byte, err os.Error) {
+	// Make slice from command byte
+	data = []byte{byte(p.command)}
 	return
 }
