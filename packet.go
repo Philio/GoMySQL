@@ -335,7 +335,70 @@ type packetCommand struct {
 
 // Command packet writer
 func (p *packetCommand) write() (data []byte, err os.Error) {
+	// Recover errors (if wrong param type supplied)
+	defer func() {
+		if e := recover(); e != nil {
+			err = os.NewError(fmt.Sprintf("%s", e))
+		}
+	}()
 	// Make slice from command byte
 	data = []byte{byte(p.command)}
+	// Add args to requests
+	switch p.command {
+	// Commands with 1 arg unterminated string
+	case COM_INIT_DB, COM_QUERY, COM_CREATE_DB, COM_DROP_DB, COM_STMT_PREPARE:
+		data = append(data, []byte(p.args[0].(string))...)
+	// Commands with 1 arg 32 bit uint
+	case COM_PROCESS_KILL, COM_STMT_CLOSE, COM_STMT_RESET:
+		data = append(data, p.packNumber(uint64(p.args[0].(uint32)), 4)...)
+	// Field list command
+	case COM_FIELD_LIST:
+		// Table name
+		data = append(data, []byte(p.args[0].(string))...)
+		// Terminator
+		data = append(data, 0x00)
+		// Column name
+		if len(p.args) > 1 {
+			data = append(data, []byte(p.args[1].(string))...)
+		}
+	// Refresh command
+	case COM_REFRESH:
+		data = append(data, byte(p.args[0].(Refresh)))
+	// Shutdown command
+	case COM_SHUTDOWN:
+		data = append(data, byte(p.args[0].(Shutdown)))
+	// Change user command
+	case COM_CHANGE_USER:
+		// User
+		data = append(data, []byte(p.args[0].(string))...)
+		// Terminator
+		data = append(data, 0x00)
+		// Scramble length for 4.1
+		if p.protocol == PROTOCOL_41 {
+			data = append(data, byte(len(p.args[1].([]byte))))
+		}
+		// Scramble buffer
+		if len(p.args[1].([]byte)) > 0 {
+			data = append(data, p.args[1].([]byte)...)
+		}
+		// Temrminator for 3.23
+		if p.protocol == PROTOCOL_40 {
+			data = append(data, 0x00)
+		}
+		// Database name
+		if len(p.args[2].(string)) > 0 {
+			data = append(data, []byte(p.args[2].(string))...)
+		}
+		// Terminator
+		data = append(data, 0x00)
+		// Character set number (5.1.23+ needs testing with earlier versions)
+		data = append(data, p.packNumber(uint64(p.args[3].(uint16)), 2)...)
+	// Fetch statement command
+	case COM_STMT_FETCH:
+		// Statement id
+		data = append(data, p.packNumber(uint64(p.args[0].(uint32)), 4)...)
+		// Number of rows
+		data = append(data, p.packNumber(uint64(p.args[1].(uint32)), 4)...)
+	}
 	return
 }

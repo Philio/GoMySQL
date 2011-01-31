@@ -411,11 +411,7 @@ func (c *Client) auth() (err os.Error) {
 		charsetNumber: c.serverCharset,
 		user:          c.user,
 	}
-	// Add protocol and sequence	// Full logging [level 3]
-	if c.LogLevel > 2 {
-		c.logStatus()
-	}
-
+	// Add protocol and sequence
 	p.protocol = c.protocol
 	p.sequence = c.sequence
 	// Adjust client flags based on server support
@@ -466,8 +462,13 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 		if len(args) != 1 {
 			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 1 but found %d", len(args)))
 		}
+	// 1 or 2 args
+	case COM_FIELD_LIST:
+		if len(args) != 1 && len(args) != 2 {
+			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 1 or 2 but found %d", len(args)))
+		}
 	// 2 args
-	case COM_FIELD_LIST, COM_STMT_FETCH:
+	case COM_STMT_FETCH:
 		if len(args) != 2 {
 			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 2 but found %d", len(args)))
 		}
@@ -488,6 +489,9 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 		command: command,
 		args: args,
 	}
+	// Add protocol and sequence
+	p.protocol = c.protocol
+	p.sequence = c.sequence
 	// Write packet
 	err = c.w.writePacket(p)
 	if err != nil {

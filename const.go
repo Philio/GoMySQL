@@ -135,11 +135,37 @@ const (
 	FLAG_UNKNOWN_4
 )
 
-type ExecuteFlag uint8
+type ExecuteFlag byte
 
 const (
 	CURSOR_TYPE_NO_CURSOR ExecuteFlag = 0
 	CURSOR_TYPE_READ_ONLY ExecuteFlag = 1 << iota
 	CURSOR_TYPE_FOR_UPDATE
 	CURSOR_TYPE_SCROLLABLE
+)
+
+type Refresh byte
+
+const (
+	REFRESH_GRANT Refresh = 1 << iota
+	REFRESH_LOG
+	REFRESH_TABLES
+	REFRESH_HOSTS
+	REFRESH_STATUS
+	REFRESH_THREADS
+	REFRESH_SLAVE
+	REFRESH_MASTER
+)
+
+type Shutdown byte
+
+const (
+	SHUTDOWN_DEFAULT Shutdown = iota
+	SHUTDOWN_WAIT_CONNECTIONS
+	SHUTDOWN_WAIT_TRANSACTIONS
+	SHUTDOWN_WAIT_UPDATES          Shutdown = 0x08
+	SHUTDOWN_WAIT_ALL_BUFFERS      Shutdown = 0x10
+	SHUTDOWN_WAIT_CRITICAL_BUFFERS Shutdown = 0x11
+	KILL_QUERY                     Shutdown = 0xfe
+	KILL_CONNECTION                Shutdown = 0xff
 )
