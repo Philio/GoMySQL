@@ -166,7 +166,7 @@ func (c *Client) Close() (err os.Error) {
 // Change the current database
 func (c *Client) ChangeDb(dbname string) (err os.Error) {
 	// Log changeDb
-	c.log(1, "=== Begin change db to %s ===", dbname)
+	c.log(1, "=== Begin change db to '%s' ===", dbname)
 	// Check connection
 	if !c.connected {
 		err = os.NewError("Must be connected to do this")
@@ -391,7 +391,7 @@ func (c *Client) init() (err os.Error) {
 		return
 	}
 	// Log success
-	c.log(1, "Received handshake initialization packet")
+	c.log(1, "[%d] Received handshake initialization packet", p.(*packetInit).sequence)
 	// Assign values
 	c.serverVersion = p.(*packetInit).serverVersion
 	c.serverProtocol = p.(*packetInit).protocolVersion
@@ -460,7 +460,7 @@ func (c *Client) auth() (err os.Error) {
 		return
 	}
 	// Log write success
-	c.log(1, "Sent authentication packet")
+	c.log(1, "[%d] Sent authentication packet", p.sequence)
 	return
 }
 
@@ -516,7 +516,7 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 		return
 	}
 	// Log write success
-	c.log(1, "Sent command packet")
+	c.log(1, "[%d] Sent command packet", p.sequence)
 	return
 }
 
@@ -552,7 +552,7 @@ func (c *Client) checkSequence(sequence uint8) (err os.Error) {
 // Process OK packet
 func (c *Client) processOKResult(p *packetOK) (err os.Error) {
 	// Log OK result
-	c.log(1, "Received OK packet")
+	c.log(1, "[%d] Received OK packet", p.sequence)
 	// Check sequence
 	err = c.checkSequence(p.sequence)
 	if err != nil {
@@ -569,7 +569,7 @@ func (c *Client) processOKResult(p *packetOK) (err os.Error) {
 // Process error packet
 func (c *Client) processErrorResult(p *packetError) (err os.Error) {
 	// Log error result
-	c.log(1, "Received error packet")
+	c.log(1, "[%d] Received error packet", p.sequence)
 	// Check sequence
 	err = c.checkSequence(p.sequence)
 	if err != nil {
