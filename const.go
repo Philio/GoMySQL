@@ -8,7 +8,7 @@ package mysql
 type command byte
 
 const (
-	COM_QUIT command = iota
+	COM_QUIT command = iota + 1
 	COM_INIT_DB
 	COM_QUERY
 	COM_FIELD_LIST
