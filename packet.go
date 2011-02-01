@@ -400,5 +400,7 @@ func (p *packetCommand) write() (data []byte, err os.Error) {
 		// Number of rows
 		data = append(data, p.packNumber(uint64(p.args[1].(uint32)), 4)...)
 	}
+	// Add the packet header
+	data = p.addHeader(data)
 	return
 }
