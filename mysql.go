@@ -165,6 +165,23 @@ func (c *Client) Close() (err os.Error) {
 
 // Change the current database
 func (c *Client) ChangeDb(dbname string) (err os.Error) {
+	// Log changeDb
+	c.log(1, "=== Begin change db to %s ===", dbname)
+	// Check connection
+	if !c.connected {
+		err = os.NewError("Must be connected to do this")
+		return
+	}
+	// Lock mutex/defer unlock
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	// Reset client
+	c.reset()
+	// Send close command
+	c.command(COM_INIT_DB, dbname)
+	// Read result from server
+	c.sequence++
+	err = c.getResult(PACKET_OK | PACKET_ERROR)
 	return
 }
 
@@ -307,6 +324,7 @@ func (c *Client) reset() {
 	c.sequence = 0
 }
 
+
 // Performs the actual connect
 func (c *Client) connect() (err os.Error) {
 	// Connect to server
@@ -325,9 +343,9 @@ func (c *Client) connect() (err os.Error) {
 	if err != nil {
 		return
 	}
-	// Read auth result from server
+	// Read result from server
 	c.sequence++
-	err = c.authResult()
+	err = c.getResult(PACKET_OK | PACKET_ERROR)
 	return
 }
 
@@ -502,12 +520,12 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 	return
 }
 
-// Get auth response
-func (c *Client) authResult() (err os.Error) {
+// Get result
+func (c *Client) getResult(types packetType) (err os.Error) {
 	// Log read result
-	c.log(1, "Reading auth result packet from server")
+	c.log(1, "Reading result packet from server")
 	// Get result packet
-	p, err := c.r.readPacket(PACKET_OK | PACKET_ERROR)
+	p, err := c.r.readPacket(types)
 	if err != nil {
 		return
 	}
@@ -525,7 +543,7 @@ func (c *Client) authResult() (err os.Error) {
 func (c *Client) checkSequence(sequence uint8) (err os.Error) {
 	if sequence != c.sequence {
 		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		c.log(1, "Sequence doesn't match, commands out of sync")
+		c.log(1, "Sequence doesn't match - expected %d but got %d, commands out of sync", c.sequence, sequence)
 		err = os.NewError("Bad sequence number")
 	}
 	return
