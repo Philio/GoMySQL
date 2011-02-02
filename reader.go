@@ -50,25 +50,37 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 	switch {
 	// Unknown packet
 	default:
-		err = os.NewError("Unknown/unexpected packet or packet type")
+		err = os.NewError("Unknown or unexpected packet or packet type")
 	// Initialisation / handshake packet, server > client
 	case types&PACKET_INIT != 0:
-		pi := new(packetInit)
-		pi.protocol = r.protocol
-		pi.sequence = uint8(pktSeq)
-		return pi, pi.read(pktData)
+		pk := new(packetInit)
+		pk.protocol = r.protocol
+		pk.sequence = uint8(pktSeq)
+		return pk, pk.read(pktData)
 	// Ok packet
 	case types&PACKET_OK != 0 && pktData[0] == 0x00:
-		pok := new(packetOK)
-		pok.protocol = r.protocol
-		pok.sequence = uint8(pktSeq)
-		return pok, pok.read(pktData)
+		pk := new(packetOK)
+		pk.protocol = r.protocol
+		pk.sequence = uint8(pktSeq)
+		return pk, pk.read(pktData)
 	// Error packet
 	case types&PACKET_ERROR != 0 && pktData[0] == 0xff:
-		per := new(packetError)
-		per.protocol = r.protocol
-		per.sequence = uint8(pktSeq)
-		return per, per.read(pktData)
+		pk := new(packetError)
+		pk.protocol = r.protocol
+		pk.sequence = uint8(pktSeq)
+		return pk, pk.read(pktData)
+	// EOF packet
+	case types&PACKET_EOF != 0 && pktData[0] == 0xfe:
+		pk := new(packetEOF)
+		pk.protocol = r.protocol
+		pk.sequence = uint8(pktSeq)
+		return pk, pk.read(pktData)
+	// Result set packet
+	case types&PACKET_RESULT != 0 && pktData[0] > 0x00 && pktData[0] < 0xfb:
+		pk := new(packetResultSet)
+		pk.protocol = r.protocol
+		pk.sequence = uint8(pktSeq)
+		return pk, pk.read(pktData)
 	}
 	return
 }

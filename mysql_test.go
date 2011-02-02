@@ -91,6 +91,19 @@ func TestDialUnixNonex(t *testing.T) {
 	}
 }
 
+// Test connect with bad password
+func TestDialUnixBadPass(t *testing.T) {
+	t.Logf("Running DialUnix test with bad password")
+	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_BAD_PASSWD, TEST_DBNAME)
+	if err != nil {
+		t.Logf("Error #%d: %s", db.Errno, db.Error)
+	}
+	if db.Errno != 1045 {
+		t.Logf("Error #%d received, expected #1044", db.Errno)
+		t.Fail()
+	}
+}
+
 // Benchmark connect/handshake via TCP
 func BenchmarkDialTCP(b *testing.B) {
 	for i := 0; i < b.N; i++ {

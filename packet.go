@@ -16,21 +16,20 @@ type packetType uint32
 
 // Packet types
 const (
-	PACKET_INIT        packetType = 1 << iota
-	PACKET_AUTH        packetType = 1 << iota
-	PACKET_OK          packetType = 1 << iota
-	PACKET_ERROR       packetType = 1 << iota
-	PACKET_CMD         packetType = 1 << iota
-	PACKET_RESULT      packetType = 1 << iota
-	PACKET_FIELD       packetType = 1 << iota
-	PACKET_ROW         packetType = 1 << iota
-	PACKET_EOF_40      packetType = 1 << iota
-	PACKET_EOF_41      packetType = 1 << iota
-	PACKET_OK_PREPARED packetType = 1 << iota
-	PACKET_PARAM       packetType = 1 << iota
-	PACKET_LONG_DATA   packetType = 1 << iota
-	PACKET_EXECUTE     packetType = 1 << iota
-	PACKET_ROW_BINARY  packetType = 1 << iota
+	PACKET_INIT packetType = 1 << iota
+	PACKET_AUTH
+	PACKET_OK
+	PACKET_ERROR
+	PACKET_CMD
+	PACKET_RESULT
+	PACKET_FIELD
+	PACKET_ROW
+	PACKET_EOF
+	PACKET_OK_PREPARED
+	PACKET_PARAM
+	PACKET_LONG_DATA
+	PACKET_EXECUTE
+	PACKET_ROW_BINARY
 )
 
 // Readable packet interface
@@ -209,7 +208,7 @@ func (p *packetAuth) write() (data []byte, err os.Error) {
 			data = append(data, []byte(p.user)...)
 		}
 		// Terminator
-		data = append(data, 0x00)
+		data = append(data, 0x0)
 		// Scramble buffer
 		data = append(data, byte(len(p.scrambleBuff)))
 		if len(p.scrambleBuff) > 0 {
@@ -219,7 +218,7 @@ func (p *packetAuth) write() (data []byte, err os.Error) {
 		if len(p.database) > 0 {
 			data = append(data, []byte(p.database)...)
 			// Terminator
-			data = append(data, 0x00)
+			data = append(data, 0x0)
 		}
 		// For MySQL < 4.1
 	} else {
@@ -232,13 +231,13 @@ func (p *packetAuth) write() (data []byte, err os.Error) {
 			data = append(data, []byte(p.user)...)
 		}
 		// Terminator
-		data = append(data, 0x00)
+		data = append(data, 0x0)
 		// Scramble buffer
 		if len(p.scrambleBuff) > 0 {
 			data = append(data, p.scrambleBuff...)
 		}
 		// Padding
-		data = append(data, 0x00)
+		data = append(data, 0x0)
 	}
 	// Add the packet header
 	data = p.addHeader(data)
@@ -326,6 +325,55 @@ func (p *packetError) read(data []byte) (err os.Error) {
 	return
 }
 
+// EOF packet struct
+type packetEOF struct {
+	packetBase
+	warningCount uint16
+	useWarning   bool
+	serverStatus uint16
+	useStatus    bool
+}
+
+// EOF packet reader
+func (p *packetEOF) read(data []byte) (err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = os.NewError(fmt.Sprintf("%s", e))
+		}
+	}()
+	// Check for 4.1 protocol AND 2 available bytes
+	if p.protocol == PROTOCOL_41 && len(data) >= 3 {
+		// Warning count [16 bit uint]
+		p.warningCount = uint16(p.unpackNumber(data[1 : 3]))
+		p.useWarning = true
+	}
+	// Check for 4.1 protocol AND 2 available bytes
+	if p.protocol == PROTOCOL_41 && len(data) == 5 {
+		// Server status [16 bit uint]
+		p.serverStatus = uint16(p.unpackNumber(data[3 : 5]))
+		p.useStatus = true
+	}
+	return
+}
+
+// Password packet struct
+type packetPassword struct {
+	packetBase
+	scrambleBuff []byte
+}
+
+// Password packet writer
+func (p *packetPassword) write() (data []byte, err os.Error) {
+	// Set scramble
+	data = p.scrambleBuff
+	// Add terminator
+	data = append(data, 0x0)
+	// Add the packet header
+	data = p.addHeader(data)
+	return
+}
+
 // Command packet struct
 type packetCommand struct {
 	packetBase
@@ -346,7 +394,7 @@ func (p *packetCommand) write() (data []byte, err os.Error) {
 	// Add args to requests
 	switch p.command {
 	// Commands with 1 arg unterminated string
-	case COM_INIT_DB, COM_QUERY, COM_CREATE_DB, COM_DROP_DB, COM_STMT_PREPARE:
+	case COM_INIT_DB, COM_QUERY, COM_STMT_PREPARE:
 		data = append(data, []byte(p.args[0].(string))...)
 	// Commands with 1 arg 32 bit uint
 	case COM_PROCESS_KILL, COM_STMT_CLOSE, COM_STMT_RESET:
@@ -402,5 +450,40 @@ func (p *packetCommand) write() (data []byte, err os.Error) {
 	}
 	// Add the packet header
 	data = p.addHeader(data)
+	return
+}
+
+// Result set packet struct
+type packetResultSet struct {
+	packetBase
+	fieldCount uint64
+	extra      uint64
+}
+
+// OK packet reader
+func (p *packetResultSet) read(data []byte) (err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = os.NewError(fmt.Sprintf("%s", e))
+		}
+	}()
+	// Position
+	pos := 0
+	// Field count [length coded binary]
+	num, n, err := p.readLengthCodedBinary(data[pos:])
+	if err != nil {
+		return
+	}
+	p.fieldCount = num
+	pos += n
+	// Extra [length coded binary]
+	if pos < len(data) {
+		num, n, err = p.readLengthCodedBinary(data[pos:])
+		if err != nil {
+			return
+		}
+		p.extra = num
+	}
 	return
 }

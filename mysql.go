@@ -37,6 +37,9 @@ const (
 
 // Client struct
 type Client struct {
+	// Mutex for thread safety
+	sync.Mutex
+
 	// Errors
 	Errno Errno
 	Error Error
@@ -70,9 +73,10 @@ type Client struct {
 	serverCharset  uint8
 	serverStatus   ServerStatus
 	scrambleBuff   []byte
-
-	// Mutex for thread safety
-	mutex sync.Mutex
+	
+	// Result
+	result *Result
+	stored bool
 }
 
 // Create new client
@@ -116,8 +120,8 @@ func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) 
 	// Log connect
 	c.log(1, "=== Begin connect ===")
 	// Lock mutex/defer unlock
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	// Reset client
 	c.reset()
 	// Store connection credentials
@@ -148,8 +152,8 @@ func (c *Client) Close() (err os.Error) {
 		return
 	}
 	// Lock mutex/defer unlock
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	// Reset client
 	c.reset()
 	// Send close command
@@ -173,20 +177,44 @@ func (c *Client) ChangeDb(dbname string) (err os.Error) {
 		return
 	}
 	// Lock mutex/defer unlock
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	// Reset client
 	c.reset()
 	// Send close command
 	c.command(COM_INIT_DB, dbname)
 	// Read result from server
 	c.sequence++
-	err = c.getResult(PACKET_OK | PACKET_ERROR)
+	_, err = c.getResult(PACKET_OK | PACKET_ERROR)
 	return
 }
 
 // Send a query to the server
-func (c *Client) Query(sql string) (err os.Error) {
+func (c *Client) Query(sql string) (res *Result, err os.Error) {
+	// Log query
+	c.log(1, "=== Begin query '%s' ===", sql)
+	// Check connection
+	if !c.connected {
+		err = os.NewError("Must be connected to do this")
+		return
+	}
+	// Lock mutex/defer unlock
+	c.Lock()
+	defer c.Unlock()
+	// Reset client
+	c.reset()
+	// Send close command
+	c.command(COM_QUERY, sql)
+	// Read result from server
+	c.sequence++
+	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
+	if err != nil {
+		return
+	}
+	// Check if a result was created
+	if c.result != nil {
+		return c.result, nil
+	}
 	return
 }
 
@@ -322,6 +350,7 @@ func (c *Client) reset() {
 	c.Errno = 0
 	c.Error = ""
 	c.sequence = 0
+	c.result = nil
 }
 
 
@@ -345,7 +374,25 @@ func (c *Client) connect() (err os.Error) {
 	}
 	// Read result from server
 	c.sequence++
-	err = c.getResult(PACKET_OK | PACKET_ERROR)
+	eof, err := c.getResult(PACKET_OK | PACKET_ERROR | PACKET_EOF)
+	// If eof need to authenticate with a 3.23 password
+	if eof {
+		c.sequence++
+		// Create packet
+		p := &packetPassword {
+			scrambleBuff: scramble323(c.scrambleBuff, []byte(c.passwd)),
+		}
+		p.sequence = c.sequence
+		// Write packet
+		err = c.w.writePacket(p)
+		if err != nil {
+			return
+		}
+		c.log(1, "[%d] Sent old password packet", p.sequence)
+		// Read result
+		c.sequence++
+		_, err = c.getResult(PACKET_OK | PACKET_ERROR)
+	}
 	return
 }
 
@@ -476,7 +523,7 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 0 but found %d", len(args)))
 		}
 	// 1 arg
-	case COM_INIT_DB, COM_QUERY, COM_CREATE_DB, COM_DROP_DB, COM_REFRESH, COM_SHUTDOWN, COM_PROCESS_KILL, COM_STMT_PREPARE, COM_STMT_CLOSE, COM_STMT_RESET:
+	case COM_INIT_DB, COM_QUERY, COM_REFRESH, COM_SHUTDOWN, COM_PROCESS_KILL, COM_STMT_PREPARE, COM_STMT_CLOSE, COM_STMT_RESET:
 		if len(args) != 1 {
 			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 1 but found %d", len(args)))
 		}
@@ -521,7 +568,7 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 }
 
 // Get result
-func (c *Client) getResult(types packetType) (err os.Error) {
+func (c *Client) getResult(types packetType) (eof bool, err os.Error) {
 	// Log read result
 	c.log(1, "Reading result packet from server")
 	// Get result packet
@@ -531,10 +578,17 @@ func (c *Client) getResult(types packetType) (err os.Error) {
 	}
 	// Process result packet
 	switch i := p.(type) {
+	default:
+		err = os.NewError("Unknown or unexpected packet or packet type")
 	case *packetOK:
 		err = c.processOKResult(p.(*packetOK))
 	case *packetError:
 		err = c.processErrorResult(p.(*packetError))
+	case *packetEOF:
+		eof = true
+		err = c.processEOF(p.(*packetEOF))
+	case *packetResultSet:
+		err = c.processResultSetResult(p.(*packetResultSet))
 	}
 	return
 }
@@ -558,6 +612,7 @@ func (c *Client) processOKResult(p *packetOK) (err os.Error) {
 	if err != nil {
 		return
 	}
+	// Store packet data
 	c.serverStatus = ServerStatus(p.serverStatus)
 	// Full logging [level 3]
 	if c.LogLevel > 2 {
@@ -575,8 +630,41 @@ func (c *Client) processErrorResult(p *packetError) (err os.Error) {
 	if err != nil {
 		return
 	}
+	// Set error
 	c.error(Errno(p.errno), Error(p.error))
 	// Return error string as error
 	err = os.NewError(p.error)
+	return
+}
+
+// Process EOF packet
+func (c *Client) processEOF(p *packetEOF) (err os.Error) {
+	// Log EOF result
+	c.log(1, "[%d] Received EOF packet", p.sequence)
+	// Check sequence
+	err = c.checkSequence(p.sequence)
+	if err != nil {
+		return
+	}
+	// Store packet data
+	if p.useStatus {
+		c.serverStatus = ServerStatus(p.serverStatus)
+	}
+	return
+}
+
+// Process result set packet
+func (c *Client) processResultSetResult(p *packetResultSet) (err os.Error) {
+	// Log error result
+	c.log(1, "[%d] Received result set packet", p.sequence)
+	// Check sequence
+	err = c.checkSequence(p.sequence)
+	if err != nil {
+		return
+	}
+	// Create new result
+	c.result = &Result{
+		FieldCount: p.fieldCount,
+	}
 	return
 }
