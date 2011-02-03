@@ -7,18 +7,17 @@ package mysql
 
 import (
 	"io"
-	"net"
 	"os"
 )
 
 // Packet reader struct
 type reader struct {
-	conn     net.Conn
+	conn     io.ReadWriteCloser
 	protocol uint8
 }
 
 // Create a new reader
-func newReader(conn net.Conn) *reader {
+func newReader(conn io.ReadWriteCloser) *reader {
 	return &reader{
 		conn:     conn,
 		protocol: DEFAULT_PROTOCOL,

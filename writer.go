@@ -6,17 +6,17 @@
 package mysql
 
 import (
-	"net"
+	"io"
 	"os"
 )
 
 // Packet writer struct
 type writer struct {
-	conn net.Conn
+	conn io.ReadWriteCloser
 }
 
 // Create a new reader
-func newWriter(conn net.Conn) *writer {
+func newWriter(conn io.ReadWriteCloser) *writer {
 	return &writer{
 		conn: conn,
 	}
