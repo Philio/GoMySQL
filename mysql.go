@@ -8,6 +8,7 @@ package mysql
 // Imports
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"net"
@@ -57,7 +58,7 @@ type Client struct {
 	dbname  string
 
 	// Connection
-	conn      net.Conn
+	conn      io.ReadWriteCloser
 	r         *reader
 	w         *writer
 	connected bool
