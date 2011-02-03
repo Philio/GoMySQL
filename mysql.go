@@ -189,8 +189,8 @@ func (c *Client) ChangeDb(dbname string) (err os.Error) {
 	return
 }
 
-// Send a query to the server
-func (c *Client) Query(sql string) (res *Result, err os.Error) {
+// Send a query/queries to the server
+func (c *Client) Query(sql string) (err os.Error) {
 	// Log query
 	c.log(1, "=== Begin query '%s' ===", sql)
 	// Check connection
@@ -208,18 +208,7 @@ func (c *Client) Query(sql string) (res *Result, err os.Error) {
 	// Read result from server
 	c.sequence++
 	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
-	if err != nil {
-		return
-	}
-	// Check if a result was created
-	if c.result != nil {
-		return c.result, nil
-	}
-	return
-}
-
-// Send multiple queries to the server
-func (c *Client) MultiQuery(sql string) (err os.Error) {
+	c.getResult(0)
 	return
 }
 

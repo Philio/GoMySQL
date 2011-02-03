@@ -99,6 +99,24 @@ func (p *packetBase) readLengthCodedBinary(data []byte) (num uint64, n int, err 
 	return
 }
 
+// Read length coded string
+func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err os.Error) {
+	// Get string length
+	num, n, err := p.readLengthCodedBinary(data)
+	if err != nil {
+		return
+	}
+	// Check data length
+	if len(data) < n + int(num) {
+		err = os.EOF
+		return
+	}
+	// Get string
+	s = string(data[n: n+int(num)])
+	n += int(num)
+	return
+}
+
 // Convert byte array into a number
 func (p *packetBase) unpackNumber(data []byte) (num uint64) {
 	for i := uint8(0); i < uint8(len(data)); i++ {
@@ -460,7 +478,7 @@ type packetResultSet struct {
 	extra      uint64
 }
 
-// OK packet reader
+// Result set packet reader
 func (p *packetResultSet) read(data []byte) (err os.Error) {
 	// Recover errors
 	defer func() {
@@ -485,5 +503,129 @@ func (p *packetResultSet) read(data []byte) (err os.Error) {
 		}
 		p.extra = num
 	}
+	return
+}
+
+// Field packet struct
+type packetField struct {
+	packetBase
+	catalog       string
+	database      string
+	table         string
+	orgTable      string
+	name          string
+	orgName       string
+	charsetNumber uint16
+	length        uint32
+	fieldType     uint8
+	flags         uint16
+	decimals      uint8
+	defaultVal    uint64
+}
+
+// Field packet reader
+func (p *packetField) read(data []byte) (err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = os.NewError(fmt.Sprintf("%s", e))
+		}
+	}()
+	// Position and bytes read
+	var pos, n int
+	// 4.1 protocol
+	if p.protocol == PROTOCOL_41 {
+		// Catalog [len coded string]
+		p.catalog, n, err = p.readLengthCodedString(data)
+		if err != nil {
+			return
+		}
+		pos += n
+		// Database [len coded string]
+		p.database, n, err = p.readLengthCodedString(data[pos:])
+		if err != nil {
+			return
+		}
+		pos += n
+		// Table [len coded string]
+		p.table, n, err = p.readLengthCodedString(data[pos:])
+		if err != nil {
+			return
+		}
+		pos += n
+		// Original table [len coded string]
+		p.orgTable, n, err = p.readLengthCodedString(data[pos:])
+		if err != nil {
+			return
+		}
+		pos += n
+		// Name [len coded string]
+		p.name, n, err = p.readLengthCodedString(data[pos:])
+		if err != nil {
+			return
+		}
+		pos += n
+		// Original name [len coded string]
+		p.orgName, n, err = p.readLengthCodedString(data[pos:])
+		if err != nil {
+			return
+		}
+		pos += n
+		// Filler
+		pos ++
+		// Charset [16 bit uint]
+		p.charsetNumber = uint16(p.unpackNumber(data[pos : pos+2]))
+		pos += 2
+		// Length [32 bit uint]
+		p.length = uint32(p.unpackNumber(data[pos : pos+4]))
+		pos += 4
+		// Field type [byte]
+		p.fieldType = data[pos]
+		pos ++
+		// Flags [16 bit uint]
+		p.flags = uint16(p.unpackNumber(data[pos : pos+2]))
+		pos += 2
+		// Decimals [8 bit uint]
+		p.decimals = data[pos]
+		pos ++
+		// Default value [len coded binary]
+		if pos < len(data) {
+			p.defaultVal, _, err = p.readLengthCodedBinary(data[pos:])
+		}
+	} else {
+		// Table [len coded string]
+		p.table, n, err = p.readLengthCodedString(data[pos:])
+		if err != nil {
+			return
+		}
+		pos += n
+		// Name [len coded string]
+		p.name, n, err = p.readLengthCodedString(data[pos:])
+		if err != nil {
+			return
+		}
+		pos += n
+
+	}
+	return
+}
+
+// Row data struct
+type packetRowData struct {
+	packetBase
+	nullBitMap byte
+	values     []string
+}
+
+// Row data packet reader
+func (p *packetRowData) read(data []byte) (err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = os.NewError(fmt.Sprintf("%s", e))
+		}
+	}()
+	// Position
+	//pos := 0
 	return
 }

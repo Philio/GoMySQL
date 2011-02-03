@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"fmt"
 )
 
 // Packet reader struct
@@ -51,6 +52,7 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 	// Unknown packet
 	default:
 		err = os.NewError("Unknown or unexpected packet or packet type")
+		fmt.Printf("%#v\n", pktData)
 	// Initialisation / handshake packet, server > client
 	case types&PACKET_INIT != 0:
 		pk := new(packetInit)
@@ -58,7 +60,7 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 		pk.sequence = uint8(pktSeq)
 		return pk, pk.read(pktData)
 	// Ok packet
-	case types&PACKET_OK != 0 && pktData[0] == 0x00:
+	case types&PACKET_OK != 0 && pktData[0] == 0x0:
 		pk := new(packetOK)
 		pk.protocol = r.protocol
 		pk.sequence = uint8(pktSeq)
@@ -76,7 +78,7 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 		pk.sequence = uint8(pktSeq)
 		return pk, pk.read(pktData)
 	// Result set packet
-	case types&PACKET_RESULT != 0 && pktData[0] > 0x00 && pktData[0] < 0xfb:
+	case types&PACKET_RESULT != 0 && pktData[0] > 0x0 && pktData[0] < 0xff:
 		pk := new(packetResultSet)
 		pk.protocol = r.protocol
 		pk.sequence = uint8(pktSeq)
