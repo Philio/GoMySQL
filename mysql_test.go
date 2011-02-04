@@ -24,10 +24,10 @@ const (
 	TEST_USER       = "gomysql_test"
 	TEST_PASSWD     = "abc123"
 	TEST_BAD_PASSWD = "321cba"
-	TEST_DBNAME     = "gomysql_test"	// This is the main database used for testing
-	TEST_DBNAME2	= "gomysql_test2"	// This is a privileged database used to test changedb etc
-	TEST_DBNAMEUP	= "gomysql_test3"	// This is an unprivileged database
-	TEST_DBNAMEBAD	= "gomysql_bad"		// This is a nonexistant database
+	TEST_DBNAME     = "gomysql_test"  // This is the main database used for testing
+	TEST_DBNAME2    = "gomysql_test2" // This is a privileged database used to test changedb etc
+	TEST_DBNAMEUP   = "gomysql_test3" // This is an unprivileged database
+	TEST_DBNAMEBAD  = "gomysql_bad"   // This is a nonexistant database
 )
 
 var (

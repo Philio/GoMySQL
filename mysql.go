@@ -74,10 +74,12 @@ type Client struct {
 	serverCharset  uint8
 	serverStatus   ServerStatus
 	scrambleBuff   []byte
-	
+
 	// Result
-	result *Result
-	stored bool
+	AffectedRows uint64
+	LastInsertId uint64
+	Warnings     uint16
+	result       *Result
 }
 
 // Create new client
@@ -120,6 +122,11 @@ func DialUnix(raddr, user, passwd string, dbname ...string) (c *Client, err os.E
 func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) (err os.Error) {
 	// Log connect
 	c.log(1, "=== Begin connect ===")
+	// Check not already connected
+	if c.connected {
+		err = os.NewError("Already connected")
+		return
+	}
 	// Lock mutex/defer unlock
 	c.Lock()
 	defer c.Unlock()
@@ -209,13 +216,25 @@ func (c *Client) Query(sql string) (err os.Error) {
 	// Read result from server
 	c.sequence++
 	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
-	c.getResult(0)
 	return
 }
 
 // Fetch all rows for a result and store it, returning the result set
 func (c *Client) StoreResult() (result *Result, err os.Error) {
-	return
+	// Store fields
+	c.getFields()
+	// Store all rows
+	for {
+		c.sequence++
+		eof, err := c.getResult(PACKET_ROW | PACKET_EOF)
+		if err != nil {
+			return
+		}
+		if eof {
+			break
+		}
+	}
+	return c.result, nil
 }
 
 // Use a result set, does not store rows
@@ -369,7 +388,7 @@ func (c *Client) connect() (err os.Error) {
 	if eof {
 		c.sequence++
 		// Create packet
-		p := &packetPassword {
+		p := &packetPassword{
 			scrambleBuff: scramble323(c.scrambleBuff, []byte(c.passwd)),
 		}
 		p.sequence = c.sequence
@@ -540,9 +559,9 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 		err = os.NewError("This command is unsupported")
 	}
 	// Construct packet
-	p := &packetCommand {
+	p := &packetCommand{
 		command: command,
-		args: args,
+		args:    args,
 	}
 	// Add protocol and sequence
 	p.protocol = c.protocol
@@ -554,6 +573,39 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 	}
 	// Log write success
 	c.log(1, "[%d] Sent command packet", p.sequence)
+	return
+}
+
+// Get field packets for a result
+func (c *Client) getFields() (err os.Error) {
+	// Check for a valid result
+	if c.result == nil {
+		err = os.NewError("Need a result set to read fields")
+		return
+	}
+	// Read fields till EOF is returned
+	for {
+		c.sequence++
+		eof, err := c.getResult(PACKET_FIELD | PACKET_EOF)
+		if err != nil {
+			return
+		}
+		if eof {
+			break
+		}
+	}
+	return
+}
+
+// Get next row for a result
+func (c *Client) getRow() (eof bool, err os.Error) {
+	// Check for a valid result
+	if c.result == nil {
+		err = os.NewError("Need a result set to read rows")
+		return
+	}
+	// Read next row packet or EOF
+	eof, err = c.getResult(PACKET_ROW | PACKET_EOF)
 	return
 }
 
@@ -579,6 +631,10 @@ func (c *Client) getResult(types packetType) (eof bool, err os.Error) {
 		err = c.processEOF(p.(*packetEOF))
 	case *packetResultSet:
 		err = c.processResultSetResult(p.(*packetResultSet))
+	case *packetField:
+		err = c.processFieldResult(p.(*packetField))
+	case *packetRowData:
+		err = c.processRowResult(p.(*packetRowData))
 	}
 	return
 }
@@ -603,6 +659,9 @@ func (c *Client) processOKResult(p *packetOK) (err os.Error) {
 		return
 	}
 	// Store packet data
+	c.AffectedRows = p.affectedRows
+	c.LastInsertId = p.insertId
+	c.Warnings = p.warningCount
 	c.serverStatus = ServerStatus(p.serverStatus)
 	// Full logging [level 3]
 	if c.LogLevel > 2 {
@@ -656,5 +715,35 @@ func (c *Client) processResultSetResult(p *packetResultSet) (err os.Error) {
 	c.result = &Result{
 		FieldCount: p.fieldCount,
 	}
+	return
+}
+
+// Process field packet
+func (c *Client) processFieldResult(p *packetField) (err os.Error) {
+	// Log field result
+	c.log(1, "[%d] Received field packet", p.sequence)
+	// Check sequence
+	err = c.checkSequence(p.sequence)
+	if err != nil {
+		return
+	}
+	fmt.Printf("%#v\n", p)
+	// Create new field and add to result
+	// @todo
+	return
+}
+
+// Process row packet
+func (c *Client) processRowResult(p *packetRowData) (err os.Error) {
+	// Log field result
+	c.log(1, "[%d] Received row packet", p.sequence)
+	// Check sequence
+	err = c.checkSequence(p.sequence)
+	if err != nil {
+		return
+	}
+	fmt.Printf("%#v\n", p)
+	// Save row
+	// @todo
 	return
 }

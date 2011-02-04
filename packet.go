@@ -107,12 +107,12 @@ func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err os
 		return
 	}
 	// Check data length
-	if len(data) < n + int(num) {
+	if len(data) < n+int(num) {
 		err = os.EOF
 		return
 	}
 	// Get string
-	s = string(data[n: n+int(num)])
+	s = string(data[n : n+int(num)])
 	n += int(num)
 	return
 }
@@ -363,13 +363,13 @@ func (p *packetEOF) read(data []byte) (err os.Error) {
 	// Check for 4.1 protocol AND 2 available bytes
 	if p.protocol == PROTOCOL_41 && len(data) >= 3 {
 		// Warning count [16 bit uint]
-		p.warningCount = uint16(p.unpackNumber(data[1 : 3]))
+		p.warningCount = uint16(p.unpackNumber(data[1:3]))
 		p.useWarning = true
 	}
 	// Check for 4.1 protocol AND 2 available bytes
 	if p.protocol == PROTOCOL_41 && len(data) == 5 {
 		// Server status [16 bit uint]
-		p.serverStatus = uint16(p.unpackNumber(data[3 : 5]))
+		p.serverStatus = uint16(p.unpackNumber(data[3:5]))
 		p.useStatus = true
 	}
 	return
@@ -486,22 +486,20 @@ func (p *packetResultSet) read(data []byte) (err os.Error) {
 			err = os.NewError(fmt.Sprintf("%s", e))
 		}
 	}()
-	// Position
-	pos := 0
+	// Position and bytes read
+	var pos, n int
 	// Field count [length coded binary]
-	num, n, err := p.readLengthCodedBinary(data[pos:])
+	p.fieldCount, n, err = p.readLengthCodedBinary(data[pos:])
 	if err != nil {
 		return
 	}
-	p.fieldCount = num
 	pos += n
 	// Extra [length coded binary]
 	if pos < len(data) {
-		num, n, err = p.readLengthCodedBinary(data[pos:])
+		p.extra, n, err = p.readLengthCodedBinary(data[pos:])
 		if err != nil {
 			return
 		}
-		p.extra = num
 	}
 	return
 }
@@ -572,7 +570,7 @@ func (p *packetField) read(data []byte) (err os.Error) {
 		}
 		pos += n
 		// Filler
-		pos ++
+		pos++
 		// Charset [16 bit uint]
 		p.charsetNumber = uint16(p.unpackNumber(data[pos : pos+2]))
 		pos += 2
@@ -581,13 +579,13 @@ func (p *packetField) read(data []byte) (err os.Error) {
 		pos += 4
 		// Field type [byte]
 		p.fieldType = data[pos]
-		pos ++
+		pos++
 		// Flags [16 bit uint]
 		p.flags = uint16(p.unpackNumber(data[pos : pos+2]))
 		pos += 2
 		// Decimals [8 bit uint]
 		p.decimals = data[pos]
-		pos ++
+		pos++
 		// Default value [len coded binary]
 		if pos < len(data) {
 			p.defaultVal, _, err = p.readLengthCodedBinary(data[pos:])
@@ -605,7 +603,20 @@ func (p *packetField) read(data []byte) (err os.Error) {
 			return
 		}
 		pos += n
-
+		// Length [weird len coded binary]
+		p.length = uint32(p.unpackNumber(data[pos+1 : pos+4]))
+		pos += 4
+		// Type [weird len coded binary]
+		p.fieldType = data[pos+1]
+		pos += 2
+		// Flags [weird len coded binary]
+		p.flags = uint16(p.unpackNumber(data[pos+1 : pos+3]))
+		pos += 3
+		// Decimals [8 bit uint]
+		p.decimals = data[pos]
+		pos++
+		// Default value [unknown len coded binary]
+		// @todo
 	}
 	return
 }
@@ -613,8 +624,7 @@ func (p *packetField) read(data []byte) (err os.Error) {
 // Row data struct
 type packetRowData struct {
 	packetBase
-	nullBitMap byte
-	values     []string
+	values []string
 }
 
 // Row data packet reader
@@ -626,6 +636,26 @@ func (p *packetRowData) read(data []byte) (err os.Error) {
 		}
 	}()
 	// Position
-	//pos := 0
+	pos := 0
+	// Loop until end of packet
+	for {
+		// Read string
+		str, n, err := p.readLengthCodedString(data[pos:])
+		if err != nil {
+			return
+		}
+		// Add to slice
+		if len(p.values) == 0 {
+			p.values = make([]string, 1)
+			p.values[0] = str
+		} else {
+			p.values = append(p.values, str)
+		}
+		// Increment position and check for end of packet
+		pos += n
+		if pos == len(data) {
+			break
+		}
+	}
 	return
 }

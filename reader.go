@@ -8,7 +8,6 @@ package mysql
 import (
 	"io"
 	"os"
-	"fmt"
 )
 
 // Packet reader struct
@@ -51,11 +50,9 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 	// Unknown packet
 	default:
 		err = os.NewError("Unknown or unexpected packet or packet type")
-		fmt.Printf("%#v\n", pktData)
 	// Initialisation / handshake packet, server > client
 	case types&PACKET_INIT != 0:
 		pk := new(packetInit)
-		pk.protocol = r.protocol
 		pk.sequence = uint8(pktSeq)
 		return pk, pk.read(pktData)
 	// Ok packet
@@ -77,9 +74,19 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 		pk.sequence = uint8(pktSeq)
 		return pk, pk.read(pktData)
 	// Result set packet
-	case types&PACKET_RESULT != 0 && pktData[0] > 0x0 && pktData[0] < 0xff:
+	case types&PACKET_RESULT != 0 && pktData[0] > 0x0 && pktData[0] < 0xfe:
 		pk := new(packetResultSet)
+		pk.sequence = uint8(pktSeq)
+		return pk, pk.read(pktData)
+	// Field packet
+	case types&PACKET_FIELD != 0 && pktData[0] < 0xfe:
+		pk := new(packetField)
 		pk.protocol = r.protocol
+		pk.sequence = uint8(pktSeq)
+		return pk, pk.read(pktData)
+	// Row data packet
+	case types&PACKET_ROW != 0 && pktData[0] < 0xfe:
+		pk := new(packetRowData)
 		pk.sequence = uint8(pktSeq)
 		return pk, pk.read(pktData)
 	}
