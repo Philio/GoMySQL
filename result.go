@@ -9,15 +9,28 @@ package mysql
 type Result struct {
 	// Fields
 	FieldCount uint64
-	fields []*Field
+	fieldPos   uint64
+	fields     []*Field
 	
 	// Rows
-	rows [][]string
+	rows []*Row
 	
-	// Is result stored
+	// Storage
+	mode   byte
 	stored bool
 }
 
 // Field struct
 type Field struct {
+	Database      string
+	Table         string
+	Name          string
+	Length        uint32
+	Type          uint8
+	Flags         uint16
+	Decimals      uint8
+}
+
+// Row struct
+type Row struct {
 }

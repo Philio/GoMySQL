@@ -32,8 +32,13 @@ const (
 	UNIX = "unix"
 
 	// Log methods
-	LOG_SCREEN = 0x00
-	LOG_FILE   = 0x01
+	LOG_SCREEN = 0x0
+	LOG_FILE   = 0x1
+	
+	// Result storage methods
+	RESULT_UNUSED = 0x0
+	RESULT_STORED = 0x1
+	RESULT_USED   = 0x2
 )
 
 // Client struct
@@ -221,8 +226,25 @@ func (c *Client) Query(sql string) (err os.Error) {
 
 // Fetch all rows for a result and store it, returning the result set
 func (c *Client) StoreResult() (result *Result, err os.Error) {
+	// Log store result
+	c.log(1, "=== Begin store result ===")
+	// Check result
+	if c.result == nil {
+		err = os.NewError("A result is required to do this")
+		return
+	}
+	// Check if result already used/stored
+	if c.result.mode != RESULT_UNUSED {
+		err = os.NewError("This result has already been used or stored")
+		return
+	}
+	// Set storage mode
+	c.result.mode = RESULT_STORED
 	// Store fields
-	c.getFields()
+	err = c.getFields()
+	if err != nil {
+		return
+	}
 	// Store all rows
 	for {
 		c.sequence++
@@ -239,7 +261,26 @@ func (c *Client) StoreResult() (result *Result, err os.Error) {
 
 // Use a result set, does not store rows
 func (c *Client) UseResult() (result *Result, err os.Error) {
-	return
+	// Log use result
+	c.log(1, "=== Begin use result ===")
+	// Check result
+	if c.result == nil {
+		err = os.NewError("A result is required to do this")
+		return
+	}
+	// Check if result already used/stored
+	if c.result.mode != RESULT_UNUSED {
+		err = os.NewError("This result has already been used or stored")
+		return
+	}
+	// Set storage mode
+	c.result.mode = RESULT_USED
+	// Store fields
+	err = c.getFields()
+	if err != nil {
+		return
+	}
+	return c.result, nil
 }
 
 // Check if more results are available
@@ -727,9 +768,21 @@ func (c *Client) processFieldResult(p *packetField) (err os.Error) {
 	if err != nil {
 		return
 	}
-	fmt.Printf("%#v\n", p)
+	// Assign fields if needed
+	if len(c.result.fields) == 0 {
+		c.result.fields = make([]*Field, c.result.FieldCount)
+	}
 	// Create new field and add to result
-	// @todo
+	c.result.fields[c.result.fieldPos] = &Field{
+		Database: p.database,
+		Table: p.table,
+		Name: p.name,
+		Length: p.length,
+		Type: p.fieldType,
+		Flags: p.flags,
+		Decimals: p.decimals,
+	}
+	c.result.fieldPos++
 	return
 }
 
