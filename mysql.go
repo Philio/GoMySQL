@@ -34,7 +34,7 @@ const (
 	// Log methods
 	LOG_SCREEN = 0x0
 	LOG_FILE   = 0x1
-	
+
 	// Result storage methods
 	RESULT_UNUSED = 0x0
 	RESULT_STORED = 0x1
@@ -253,6 +253,7 @@ func (c *Client) StoreResult() (result *Result, err os.Error) {
 			return
 		}
 		if eof {
+			c.result.allRead = true
 			break
 		}
 	}
@@ -273,7 +274,8 @@ func (c *Client) UseResult() (result *Result, err os.Error) {
 		err = os.NewError("This result has already been used or stored")
 		return
 	}
-	// Set storage mode
+	// Set client and storage mode
+	c.result.c = c
 	c.result.mode = RESULT_USED
 	// Store fields
 	err = c.getFields()
@@ -754,7 +756,7 @@ func (c *Client) processResultSetResult(p *packetResultSet) (err os.Error) {
 	}
 	// Create new result
 	c.result = &Result{
-		FieldCount: p.fieldCount,
+		fieldCount: p.fieldCount,
 	}
 	return
 }
@@ -770,16 +772,16 @@ func (c *Client) processFieldResult(p *packetField) (err os.Error) {
 	}
 	// Assign fields if needed
 	if len(c.result.fields) == 0 {
-		c.result.fields = make([]*Field, c.result.FieldCount)
+		c.result.fields = make([]*Field, c.result.fieldCount)
 	}
 	// Create new field and add to result
 	c.result.fields[c.result.fieldPos] = &Field{
 		Database: p.database,
-		Table: p.table,
-		Name: p.name,
-		Length: p.length,
-		Type: p.fieldType,
-		Flags: p.flags,
+		Table:    p.table,
+		Name:     p.name,
+		Length:   p.length,
+		Type:     p.fieldType,
+		Flags:    p.flags,
 		Decimals: p.decimals,
 	}
 	c.result.fieldPos++
@@ -795,8 +797,18 @@ func (c *Client) processRowResult(p *packetRowData) (err os.Error) {
 	if err != nil {
 		return
 	}
-	fmt.Printf("%#v\n", p)
-	// Save row
-	// @todo
+	// Stored result
+	if c.result.mode == RESULT_STORED {
+		// Cast and append the row
+		c.result.rows = append(c.result.rows, Row(p.values))
+	}
+	// Used result
+	if c.result.mode == RESULT_USED {
+		// Only save 1 row, overwrite previous
+		if len(c.result.rows) == 0 {
+			c.result.rows = make([]Row, 1)
+		}
+		c.result.rows[0] = Row(p.values)
+	}
 	return
 }

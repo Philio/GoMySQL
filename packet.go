@@ -624,7 +624,7 @@ func (p *packetField) read(data []byte) (err os.Error) {
 // Row data struct
 type packetRowData struct {
 	packetBase
-	values []string
+	values []interface{}
 }
 
 // Row data packet reader
@@ -646,7 +646,7 @@ func (p *packetRowData) read(data []byte) (err os.Error) {
 		}
 		// Add to slice
 		if len(p.values) == 0 {
-			p.values = make([]string, 1)
+			p.values = make([]interface{}, 1)
 			p.values[0] = str
 		} else {
 			p.values = append(p.values, str)

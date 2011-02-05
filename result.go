@@ -7,30 +7,96 @@ package mysql
 
 // Result struct
 type Result struct {
+	// Pointer to the client
+	c *Client
+
 	// Fields
-	FieldCount uint64
+	fieldCount uint64
 	fieldPos   uint64
 	fields     []*Field
-	
+
 	// Rows
-	rows []*Row
-	
+	rowPos uint64
+	rows   []Row
+
 	// Storage
-	mode   byte
-	stored bool
+	mode    byte
+	allRead bool
 }
 
-// Field struct
+// Field type
 type Field struct {
-	Database      string
-	Table         string
-	Name          string
-	Length        uint32
-	Type          uint8
-	Flags         uint16
-	Decimals      uint8
+	Database string
+	Table    string
+	Name     string
+	Length   uint32
+	Type     uint8
+	Flags    uint16
+	Decimals uint8
 }
 
-// Row struct
-type Row struct {
+// Row types
+type Row []interface{}
+type Map map[string]interface{}
+
+// Get field count
+func (r *Result) FieldCount() uint64 {
+	return r.fieldCount
+}
+
+// Fetch all fields
+func (r *Result) FetchFields() []*Field {
+	return r.fields
+}
+
+// Get row count
+func (r *Result) RowCount() uint64 {
+	// Stored mode
+	if r.mode == RESULT_STORED {
+		return uint64(len(r.rows))
+	}
+	return 0
+}
+
+// Fetch a row
+func (r *Result) FetchRow() Row {
+	// Stored result
+	if r.mode == RESULT_STORED {
+		// Check if all rows have been fetched
+		if r.rowPos < uint64(len(r.rows)) {
+			// Increment position and return current row
+			r.rowPos++
+			return r.rows[r.rowPos-1]
+		}
+	}
+	// Used result
+	if r.mode == RESULT_USED {
+		if r.allRead == false {
+			r.c.sequence++
+			eof, err := r.c.getRow()
+			if err != nil {
+				return nil
+			}
+			if eof {
+				r.allRead = true
+			} else {
+				return r.rows[0]
+			}
+		}
+	}
+	return nil
+}
+
+// Fetch a map
+func (r *Result) FetchMap() Map {
+	// Fetch row
+	row := r.FetchRow()
+	if row != nil {
+		rowMap := make(Map)
+		for key, val := range row {
+			rowMap[r.fields[key].Name] = val
+		}
+		return rowMap
+	}
+	return nil
 }
