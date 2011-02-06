@@ -39,6 +39,7 @@ const (
 	RESULT_UNUSED = 0x0
 	RESULT_STORED = 0x1
 	RESULT_USED   = 0x2
+	RESULT_FREE   = 0x3
 )
 
 // Client struct
@@ -128,7 +129,7 @@ func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) 
 	// Log connect
 	c.log(1, "=== Begin connect ===")
 	// Check not already connected
-	if c.connected {
+	if c.checkConn() {
 		err = os.NewError("Already connected")
 		return
 	}
@@ -160,7 +161,7 @@ func (c *Client) Close() (err os.Error) {
 	// Log close
 	c.log(1, "=== Begin close ===")
 	// Check connection
-	if !c.connected {
+	if !c.checkConn() {
 		err = os.NewError("Must be connected to do this")
 		return
 	}
@@ -184,9 +185,9 @@ func (c *Client) Close() (err os.Error) {
 func (c *Client) ChangeDb(dbname string) (err os.Error) {
 	// Log changeDb
 	c.log(1, "=== Begin change db to '%s' ===", dbname)
-	// Check connection
-	if !c.connected {
-		err = os.NewError("Must be connected to do this")
+	// Pre-run checks
+	if !c.checkConn() || c.checkResult() {
+		err = os.NewError("Must be connected and not in a result set")
 		return
 	}
 	// Lock mutex/defer unlock
@@ -206,9 +207,9 @@ func (c *Client) ChangeDb(dbname string) (err os.Error) {
 func (c *Client) Query(sql string) (err os.Error) {
 	// Log query
 	c.log(1, "=== Begin query '%s' ===", sql)
-	// Check connection
-	if !c.connected {
-		err = os.NewError("Must be connected to do this")
+	// Pre-run checks
+	if !c.checkConn() || c.checkResult() {
+		err = os.NewError("Must be connected and not in a result set")
 		return
 	}
 	// Lock mutex/defer unlock
@@ -229,7 +230,7 @@ func (c *Client) StoreResult() (result *Result, err os.Error) {
 	// Log store result
 	c.log(1, "=== Begin store result ===")
 	// Check result
-	if c.result == nil {
+	if !c.checkResult() {
 		err = os.NewError("A result is required to do this")
 		return
 	}
@@ -238,7 +239,8 @@ func (c *Client) StoreResult() (result *Result, err os.Error) {
 		err = os.NewError("This result has already been used or stored")
 		return
 	}
-	// Set storage mode
+	// Set client and storage mode
+	c.result.c = c
 	c.result.mode = RESULT_STORED
 	// Store fields
 	err = c.getFields()
@@ -246,17 +248,11 @@ func (c *Client) StoreResult() (result *Result, err os.Error) {
 		return
 	}
 	// Store all rows
-	for {
-		c.sequence++
-		eof, err := c.getResult(PACKET_ROW | PACKET_EOF)
-		if err != nil {
-			return
-		}
-		if eof {
-			c.result.allRead = true
-			break
-		}
+	err = c.getAllRows()
+	if err != nil {
+		return
 	}
+	c.result.allRead = true
 	return c.result, nil
 }
 
@@ -265,7 +261,7 @@ func (c *Client) UseResult() (result *Result, err os.Error) {
 	// Log use result
 	c.log(1, "=== Begin use result ===")
 	// Check result
-	if c.result == nil {
+	if !c.checkResult() {
 		err = os.NewError("A result is required to do this")
 		return
 	}
@@ -285,13 +281,66 @@ func (c *Client) UseResult() (result *Result, err os.Error) {
 	return c.result, nil
 }
 
-// Check if more results are available
-func (c *Client) MoreResults() (ok bool, err os.Error) {
+// Free the current result
+func (c *Client) FreeResult() (err os.Error) {
+	// Log use result
+	c.log(1, "=== Begin free result ===")
+	// Check result
+	if !c.checkResult() {
+		err = os.NewError("A result is required to do this")
+		return
+	}
+	// Check that result was used/stored
+	if c.result.mode == RESULT_UNUSED {
+		// Read fields
+		err = c.getFields()
+		if err != nil {
+			return
+		}
+	}
+	// Check for unread rows
+	if !c.result.allRead {
+		// Read all rows
+		err = c.getAllRows()
+		if err != nil {
+			return
+		}
+	}
+	// Reset some of the properties to ensure any pointers are "destroyed"
+	c.result.c = nil
+	c.result.fieldCount = 0
+	c.result.fieldPos = 0
+	c.result.fields = nil
+	c.result.rowPos = 0
+	c.result.rows = nil
+	c.result.mode = RESULT_UNUSED
+	c.result.allRead = false
+	// Unset the result
+	c.result = nil
 	return
 }
 
+// Check if more results are available
+func (c *Client) MoreResults() bool {
+	return c.serverStatus & SERVER_MORE_RESULTS_EXISTS > 0
+}
+
 // Move to the next available result
-func (c *Client) NextResult() (ok bool, err os.Error) {
+func (c *Client) NextResult() (err os.Error) {
+	// Log next result
+	c.log(1, "=== Begin next result ===")
+	// Pre-run checks
+	if !c.checkConn() || c.checkResult() {
+		err = os.NewError("Must be connected and not in a result set")
+		return
+	}
+	if !c.MoreResults() {
+		err = os.NewError("No more results available")
+		return
+	}
+	// Read result from server
+	c.sequence++
+	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
 	return
 }
 
@@ -311,7 +360,7 @@ func (c *Client) Rollback() (err os.Error) {
 }
 
 // Escape a string
-func (c *Client) Escape(str string) (esc string) {
+func (c *Client) Escape(s string) (esc string) {
 	return
 }
 
@@ -405,6 +454,22 @@ func (c *Client) reset() {
 	c.result = nil
 }
 
+// Check if connected
+// @todo expand to perform an actual connection check?
+func (c *Client) checkConn() bool {
+	if c.connected {
+		return true
+	}
+	return false
+}
+
+// Check if a result exists
+func (c *Client) checkResult() bool {
+	if c.result != nil {
+		return true
+	}
+	return false
+}
 
 // Performs the actual connect
 func (c *Client) connect() (err os.Error) {
@@ -648,7 +713,22 @@ func (c *Client) getRow() (eof bool, err os.Error) {
 		return
 	}
 	// Read next row packet or EOF
+	c.sequence++
 	eof, err = c.getResult(PACKET_ROW | PACKET_EOF)
+	return
+}
+
+// Get all rows for the result
+func (c *Client) getAllRows() (err os.Error) {
+	for {
+		eof, err := c.getRow()
+		if err != nil {
+			return
+		}
+		if eof {
+			break
+		}
+	}
 	return
 }
 
@@ -741,6 +821,10 @@ func (c *Client) processEOF(p *packetEOF) (err os.Error) {
 	// Store packet data
 	if p.useStatus {
 		c.serverStatus = ServerStatus(p.serverStatus)
+		// Full logging [level 3]
+		if c.LogLevel > 2 {
+			c.logStatus()
+		}
 	}
 	return
 }
@@ -770,6 +854,10 @@ func (c *Client) processFieldResult(p *packetField) (err os.Error) {
 	if err != nil {
 		return
 	}
+	// Check if there is a result set
+	if c.result == nil || c.result.mode == RESULT_FREE {
+		return
+	}
 	// Assign fields if needed
 	if len(c.result.fields) == 0 {
 		c.result.fields = make([]*Field, c.result.fieldCount)
@@ -795,6 +883,10 @@ func (c *Client) processRowResult(p *packetRowData) (err os.Error) {
 	// Check sequence
 	err = c.checkSequence(p.sequence)
 	if err != nil {
+		return
+	}
+	// Check if there is a result set
+	if c.result == nil || c.result.mode == RESULT_FREE {
 		return
 	}
 	// Stored result

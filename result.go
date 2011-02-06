@@ -5,6 +5,8 @@
 // license that can be found in the LICENSE file.
 package mysql
 
+import "os"
+
 // Result struct
 type Result struct {
 	// Pointer to the client
@@ -72,7 +74,6 @@ func (r *Result) FetchRow() Row {
 	// Used result
 	if r.mode == RESULT_USED {
 		if r.allRead == false {
-			r.c.sequence++
 			eof, err := r.c.getRow()
 			if err != nil {
 				return nil
@@ -99,4 +100,10 @@ func (r *Result) FetchMap() Map {
 		return rowMap
 	}
 	return nil
+}
+
+// Free the result
+func (r *Result) Free() (err os.Error) {
+	err = r.c.FreeResult()
+	return
 }
