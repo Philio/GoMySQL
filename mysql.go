@@ -20,7 +20,7 @@ import (
 // Constants
 const (
 	// General
-	VERSION          = "0.3.0-dev"
+	VERSION          = "0.3.0-alpha-1"
 	DEFAULT_PORT     = "3306"
 	DEFAULT_SOCKET   = "/var/run/mysqld/mysqld.sock"
 	MAX_PACKET_SIZE  = 1<<24 - 1
@@ -323,7 +323,7 @@ func (c *Client) FreeResult() (err os.Error) {
 
 // Check if more results are available
 func (c *Client) MoreResults() bool {
-	return c.serverStatus & SERVER_MORE_RESULTS_EXISTS > 0
+	return c.serverStatus&SERVER_MORE_RESULTS_EXISTS > 0
 }
 
 // Move to the next available result

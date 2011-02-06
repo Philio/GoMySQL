@@ -1,5 +1,5 @@
-GoMySQL Version 0.3.0-dev
-=========================
+GoMySQL Version 0.3.0-alpha-1
+=============================
 
 
 Revision History
@@ -7,21 +7,12 @@ Revision History
 
 0.3.x series [development]
 
-This brand new version of GoMySQL is a complete rewrite of the library, focusing on refactoring duplicate code, improving performance, implementing any missing features, resolving any outstanding bugs. As this is a huge task and the authors of the library all work on their spare time, there is no fixed release schedule, however we expect to release a beta version in early Febrary.  
-
-Planned features:  
-
-* New way to handle packets, read first, process later. Reduces code, removes complexity, removes duplication, makes error handling much easier.
-* Numerous new methods, including transaction handling and more advanced result handling.
-* Proper implementation and usage of the server status flags, improves transaction handling, enables proper "more results" check.
-* Full compatibility with all MySQL versions (including pre-4.1), MariaDB and Percona.
-
-Comments and suggestions are always welcome, please visit our Google Group for any discussions related to this new version.  
-
-* 0.3.0 - [WORK IN PROGRESS]
+* 0.3.0-alpha-1 - First test release of new library, completely rewritten from scratch. Fully compatible with all versions of MySQL using the 4.1+ protocol and 4.0 protocol (which supports earlier versions). Fully supports old and new passwords, including old passwords using the 4.1 protocol. Inlcudes new Go style constructors 'NewClient', 'DialTCP', 'DialUnix' replacing 'New' from the 0.2 branch. All structs have been renamed to be more user friendly, MySQL has also now been replaced with Client. Removed many dependancies on external packages such as bufio. New reader that reads the entire packet completely to a slice then processes afterwards. New writer that constructs the entire packet completely to a slice and writes in a single operation. The Client.Query function no longer returns a result set and now uses the tradiation store/use result mechanism for retrieving the result and processing it's contents. The 'MultiQuery' function has been removed as this is now supported by the Client.Query function. Currently all result sets must be freed before another query can be executed either using the Result.Free() method or Client.FreeResult() method, a check for additional result sets can be made using Client.MoreResults() and the next result can be retrieved using Client.NextResult(). Client.FreeResult() is cabable of reading and descarding an entire result set (provided the first result set packet has been read), a partially read result set (e.g. from Client.UseResult) or a fully stored result. Transaction support and prepared statements are NOT available in this alpha release.
 
 0.2.x series [current]
 
+* 0.2.12 - Fix a bug in getPrepareResult() causing queries returning no fields (e.g. DROP TABLE ...) to hang.
+* 0.2.11 - Skipped
 * 0.2.10 - Compatability update for Go release.2011-01-20
 * 0.2.9 - Added support for MySQL 5.5
 * 0.2.8 - Fixes issue #38.
