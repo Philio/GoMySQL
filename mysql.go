@@ -7,6 +7,7 @@ package mysql
 
 // Imports
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -344,8 +345,13 @@ func (c *Client) NextResult() (err os.Error) {
 	return
 }
 
-// Enable or disable autocommit
-func (c *Client) AutoCommit(state bool) (err os.Error) {
+// Set autocommit
+func (c *Client) SetAutoCommit(state bool) (err os.Error) {
+	return
+}
+
+// Start a transaction
+func (c *Client) Start() (err os.Error) {
 	return
 }
 
@@ -361,7 +367,22 @@ func (c *Client) Rollback() (err os.Error) {
 
 // Escape a string
 func (c *Client) Escape(s string) (esc string) {
-	return
+	var prev byte
+	var b bytes.Buffer
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\'', '"':
+			if prev != '\\' {
+				b.WriteString(s[:i])
+				b.WriteByte('\\')
+				s = s[i:]
+				i = 0
+			}
+		}
+		prev = s[i]
+	}
+	b.WriteString(s)
+	return b.String()
 }
 
 // Initialise and prepare a new statement
