@@ -347,22 +347,28 @@ func (c *Client) NextResult() (err os.Error) {
 
 // Set autocommit
 func (c *Client) SetAutoCommit(state bool) (err os.Error) {
-	return
+	sql := "set autocommit="
+	if state {
+		sql += "1"
+	} else {
+		sql += "0"
+	}
+	return c.Query(sql)
 }
 
 // Start a transaction
 func (c *Client) Start() (err os.Error) {
-	return
+	return c.Query("start transaction")
 }
 
 // Commit a transaction
 func (c *Client) Commit() (err os.Error) {
-	return
+	return c.Query("commit")
 }
 
 // Rollback a transaction
 func (c *Client) Rollback() (err os.Error) {
-	return
+	return c.Query("rollback")
 }
 
 // Escape a string
