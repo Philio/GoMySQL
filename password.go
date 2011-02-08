@@ -13,7 +13,7 @@ import (
 const SCRAMBLE_LENGTH_323 = 8
 
 // Random struct, see libmysql/password.c
-type rand struct {
+type randStruct struct {
 	maxValue    uint32
 	maxValueDbl float64
 	seed1       uint32
@@ -21,8 +21,8 @@ type rand struct {
 }
 
 // Initialise rand struct, see libmysql/password.c
-func randominit(seed1, seed2 uint32) *rand {
-	return &rand{
+func randominit(seed1, seed2 uint32) *randStruct {
+	return &randStruct{
 		maxValue:    0x3FFFFFFF,
 		maxValueDbl: 0x3FFFFFFF,
 		seed1:       seed1 % 0x3FFFFFFF,
@@ -31,7 +31,7 @@ func randominit(seed1, seed2 uint32) *rand {
 }
 
 // Generate a random number, see libmysql/password.c
-func (r *rand) myRnd() float64 {
+func (r *randStruct) myRnd() float64 {
 	r.seed1 = (r.seed1*3 + r.seed2) % r.maxValue
 	r.seed2 = (r.seed1 + r.seed2 + 33) % r.maxValue
 	return float64(r.seed1) / r.maxValueDbl

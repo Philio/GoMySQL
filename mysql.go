@@ -163,6 +163,7 @@ func (c *Client) Close() (err os.Error) {
 	c.log(1, "=== Begin close ===")
 	// Check connection
 	if !c.checkConn() {
+		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		err = os.NewError("Must be connected to do this")
 		return
 	}
@@ -188,6 +189,7 @@ func (c *Client) ChangeDb(dbname string) (err os.Error) {
 	c.log(1, "=== Begin change db to '%s' ===", dbname)
 	// Pre-run checks
 	if !c.checkConn() || c.checkResult() {
+		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		err = os.NewError("Must be connected and not in a result set")
 		return
 	}
@@ -210,6 +212,7 @@ func (c *Client) Query(sql string) (err os.Error) {
 	c.log(1, "=== Begin query '%s' ===", sql)
 	// Pre-run checks
 	if !c.checkConn() || c.checkResult() {
+		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		err = os.NewError("Must be connected and not in a result set")
 		return
 	}
@@ -232,11 +235,13 @@ func (c *Client) StoreResult() (result *Result, err os.Error) {
 	c.log(1, "=== Begin store result ===")
 	// Check result
 	if !c.checkResult() {
+		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		err = os.NewError("A result is required to do this")
 		return
 	}
 	// Check if result already used/stored
 	if c.result.mode != RESULT_UNUSED {
+		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		err = os.NewError("This result has already been used or stored")
 		return
 	}
@@ -263,11 +268,13 @@ func (c *Client) UseResult() (result *Result, err os.Error) {
 	c.log(1, "=== Begin use result ===")
 	// Check result
 	if !c.checkResult() {
+		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		err = os.NewError("A result is required to do this")
 		return
 	}
 	// Check if result already used/stored
 	if c.result.mode != RESULT_UNUSED {
+		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		err = os.NewError("This result has already been used or stored")
 		return
 	}
@@ -288,6 +295,7 @@ func (c *Client) FreeResult() (err os.Error) {
 	c.log(1, "=== Begin free result ===")
 	// Check result
 	if !c.checkResult() {
+		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		err = os.NewError("A result is required to do this")
 		return
 	}
@@ -327,16 +335,18 @@ func (c *Client) MoreResults() bool {
 }
 
 // Move to the next available result
-func (c *Client) NextResult() (err os.Error) {
+func (c *Client) NextResult() (more bool, err os.Error) {
 	// Log next result
 	c.log(1, "=== Begin next result ===")
 	// Pre-run checks
 	if !c.checkConn() || c.checkResult() {
+		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		err = os.NewError("Must be connected and not in a result set")
 		return
 	}
-	if !c.MoreResults() {
-		err = os.NewError("No more results available")
+	// Check for more results
+	more = c.MoreResults()
+	if !more {
 		return
 	}
 	// Read result from server
@@ -347,6 +357,9 @@ func (c *Client) NextResult() (err os.Error) {
 
 // Set autocommit
 func (c *Client) SetAutoCommit(state bool) (err os.Error) {
+	// Log set autocommit
+	c.log(1, "=== Begin set autocommit ===")
+	// Use set autocommit query
 	sql := "set autocommit="
 	if state {
 		sql += "1"
@@ -358,16 +371,25 @@ func (c *Client) SetAutoCommit(state bool) (err os.Error) {
 
 // Start a transaction
 func (c *Client) Start() (err os.Error) {
+	// Log start transaction
+	c.log(1, "=== Begin start transaction ===")
+	// Use start transaction query
 	return c.Query("start transaction")
 }
 
 // Commit a transaction
 func (c *Client) Commit() (err os.Error) {
+	// Log commit
+	c.log(1, "=== Begin commit ===")
+	// Use commit query
 	return c.Query("commit")
 }
 
 // Rollback a transaction
 func (c *Client) Rollback() (err os.Error) {
+	// Log rollback
+	c.log(1, "=== Begin rollback ===")
+	// Use rollback query
 	return c.Query("rollback")
 }
 
@@ -393,11 +415,26 @@ func (c *Client) Escape(s string) (esc string) {
 
 // Initialise and prepare a new statement
 func (c *Client) Prepare(sql string) (stmt *Statement, err os.Error) {
+	// Initialise a new statement
+	stmt, err = c.InitStmt()
+	if err != nil {
+		return
+	}
+	// Prepare statement
+	err = stmt.Prepare(sql)
 	return
 }
 
 // Initialise a new statment
-func (c *Client) StmtInit() (stmt *Statement, err os.Error) {
+func (c *Client) InitStmt() (stmt *Statement, err os.Error) {
+	// Check connection
+	if !c.checkConn() {
+		err = os.NewError("Must be connected to do this")
+		return
+	}
+	// Create new statement
+	stmt = new(Statement)
+	stmt.c = c
 	return
 }
 
@@ -478,6 +515,9 @@ func (c *Client) reset() {
 	c.Errno = 0
 	c.Error = ""
 	c.sequence = 0
+	c.AffectedRows = 0
+	c.LastInsertId = 0
+	c.Warnings = 0
 	c.result = nil
 }
 

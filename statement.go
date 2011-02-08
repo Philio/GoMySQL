@@ -5,5 +5,15 @@
 // license that can be found in the LICENSE file.
 package mysql
 
+import (
+	"os"
+)
+
 // Prepared statement struct
-type Statement struct{}
+type Statement struct {
+	c *Client
+}
+
+func (s *Statement) Prepare(sql string) (err os.Error) {
+	return
+}
