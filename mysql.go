@@ -15,12 +15,13 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Constants
 const (
 	// General
-	VERSION          = "0.3.0-alpha-1"
+	VERSION          = "0.3.0-alpha-2"
 	DEFAULT_PORT     = "3306"
 	DEFAULT_SOCKET   = "/var/run/mysqld/mysqld.sock"
 	MAX_PACKET_SIZE  = 1<<24 - 1
@@ -69,6 +70,7 @@ type Client struct {
 	r         *reader
 	w         *writer
 	connected bool
+	Reconnect bool
 
 	// Sequence
 	protocol uint8
@@ -134,9 +136,6 @@ func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) 
 		err = os.NewError("Already connected")
 		return
 	}
-	// Lock mutex/defer unlock
-	c.Lock()
-	defer c.Unlock()
 	// Reset client
 	c.reset()
 	// Store connection credentials
@@ -167,9 +166,6 @@ func (c *Client) Close() (err os.Error) {
 		err = os.NewError("Must be connected to do this")
 		return
 	}
-	// Lock mutex/defer unlock
-	c.Lock()
-	defer c.Unlock()
 	// Reset client
 	c.reset()
 	// Send close command
@@ -185,6 +181,15 @@ func (c *Client) Close() (err os.Error) {
 
 // Change the current database
 func (c *Client) ChangeDb(dbname string) (err os.Error) {
+	// Auto reconnect
+	defer func() {
+		if err != nil && c.checkNet(err) && c.Reconnect {
+			err = c.reconnect()
+			if err == nil {
+				err = c.ChangeDb(dbname)
+			}
+		}
+	}()
 	// Log changeDb
 	c.log(1, "=== Begin change db to '%s' ===", dbname)
 	// Pre-run checks
@@ -193,13 +198,13 @@ func (c *Client) ChangeDb(dbname string) (err os.Error) {
 		err = os.NewError("Must be connected and not in a result set")
 		return
 	}
-	// Lock mutex/defer unlock
-	c.Lock()
-	defer c.Unlock()
 	// Reset client
 	c.reset()
 	// Send close command
-	c.command(COM_INIT_DB, dbname)
+	err = c.command(COM_INIT_DB, dbname)
+	if err != nil {
+		return
+	}
 	// Read result from server
 	c.sequence++
 	_, err = c.getResult(PACKET_OK | PACKET_ERROR)
@@ -208,6 +213,15 @@ func (c *Client) ChangeDb(dbname string) (err os.Error) {
 
 // Send a query/queries to the server
 func (c *Client) Query(sql string) (err os.Error) {
+	// Auto reconnect
+	defer func() {
+		if err != nil && c.checkNet(err) && c.Reconnect {
+			err = c.reconnect()
+			if err == nil {
+				err = c.Query(sql)
+			}
+		}
+	}()
 	// Log query
 	c.log(1, "=== Begin query '%s' ===", sql)
 	// Pre-run checks
@@ -216,13 +230,13 @@ func (c *Client) Query(sql string) (err os.Error) {
 		err = os.NewError("Must be connected and not in a result set")
 		return
 	}
-	// Lock mutex/defer unlock
-	c.Lock()
-	defer c.Unlock()
 	// Reset client
 	c.reset()
 	// Send close command
-	c.command(COM_QUERY, sql)
+	err = c.command(COM_QUERY, sql)
+	if err != nil {
+		return
+	}
 	// Read result from server
 	c.sequence++
 	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
@@ -522,7 +536,7 @@ func (c *Client) reset() {
 }
 
 // Check if connected
-// @todo expand to perform an actual connection check?
+// @todo expand to perform an actual connection check
 func (c *Client) checkConn() bool {
 	if c.connected {
 		return true
@@ -692,6 +706,43 @@ func (c *Client) auth() (err os.Error) {
 	}
 	// Log write success
 	c.log(1, "[%d] Sent authentication packet", p.sequence)
+	return
+}
+
+// Check if a network error occurred
+func (c *Client) checkNet(err os.Error) bool {
+	// EOF check
+	if err == os.EOF || err == io.ErrUnexpectedEOF {
+		c.log(1, "!!! Lost connection to server !!!")
+		c.error(CR_SERVER_GONE_ERROR, CR_SERVER_GONE_ERROR_STR)
+		c.connected = false
+		return true
+	}
+	// OpError check
+	if _, ok := err.(*net.OpError); ok {
+		c.log(1, "!!! Lost connection to server !!!")
+		c.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
+		c.connected = false
+		return true
+	}
+	return false
+}
+
+// Perform reconnect if a network error occurs
+func (c *Client) reconnect() (err os.Error) {
+	// Log auto reconnect
+	c.log(1, "=== Begin auto reconnect attempt ===")
+	// Reset the client
+	c.reset()
+	// Attempt to reconnect
+	for i := 0; i < 10; i ++ {
+		err = c.connect()
+		if err == nil {
+			c.connected = true
+			break
+		}
+		time.Sleep(2000000000)
+	}
 	return
 }
 
