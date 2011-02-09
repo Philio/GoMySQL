@@ -26,6 +26,7 @@ const (
 	CR_PARAMS_NOT_BOUND     Errno = 2031
 	CR_DATA_TRUNCATED       Errno = 2032
 	CR_NO_RESULT_SET        Errno = 2053
+	CR_NOT_IMPLEMENTED      Errno = 2054
 	CR_ALREADY_CONNECTED    Errno = 2058
 )
 
@@ -48,6 +49,7 @@ const (
 	CR_PARAMS_NOT_BOUND_STR     Error = "No data supplied for parameters in prepared statement"
 	CR_DATA_TRUNCATED_STR       Error = "Data truncated"
 	CR_NO_RESULT_SET_STR        Error = "Attempt to read a row while there is no result set associated with the statement"
+	CR_NOT_IMPLEMENTED_STR      Error = "This feature is not implemented yet"
 	CR_ALREADY_CONNECTED_STR    Error = "This handle is already connected"
 )
 

@@ -701,7 +701,7 @@ func (c *Client) reconnect() (err os.Error) {
 	// Reset the client
 	c.reset()
 	// Attempt to reconnect
-	for i := 0; i < 10; i ++ {
+	for i := 0; i < 10; i++ {
 		err = c.connect()
 		if err == nil {
 			c.connected = true
@@ -721,34 +721,34 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 	// No args
 	case COM_QUIT, COM_STATISTICS, COM_PROCESS_INFO, COM_DEBUG, COM_PING:
 		if len(args) != 0 {
-			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 0 but found %d", len(args)))
+			return &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 		}
 	// 1 arg
 	case COM_INIT_DB, COM_QUERY, COM_REFRESH, COM_SHUTDOWN, COM_PROCESS_KILL, COM_STMT_PREPARE, COM_STMT_CLOSE, COM_STMT_RESET:
 		if len(args) != 1 {
-			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 1 but found %d", len(args)))
+			return &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 		}
 	// 1 or 2 args
 	case COM_FIELD_LIST:
 		if len(args) != 1 && len(args) != 2 {
-			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 1 or 2 but found %d", len(args)))
+			return &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 		}
 	// 2 args
 	case COM_STMT_FETCH:
 		if len(args) != 2 {
-			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 2 but found %d", len(args)))
+			return &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 		}
 	// 4 args
 	case COM_CHANGE_USER:
 		if len(args) != 4 {
-			err = os.NewError(fmt.Sprintf("Invalid arg count, expected 4 but found %d", len(args)))
+			return &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 		}
 	// Commands with custom functions
 	case COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA:
-		err = os.NewError("This command should not be used here")
+		return &ClientError{CR_NOT_IMPLEMENTED, CR_NOT_IMPLEMENTED_STR}
 	// Everything else e.g. replication unsupported
 	default:
-		err = os.NewError("This command is unsupported")
+		return &ClientError{CR_NOT_IMPLEMENTED, CR_NOT_IMPLEMENTED_STR}
 	}
 	// Construct packet
 	p := &packetCommand{
@@ -772,8 +772,7 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 func (c *Client) getFields() (err os.Error) {
 	// Check for a valid result
 	if c.result == nil {
-		err = os.NewError("Need a result set to read fields")
-		return
+		return &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
 	}
 	// Read fields till EOF is returned
 	for {
@@ -793,8 +792,7 @@ func (c *Client) getFields() (err os.Error) {
 func (c *Client) getRow() (eof bool, err os.Error) {
 	// Check for a valid result
 	if c.result == nil {
-		err = os.NewError("Need a result set to read rows")
-		return
+		return false, &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
 	}
 	// Read next row packet or EOF
 	c.sequence++
@@ -828,7 +826,7 @@ func (c *Client) getResult(types packetType) (eof bool, err os.Error) {
 	// Process result packet
 	switch i := p.(type) {
 	default:
-		err = os.NewError("Unknown or unexpected packet or packet type")
+		err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 	case *packetOK:
 		err = c.processOKResult(p.(*packetOK))
 	case *packetError:
