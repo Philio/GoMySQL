@@ -25,6 +25,7 @@ const (
 	CR_NO_PREPARE_STMT      Errno = 2030
 	CR_PARAMS_NOT_BOUND     Errno = 2031
 	CR_DATA_TRUNCATED       Errno = 2032
+	CR_NO_RESULT_SET        Errno = 2053
 	CR_ALREADY_CONNECTED    Errno = 2058
 )
 
@@ -35,7 +36,7 @@ const (
 	CR_UNKNOWN_ERROR_STR        Error = "Unknown MySQL error"
 	CR_SOCKET_CREATE_ERROR_STR  Error = "Can't create UNIX socket (%d)"
 	CR_CONNECTION_ERROR_STR     Error = "Can't connect to local MySQL server through socket '%s'"
-	CR_CONN_HOST_ERROR_STR      Error = "Can't connect to MySQL server on '%s' (%d)"
+	CR_CONN_HOST_ERROR_STR      Error = "Can't connect to MySQL server on '%s'"
 	CR_IPSOCK_ERROR_STR         Error = "Can't create TCP/IP socket (%d)"
 	CR_UNKNOWN_HOST_STR         Error = "Uknown MySQL server host '%s' (%d)"
 	CR_SERVER_GONE_ERROR_STR    Error = "MySQL server has gone away"
@@ -46,6 +47,7 @@ const (
 	CR_NO_PREPARE_STMT_STR      Error = "Statement not prepared"
 	CR_PARAMS_NOT_BOUND_STR     Error = "No data supplied for parameters in prepared statement"
 	CR_DATA_TRUNCATED_STR       Error = "Data truncated"
+	CR_NO_RESULT_SET_STR        Error = "Attempt to read a row while there is no result set associated with the statement"
 	CR_ALREADY_CONNECTED_STR    Error = "This handle is already connected"
 )
 

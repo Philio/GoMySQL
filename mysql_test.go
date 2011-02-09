@@ -56,12 +56,12 @@ func TestDialTCP(t *testing.T) {
 	t.Logf("Running DialTCP test to %s:%s", TEST_HOST, TEST_PORT)
 	db, err = DialTCP(TEST_HOST, TEST_USER, TEST_PASSWD, TEST_DBNAME)
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 	err = db.Close()
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 }
@@ -71,12 +71,12 @@ func TestDialUnix(t *testing.T) {
 	t.Logf("Running DialUnix test to %s", TEST_SOCK)
 	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAME)
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 	err = db.Close()
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 }
@@ -86,11 +86,13 @@ func TestDialUnixUnpriv(t *testing.T) {
 	t.Logf("Running DialUnix test to unprivileged database %s", TEST_DBNAMEUP)
 	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAMEUP)
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 	}
-	if db.Errno != 1044 {
-		t.Logf("Error #%d received, expected #1044", db.Errno)
-		t.Fail()
+	if cErr, ok := err.(*ClientError); ok {
+		if cErr.Errno != 1044 {
+			t.Logf("Error #%d received, expected #1044", cErr.Errno)
+			t.Fail()
+		}
 	}
 }
 
@@ -99,11 +101,13 @@ func TestDialUnixNonex(t *testing.T) {
 	t.Logf("Running DialUnix test to nonexistant database %s", TEST_DBNAMEBAD)
 	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAMEBAD)
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 	}
-	if db.Errno != 1044 {
-		t.Logf("Error #%d received, expected #1044", db.Errno)
-		t.Fail()
+	if cErr, ok := err.(*ClientError); ok {
+		if cErr.Errno != 1044 {
+			t.Logf("Error #%d received, expected #1044", cErr.Errno)
+			t.Fail()
+		}
 	}
 }
 
@@ -112,11 +116,13 @@ func TestDialUnixBadPass(t *testing.T) {
 	t.Logf("Running DialUnix test with bad password")
 	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_BAD_PASSWD, TEST_DBNAME)
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 	}
-	if db.Errno != 1045 {
-		t.Logf("Error #%d received, expected #1044", db.Errno)
-		t.Fail()
+	if cErr, ok := err.(*ClientError); ok {
+		if cErr.Errno != 1045 {
+			t.Logf("Error #%d received, expected #1045", cErr.Errno)
+			t.Fail()
+		}
 	}
 }
 
@@ -125,13 +131,13 @@ func TestSimple(t *testing.T) {
 	t.Logf("Running simple table tests")
 	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAME)
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 	t.Logf("Create table")
 	err = db.Query(CREATE_SIMPLE)
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 	t.Logf("Insert 1000 records")
@@ -140,7 +146,7 @@ func TestSimple(t *testing.T) {
 		num, str1, str2 := rand.Int(), randString(32), randString(128)
 		err = db.Query(fmt.Sprintf(INSERT_SIMPLE, num, str1, str2))
 		if err != nil {
-			t.Logf("Error #%d: %s", db.Errno, db.Error)
+			t.Logf("Error %s", err)
 			t.Fail()
 		}
 		row := []string{fmt.Sprintf("%d", num), str1, str2}
@@ -149,13 +155,13 @@ func TestSimple(t *testing.T) {
 	t.Logf("Select inserted data")
 	err = db.Query(SELECT_SIMPLE)
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 	t.Logf("Use result")
 	res, err := db.UseResult()
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 	t.Logf("Validate inserted data")
@@ -174,7 +180,7 @@ func TestSimple(t *testing.T) {
 	t.Logf("Free result")
 	err = res.Free()
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 	t.Logf("Update some records")
@@ -182,7 +188,7 @@ func TestSimple(t *testing.T) {
 		rowMap[i+1][2] = randString(256)
 		err = db.Query(fmt.Sprintf(UPDATE_SIMPLE, rowMap[i+1][2], i+1))
 		if err != nil {
-			t.Logf("Error #%d: %s", db.Errno, db.Error)
+			t.Logf("Error %s", err)
 			t.Fail()
 		}
 		if db.AffectedRows != 1 {
@@ -193,13 +199,13 @@ func TestSimple(t *testing.T) {
 	t.Logf("Select updated data")
 	err = db.Query(SELECT_SIMPLE)
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 	t.Logf("Store result")
 	res, err = db.StoreResult()
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 	t.Logf("Validate updated data")
@@ -219,19 +225,19 @@ func TestSimple(t *testing.T) {
 	t.Logf("Free result")
 	err = res.Free()
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 
 	t.Logf("Drop table")
 	err = db.Query(DROP_SIMPLE)
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 	err = db.Close()
 	if err != nil {
-		t.Logf("Error #%d: %s", db.Errno, db.Error)
+		t.Logf("Error %s", err)
 		t.Fail()
 	}
 }

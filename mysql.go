@@ -49,10 +49,6 @@ type Client struct {
 	// Mutex for thread safety
 	sync.Mutex
 
-	// Errors
-	Errno Errno
-	Error Error
-
 	// Logging
 	LogLevel uint8
 	LogType  uint8
@@ -133,8 +129,7 @@ func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) 
 	c.log(1, "=== Begin connect ===")
 	// Check not already connected
 	if c.checkConn() {
-		err = os.NewError("Already connected")
-		return
+		return &ClientError{CR_ALREADY_CONNECTED, CR_ALREADY_CONNECTED_STR}
 	}
 	// Reset client
 	c.reset()
@@ -162,9 +157,7 @@ func (c *Client) Close() (err os.Error) {
 	c.log(1, "=== Begin close ===")
 	// Check connection
 	if !c.checkConn() {
-		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		err = os.NewError("Must be connected to do this")
-		return
+		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	// Reset client
 	c.reset()
@@ -196,9 +189,7 @@ func (c *Client) ChangeDb(dbname string) (err os.Error) {
 	c.log(1, "=== Begin change db to '%s' ===", dbname)
 	// Pre-run checks
 	if !c.checkConn() || c.checkResult() {
-		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		err = os.NewError("Must be connected and not in a result set")
-		return
+		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	// Reset client
 	c.reset()
@@ -230,9 +221,7 @@ func (c *Client) Query(sql string) (err os.Error) {
 	c.log(1, "=== Begin query '%s' ===", sql)
 	// Pre-run checks
 	if !c.checkConn() || c.checkResult() {
-		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		err = os.NewError("Must be connected and not in a result set")
-		return
+		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	// Reset client
 	c.reset()
@@ -253,15 +242,11 @@ func (c *Client) StoreResult() (result *Result, err os.Error) {
 	c.log(1, "=== Begin store result ===")
 	// Check result
 	if !c.checkResult() {
-		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		err = os.NewError("A result is required to do this")
-		return
+		return nil, &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
 	}
 	// Check if result already used/stored
 	if c.result.mode != RESULT_UNUSED {
-		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		err = os.NewError("This result has already been used or stored")
-		return
+		return nil, &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	// Set client and storage mode
 	c.result.c = c
@@ -286,15 +271,11 @@ func (c *Client) UseResult() (result *Result, err os.Error) {
 	c.log(1, "=== Begin use result ===")
 	// Check result
 	if !c.checkResult() {
-		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		err = os.NewError("A result is required to do this")
-		return
+		return nil, &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
 	}
 	// Check if result already used/stored
 	if c.result.mode != RESULT_UNUSED {
-		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		err = os.NewError("This result has already been used or stored")
-		return
+		return nil, &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	// Set client and storage mode
 	c.result.c = c
@@ -313,9 +294,7 @@ func (c *Client) FreeResult() (err os.Error) {
 	c.log(1, "=== Begin free result ===")
 	// Check result
 	if !c.checkResult() {
-		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		err = os.NewError("A result is required to do this")
-		return
+		return &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
 	}
 	// Check that result was used/stored
 	if c.result.mode == RESULT_UNUSED {
@@ -358,9 +337,7 @@ func (c *Client) NextResult() (more bool, err os.Error) {
 	c.log(1, "=== Begin next result ===")
 	// Pre-run checks
 	if !c.checkConn() || c.checkResult() {
-		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		err = os.NewError("Must be connected and not in a result set")
-		return
+		return //&ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	// Check for more results
 	more = c.MoreResults()
@@ -447,8 +424,7 @@ func (c *Client) Prepare(sql string) (stmt *Statement, err os.Error) {
 func (c *Client) InitStmt() (stmt *Statement, err os.Error) {
 	// Check connection
 	if !c.checkConn() {
-		err = os.NewError("Must be connected to do this")
-		return
+		return nil, &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	// Create new statement
 	stmt = new(Statement)
@@ -456,14 +432,18 @@ func (c *Client) InitStmt() (stmt *Statement, err os.Error) {
 	return
 }
 
-// Error handling
-func (c *Client) error(errno Errno, error Error, args ...interface{}) {
-	c.Errno = errno
-	if len(args) > 0 {
-		c.Error = Error(fmt.Sprintf(string(error), args...))
-	} else {
-		c.Error = error
-	}
+// Reset the client
+func (c *Client) reset() {
+	c.sequence = 0
+	c.AffectedRows = 0
+	c.LastInsertId = 0
+	c.Warnings = 0
+	c.result = nil
+}
+
+// Format errors
+func (c *Client) fmtError(str Error, args ...interface{}) Error {
+	return Error(fmt.Sprintf(string(str), args...))
 }
 
 // Logging
@@ -528,17 +508,6 @@ func (c *Client) logStatus() {
 	c.log(3, "Metadata has changed: %d", c.serverStatus&SERVER_STATUS_METADATA_CHANGED>>10)
 }
 
-// Reset the client
-func (c *Client) reset() {
-	c.Errno = 0
-	c.Error = ""
-	c.sequence = 0
-	c.AffectedRows = 0
-	c.LastInsertId = 0
-	c.Warnings = 0
-	c.result = nil
-}
-
 // Check if connected
 // @todo expand to perform an actual connection check
 func (c *Client) checkConn() bool {
@@ -552,6 +521,16 @@ func (c *Client) checkConn() bool {
 func (c *Client) checkResult() bool {
 	if c.result != nil {
 		return true
+	}
+	return false
+}
+
+// Check if a network error occurred
+func (c *Client) checkNet(err os.Error) bool {
+	if cErr, ok := err.(*ClientError); ok {
+		if cErr.Errno == CR_SERVER_GONE_ERROR || cErr.Errno == CR_SERVER_LOST {
+			return true
+		}
 	}
 	return false
 }
@@ -607,13 +586,15 @@ func (c *Client) dial() (err os.Error) {
 	if err != nil {
 		// Store error state
 		if c.network == UNIX {
-			c.error(CR_CONNECTION_ERROR, CR_CONNECTION_ERROR_STR, c.raddr)
+			err = &ClientError{CR_CONNECTION_ERROR, c.fmtError(CR_CONNECTION_ERROR_STR, c.raddr)}
 		}
 		if c.network == TCP {
-			c.error(CR_CONN_HOST_ERROR, CR_CONN_HOST_ERROR_STR, c.network, c.raddr)
+			err = &ClientError{CR_CONN_HOST_ERROR, c.fmtError(CR_CONN_HOST_ERROR_STR, c.raddr)}
 		}
 		// Log error
-		c.log(1, err.String())
+		if cErr, ok := err.(*ClientError); ok {
+			c.log(1, string(cErr.Error))
+		}
 		return
 	}
 	// Log connect success
@@ -711,16 +692,6 @@ func (c *Client) auth() (err os.Error) {
 	// Log write success
 	c.log(1, "[%d] Sent authentication packet", p.sequence)
 	return
-}
-
-// Check if a network error occurred
-func (c *Client) checkNet(err os.Error) bool {
-	if cErr, ok := err.(*ClientError); ok {
-		if cErr.Errno == CR_SERVER_GONE_ERROR || cErr.Errno == CR_SERVER_LOST {
-			return true
-		}
-	}
-	return false
 }
 
 // Perform reconnect if a network error occurs
@@ -878,9 +849,8 @@ func (c *Client) getResult(types packetType) (eof bool, err os.Error) {
 // Sequence check
 func (c *Client) checkSequence(sequence uint8) (err os.Error) {
 	if sequence != c.sequence {
-		c.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
 		c.log(1, "Sequence doesn't match - expected %d but got %d, commands out of sync", c.sequence, sequence)
-		err = os.NewError("Bad sequence number")
+		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	return
 }
@@ -915,11 +885,8 @@ func (c *Client) processErrorResult(p *packetError) (err os.Error) {
 	if err != nil {
 		return
 	}
-	// Set error
-	c.error(Errno(p.errno), Error(p.error))
-	// Return error string as error
-	err = os.NewError(p.error)
-	return
+	// Return error
+	return &ServerError{Errno(p.errno), Error(p.error)}
 }
 
 // Process EOF packet
