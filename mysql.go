@@ -184,6 +184,8 @@ func (c *Client) ChangeDb(dbname string) (err os.Error) {
 	// Auto reconnect
 	defer func() {
 		if err != nil && c.checkNet(err) && c.Reconnect {
+			c.log(1, "!!! Lost connection to server !!!")
+			c.connected = false
 			err = c.reconnect()
 			if err == nil {
 				err = c.ChangeDb(dbname)
@@ -216,6 +218,8 @@ func (c *Client) Query(sql string) (err os.Error) {
 	// Auto reconnect
 	defer func() {
 		if err != nil && c.checkNet(err) && c.Reconnect {
+			c.log(1, "!!! Lost connection to server !!!")
+			c.connected = false
 			err = c.reconnect()
 			if err == nil {
 				err = c.Query(sql)
@@ -711,19 +715,10 @@ func (c *Client) auth() (err os.Error) {
 
 // Check if a network error occurred
 func (c *Client) checkNet(err os.Error) bool {
-	// EOF check
-	if err == os.EOF || err == io.ErrUnexpectedEOF {
-		c.log(1, "!!! Lost connection to server !!!")
-		c.error(CR_SERVER_GONE_ERROR, CR_SERVER_GONE_ERROR_STR)
-		c.connected = false
-		return true
-	}
-	// OpError check
-	if _, ok := err.(*net.OpError); ok {
-		c.log(1, "!!! Lost connection to server !!!")
-		c.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
-		c.connected = false
-		return true
+	if cErr, ok := err.(*ClientError); ok {
+		if cErr.Errno == CR_SERVER_GONE_ERROR || cErr.Errno == CR_SERVER_LOST {
+			return true
+		}
 	}
 	return false
 }
@@ -795,7 +790,7 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 	// Write packet
 	err = c.w.writePacket(p)
 	if err != nil {
-		return
+		return &ClientError{CR_SERVER_LOST, CR_SERVER_LOST_STR}
 	}
 	// Log write success
 	c.log(1, "[%d] Sent command packet", p.sequence)
