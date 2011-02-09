@@ -7,6 +7,7 @@ package mysql
 
 import (
 	"io"
+	"net"
 	"os"
 )
 
@@ -24,6 +25,23 @@ func newWriter(conn io.ReadWriteCloser) *writer {
 
 // Write packet to the server
 func (w *writer) writePacket(p packetWritable) (err os.Error) {
+	// Deferred error processing
+	defer func() {
+		if err != nil {
+			// EOF errors
+			if err == os.EOF || err == io.ErrUnexpectedEOF {
+				err = &ClientError{CR_SERVER_LOST, CR_SERVER_LOST_STR}
+			}
+			// OpError
+			if _, ok := err.(*net.OpError); ok {
+				err = &ClientError{CR_SERVER_LOST, CR_SERVER_LOST_STR}
+			}
+			// Not ClientError, unknown error
+			if _, ok := err.(*ClientError); !ok {
+				err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
+			}
+		}
+	}()
 	// Get data in binary format
 	pktData, err := p.write()
 	if err != nil {
@@ -35,7 +53,7 @@ func (w *writer) writePacket(p packetWritable) (err os.Error) {
 		return
 	}
 	if nw != len(pktData) {
-		err = os.NewError("Number of bytes written does not match packet length")
+		err = &ClientError{CR_DATA_TRUNCATED, CR_DATA_TRUNCATED_STR}
 	}
 	return
 }

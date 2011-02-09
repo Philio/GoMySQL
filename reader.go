@@ -7,6 +7,7 @@ package mysql
 
 import (
 	"io"
+	"net"
 	"os"
 )
 
@@ -26,6 +27,23 @@ func newReader(conn io.ReadWriteCloser) *reader {
 
 // Read the next packet
 func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
+	// Deferred error processing
+	defer func() {
+		if err != nil {
+			// EOF errors
+			if err == os.EOF || err == io.ErrUnexpectedEOF {
+				err = &ClientError{CR_SERVER_LOST, CR_SERVER_LOST_STR}
+			}
+			// OpError
+			if _, ok := err.(*net.OpError); ok {
+				err = &ClientError{CR_SERVER_LOST, CR_SERVER_LOST_STR}
+			}
+			// Not ClientError, unknown error
+			if _, ok := err.(*ClientError); !ok {
+				err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
+			}
+		}
+	}()
 	// Read packet length
 	pktLen, err := r.readNumber(3)
 	if err != nil {
@@ -43,13 +61,13 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 		return
 	}
 	if nr != int(pktLen) {
-		err = os.NewError("Number of bytes read does not match packet length")
+		err = &ClientError{CR_DATA_TRUNCATED, CR_DATA_TRUNCATED_STR}
 	}
 	// Work out packet type
 	switch {
 	// Unknown packet
 	default:
-		err = os.NewError("Unknown or unexpected packet or packet type")
+		err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 	// Initialisation / handshake packet, server > client
 	case types&PACKET_INIT != 0:
 		pk := new(packetInit)
@@ -95,19 +113,10 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 
 // Read n bytes long number
 func (r *reader) readNumber(n uint8) (num uint64, err os.Error) {
-	// Check max length
-	if n > 8 {
-		err = os.NewError("Cannot read a number greater than 8 bytes long")
-		return
-	}
 	// Read bytes into array
 	buf := make([]byte, n)
 	nr, err := io.ReadFull(r.conn, buf)
-	if err != nil {
-		return
-	}
-	if nr != int(n) {
-		err = os.NewError("Number of bytes read does not match number of bytes requested")
+	if err != nil || nr != int(n) {
 		return
 	}
 	// Convert to uint64

@@ -7,7 +7,6 @@ package mysql
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 )
 
@@ -160,7 +159,7 @@ func (p *packetInit) read(data []byte) (err os.Error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
-			err = os.NewError(fmt.Sprintf("%s", e))
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
 	// Position
@@ -211,6 +210,12 @@ type packetAuth struct {
 
 // Auth packet writer
 func (p *packetAuth) write() (data []byte, err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
+		}
+	}()
 	// For MySQL 4.1+
 	if p.protocol == PROTOCOL_41 {
 		// Client flags
@@ -277,7 +282,7 @@ func (p *packetOK) read(data []byte) (err os.Error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
-			err = os.NewError(fmt.Sprintf("%s", e))
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
 	// Position (skip first byte/field count)
@@ -324,7 +329,7 @@ func (p *packetError) read(data []byte) (err os.Error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
-			err = os.NewError(fmt.Sprintf("%s", e))
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
 	// Position
@@ -357,7 +362,7 @@ func (p *packetEOF) read(data []byte) (err os.Error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
-			err = os.NewError(fmt.Sprintf("%s", e))
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
 	// Check for 4.1 protocol AND 2 available bytes
@@ -383,6 +388,12 @@ type packetPassword struct {
 
 // Password packet writer
 func (p *packetPassword) write() (data []byte, err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
+		}
+	}()
 	// Set scramble
 	data = p.scrambleBuff
 	// Add terminator
@@ -401,10 +412,10 @@ type packetCommand struct {
 
 // Command packet writer
 func (p *packetCommand) write() (data []byte, err os.Error) {
-	// Recover errors (if wrong param type supplied)
+	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
-			err = os.NewError(fmt.Sprintf("%s", e))
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
 	// Make slice from command byte
@@ -483,7 +494,7 @@ func (p *packetResultSet) read(data []byte) (err os.Error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
-			err = os.NewError(fmt.Sprintf("%s", e))
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
 	// Position and bytes read
@@ -526,7 +537,7 @@ func (p *packetField) read(data []byte) (err os.Error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
-			err = os.NewError(fmt.Sprintf("%s", e))
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
 	// Position and bytes read
@@ -632,7 +643,7 @@ func (p *packetRowData) read(data []byte) (err os.Error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
-			err = os.NewError(fmt.Sprintf("%s", e))
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
 	// Position
