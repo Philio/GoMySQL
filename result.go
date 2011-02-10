@@ -46,6 +46,17 @@ func (r *Result) FieldCount() uint64 {
 	return r.fieldCount
 }
 
+// Fetch the next field
+func (r *Result) FetchField() *Field {
+	// Check if all fields have been fetched
+	if r.fieldPos < uint64(len(r.fields)) {
+		// Increment and return current field
+		r.fieldPos ++
+		return r.fields[r.fieldPos-1]
+	}
+	return nil
+}
+
 // Fetch all fields
 func (r *Result) FetchFields() []*Field {
 	return r.fields
@@ -98,6 +109,14 @@ func (r *Result) FetchMap() Map {
 			rowMap[r.fields[key].Name] = val
 		}
 		return rowMap
+	}
+	return nil
+}
+
+// Fetch all rows
+func (r *Result) FetchRows() []Row {
+	if r.mode == RESULT_STORED {
+		return r.rows
 	}
 	return nil
 }

@@ -782,6 +782,7 @@ func (c *Client) getFields() (err os.Error) {
 			return
 		}
 		if eof {
+			c.result.fieldPos = 0
 			break
 		}
 	}
@@ -970,15 +971,12 @@ func (c *Client) processRowResult(p *packetRowData) (err os.Error) {
 	// Stored result
 	if c.result.mode == RESULT_STORED {
 		// Cast and append the row
-		c.result.rows = append(c.result.rows, Row(p.values))
+		c.result.rows = append(c.result.rows, Row(p.row))
 	}
 	// Used result
 	if c.result.mode == RESULT_USED {
 		// Only save 1 row, overwrite previous
-		if len(c.result.rows) == 0 {
-			c.result.rows = make([]Row, 1)
-		}
-		c.result.rows[0] = Row(p.values)
+		c.result.rows = []Row{Row(p.row)}
 	}
 	return
 }

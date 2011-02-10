@@ -107,6 +107,21 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 		pk := new(packetRowData)
 		pk.sequence = uint8(pktSeq)
 		return pk, pk.read(pktData)
+	// Prepare ok packet
+	case types&PACKET_PREPARE_OK != 0 && pktData[0] == 0x0:
+		pk := new(packetPrepareOK)
+		pk.sequence = uint8(pktSeq)
+		return pk, pk.read(pktData)
+	// Param packet
+	case types&PACKET_PARAM != 0 && pktData[0] < 0xfe:
+		pk := new(packetParameter)
+		pk.sequence = uint8(pktSeq)
+		return pk, pk.read(pktData)
+	// Binary row packet
+	case types&PACKET_ROW_BINARY != 0 && pktData[0] < 0xfe:
+		pk := new(packetRowBinary)
+		pk.sequence = uint8(pktSeq)
+		return pk, pk.read(pktData)
 	}
 	return
 }

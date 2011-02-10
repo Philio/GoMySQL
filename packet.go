@@ -24,7 +24,7 @@ const (
 	PACKET_FIELD
 	PACKET_ROW
 	PACKET_EOF
-	PACKET_OK_PREPARED
+	PACKET_PREPARE_OK
 	PACKET_PARAM
 	PACKET_LONG_DATA
 	PACKET_EXECUTE
@@ -635,7 +635,7 @@ func (p *packetField) read(data []byte) (err os.Error) {
 // Row data struct
 type packetRowData struct {
 	packetBase
-	values []interface{}
+	row []interface{}
 }
 
 // Row data packet reader
@@ -656,11 +656,10 @@ func (p *packetRowData) read(data []byte) (err os.Error) {
 			return
 		}
 		// Add to slice
-		if len(p.values) == 0 {
-			p.values = make([]interface{}, 1)
-			p.values[0] = str
+		if len(p.row) == 0 {
+			p.row = []interface{}{str}
 		} else {
-			p.values = append(p.values, str)
+			p.row = append(p.row, str)
 		}
 		// Increment position and check for end of packet
 		pos += n
@@ -668,5 +667,112 @@ func (p *packetRowData) read(data []byte) (err os.Error) {
 			break
 		}
 	}
+	return
+}
+
+// Prepare ok struct
+type packetPrepareOK struct {
+	packetBase
+	statementId  uint32
+	columnCount  uint16
+	paramCount   uint16
+	warningCount uint16
+}
+
+// Prepare ok packet reader
+func (p *packetPrepareOK) read(data []byte) (err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
+		}
+	}()
+	
+	return
+}
+
+// Parameter struct
+type packetParameter struct {
+	packetBase
+	paramType []byte
+	flags     uint16
+	decimals  uint8
+	length    uint32
+}
+
+// Parameter packet reader
+func (p *packetParameter) read(data []byte) (err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
+		}
+	}()
+	return
+}
+
+// Long data struct
+type packetLongData struct {
+	packetBase
+	command     byte
+	statementId uint32
+	paramNumber uint16
+	data        string
+}
+
+// Lond data packet writer
+func (p *packetLongData) write() (data []byte, err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
+		}
+	}()
+	// Add the packet header
+	data = p.addHeader(data)
+	return
+}
+
+// Execute struct
+type packetExecute struct {
+	packetBase
+	command        byte
+	statementId    uint32
+	flags          uint8
+	iterationCount uint32
+	nullBitMap     []byte
+	newParamBound  uint8
+	paramType      [][]byte
+	paramData      [][]byte
+	paramLength    uint32
+}
+
+// Execute packet writer
+func (p *packetExecute) write() (data []byte, err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
+		}
+	}()
+	// Add the packet header
+	data = p.addHeader(data)
+	return
+}
+
+// Binary row struct
+type packetRowBinary struct {
+	packetBase
+	row []interface{}
+}
+
+// Row binary packet reader
+func (p *packetRowBinary) read(data []byte) (err os.Error) {
+	// Recover errors
+	defer func() {
+		if e := recover(); e != nil {
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
+		}
+	}()
 	return
 }
