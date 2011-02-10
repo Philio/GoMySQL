@@ -687,7 +687,19 @@ func (p *packetPrepareOK) read(data []byte) (err os.Error) {
 			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
-	
+	// Position (skip first byte/field count)
+	pos := 1
+	// Statement id [32 bit uint]
+	p.statementId = uint32(p.unpackNumber(data[pos : pos+4]))
+	pos += 4
+	// Column count [16 bit uint]
+	p.columnCount = uint16(p.unpackNumber(data[pos : pos+2]))
+	pos += 2
+	// Param count [16 bit uint]
+	p.paramCount = uint16(p.unpackNumber(data[pos : pos+2]))
+	pos += 2
+	// Warning count [16 bit uint]
+	p.warningCount = uint16(p.unpackNumber(data[pos : pos+2]))
 	return
 }
 
@@ -708,6 +720,7 @@ func (p *packetParameter) read(data []byte) (err os.Error) {
 			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
+	// Ignore packet for now
 	return
 }
 
@@ -717,10 +730,10 @@ type packetLongData struct {
 	command     byte
 	statementId uint32
 	paramNumber uint16
-	data        string
+	data        []byte
 }
 
-// Lond data packet writer
+// Long data packet writer
 func (p *packetLongData) write() (data []byte, err os.Error) {
 	// Recover errors
 	defer func() {
@@ -728,6 +741,14 @@ func (p *packetLongData) write() (data []byte, err os.Error) {
 			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
+	// Make slice from command byte
+	data = []byte{byte(p.command)}
+	// Statement id
+	data = append(data, p.packNumber(uint64(p.statementId), 4)...)
+	// Param number
+	data = append(data, p.packNumber(uint64(p.paramNumber), 2)...)
+	// Data
+	data = append(data, p.data...)
 	// Add the packet header
 	data = p.addHeader(data)
 	return
@@ -744,7 +765,6 @@ type packetExecute struct {
 	newParamBound  uint8
 	paramType      [][]byte
 	paramData      [][]byte
-	paramLength    uint32
 }
 
 // Execute packet writer
@@ -755,6 +775,32 @@ func (p *packetExecute) write() (data []byte, err os.Error) {
 			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
+	// Make slice from command byte
+	data = []byte{byte(p.command)}
+	// Statement id
+	data = append(data, p.packNumber(uint64(p.statementId), 4)...)
+	// Flags
+	data = append(data, p.flags)
+	// IterationCount
+	data = append(data, p.packNumber(uint64(p.iterationCount), 4)...)
+	// Null bit map
+	data = append(data, p.nullBitMap...)
+	// New params bound
+	data = append(data, p.newParamBound)
+	// Param types
+	if p.newParamBound == 0x1 && len(p.paramType) > 0 {
+		for _, v := range p.paramType {
+			data = append(data, v...)
+		}
+	}
+	// Param data
+	if len(p.paramData) > 0 {
+		for _, v := range p.paramData {
+			if len(v) > 0 {
+				data = append(data, v...)
+			}
+		}
+	}
 	// Add the packet header
 	data = p.addHeader(data)
 	return
