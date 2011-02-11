@@ -93,8 +93,10 @@ func (p *packetBase) readLengthCodedBinary(data []byte) (num uint64, n int, err 
 		err = os.EOF
 		return
 	}
-	// Unpack number
-	num = p.unpackNumber(data[1:n])
+	// Get uint64
+	b := make([]byte, 8)
+	copy(b, data[1:n])
+	num = btoui64(b)
 	return
 }
 
@@ -116,26 +118,9 @@ func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err os
 	return
 }
 
-// Convert byte array into a number
-func (p *packetBase) unpackNumber(data []byte) (num uint64) {
-	for i := uint8(0); i < uint8(len(data)); i++ {
-		num |= uint64(data[i]) << (i * 8)
-	}
-	return
-}
-
-// Convert number into a byte array
-func (p *packetBase) packNumber(num uint64, n uint8) (bytes []byte) {
-	bytes = make([]byte, n)
-	for i := uint8(0); i < n; i++ {
-		bytes[i] = byte(num >> (i * 8))
-	}
-	return
-}
-
 // Prepend packet data with header info
 func (p *packetBase) addHeader(data []byte) (pkt []byte) {
-	pkt = p.packNumber(uint64(len(data)), 3)
+	pkt = ui24tob(uint32(len(data)))
 	pkt = append(pkt, p.sequence)
 	pkt = append(pkt, data...)
 	return
@@ -175,20 +160,20 @@ func (p *packetInit) read(data []byte) (err os.Error) {
 	p.serverVersion = string(slice)
 	pos += len(slice) + 1
 	// Thread id [32 bit uint]
-	p.threadId = uint32(p.unpackNumber(data[pos : pos+4]))
+	p.threadId = btoui32(data[pos : pos+4])
 	pos += 4
 	// First part of scramble buffer [8 bytes]
 	p.scrambleBuff = make([]byte, 8)
 	p.scrambleBuff = data[pos : pos+8]
 	pos += 9
 	// Server capabilities [16 bit uint]
-	p.serverCaps = uint16(p.unpackNumber(data[pos : pos+2]))
+	p.serverCaps = btoui16(data[pos : pos+2])
 	pos += 2
 	// Server language [8 bit uint]
 	p.serverLanguage = data[pos]
 	pos++
 	// Server status [16 bit uint]
-	p.serverStatus = uint16(p.unpackNumber(data[pos : pos+2]))
+	p.serverStatus = btoui16(data[pos : pos+2])
 	pos += 15
 	// Second part of scramble buffer, if exists (4.1+) [13 bytes]
 	if ClientFlag(p.serverCaps)&CLIENT_PROTOCOL_41 > 0 {
@@ -219,9 +204,9 @@ func (p *packetAuth) write() (data []byte, err os.Error) {
 	// For MySQL 4.1+
 	if p.protocol == PROTOCOL_41 {
 		// Client flags
-		data = p.packNumber(uint64(p.clientFlags), 4)
+		data = ui32tob(p.clientFlags)
 		// Max packet size
-		data = append(data, p.packNumber(uint64(p.maxPacketSize), 4)...)
+		data = append(data, ui32tob(p.maxPacketSize)...)
 		// Charset
 		data = append(data, p.charsetNumber)
 		// Filler
@@ -246,9 +231,9 @@ func (p *packetAuth) write() (data []byte, err os.Error) {
 		// For MySQL < 4.1
 	} else {
 		// Client flags
-		data = p.packNumber(uint64(p.clientFlags), 2)
+		data = ui16tob(uint16(p.clientFlags))
 		// Max packet size
-		data = append(data, p.packNumber(uint64(p.maxPacketSize), 3)...)
+		data = append(data, ui24tob(p.maxPacketSize)...)
 		// User
 		if len(p.user) > 0 {
 			data = append(data, []byte(p.user)...)
@@ -302,11 +287,11 @@ func (p *packetOK) read(data []byte) (err os.Error) {
 	p.insertId = num
 	pos += n
 	// Server status [16 bit uint]
-	p.serverStatus = uint16(p.unpackNumber(data[pos : pos+2]))
+	p.serverStatus = btoui16(data[pos : pos+2])
 	pos += 2
 	// Warning (4.1 only) [16 bit uint]
 	if p.protocol == PROTOCOL_41 {
-		p.warningCount = uint16(p.unpackNumber(data[pos : pos+2]))
+		p.warningCount = btoui16(data[pos : pos+2])
 		pos += 2
 	}
 	// Message (optional) [string]
@@ -335,7 +320,7 @@ func (p *packetError) read(data []byte) (err os.Error) {
 	// Position
 	pos := 1
 	// Error number [16 bit uint]
-	p.errno = uint16(p.unpackNumber(data[pos : pos+2]))
+	p.errno = btoui16(data[pos : pos+2])
 	pos += 2
 	// State (4.1 only) [string]
 	if p.protocol == PROTOCOL_41 {
@@ -368,13 +353,13 @@ func (p *packetEOF) read(data []byte) (err os.Error) {
 	// Check for 4.1 protocol AND 2 available bytes
 	if p.protocol == PROTOCOL_41 && len(data) >= 3 {
 		// Warning count [16 bit uint]
-		p.warningCount = uint16(p.unpackNumber(data[1:3]))
+		p.warningCount = btoui16(data[1:3])
 		p.useWarning = true
 	}
 	// Check for 4.1 protocol AND 2 available bytes
 	if p.protocol == PROTOCOL_41 && len(data) == 5 {
 		// Server status [16 bit uint]
-		p.serverStatus = uint16(p.unpackNumber(data[3:5]))
+		p.serverStatus = btoui16(data[3:5])
 		p.useStatus = true
 	}
 	return
@@ -427,7 +412,7 @@ func (p *packetCommand) write() (data []byte, err os.Error) {
 		data = append(data, []byte(p.args[0].(string))...)
 	// Commands with 1 arg 32 bit uint
 	case COM_PROCESS_KILL, COM_STMT_CLOSE, COM_STMT_RESET:
-		data = append(data, p.packNumber(uint64(p.args[0].(uint32)), 4)...)
+		data = append(data, ui32tob(p.args[0].(uint32))...)
 	// Field list command
 	case COM_FIELD_LIST:
 		// Table name
@@ -469,13 +454,13 @@ func (p *packetCommand) write() (data []byte, err os.Error) {
 		// Terminator
 		data = append(data, 0x00)
 		// Character set number (5.1.23+ needs testing with earlier versions)
-		data = append(data, p.packNumber(uint64(p.args[3].(uint16)), 2)...)
+		data = append(data, ui16tob(p.args[3].(uint16))...)
 	// Fetch statement command
 	case COM_STMT_FETCH:
 		// Statement id
-		data = append(data, p.packNumber(uint64(p.args[0].(uint32)), 4)...)
+		data = append(data, ui32tob(p.args[0].(uint32))...)
 		// Number of rows
-		data = append(data, p.packNumber(uint64(p.args[1].(uint32)), 4)...)
+		data = append(data, ui32tob(p.args[1].(uint32))...)
 	}
 	// Add the packet header
 	data = p.addHeader(data)
@@ -583,16 +568,16 @@ func (p *packetField) read(data []byte) (err os.Error) {
 		// Filler
 		pos++
 		// Charset [16 bit uint]
-		p.charsetNumber = uint16(p.unpackNumber(data[pos : pos+2]))
+		p.charsetNumber = btoui16(data[pos : pos+2])
 		pos += 2
 		// Length [32 bit uint]
-		p.length = uint32(p.unpackNumber(data[pos : pos+4]))
+		p.length = btoui32(data[pos : pos+4])
 		pos += 4
 		// Field type [byte]
 		p.fieldType = data[pos]
 		pos++
 		// Flags [16 bit uint]
-		p.flags = uint16(p.unpackNumber(data[pos : pos+2]))
+		p.flags = btoui16(data[pos : pos+2])
 		pos += 2
 		// Decimals [8 bit uint]
 		p.decimals = data[pos]
@@ -615,13 +600,13 @@ func (p *packetField) read(data []byte) (err os.Error) {
 		}
 		pos += n
 		// Length [weird len coded binary]
-		p.length = uint32(p.unpackNumber(data[pos+1 : pos+4]))
+		p.length = btoui32(data[pos+1 : pos+4])
 		pos += 4
 		// Type [weird len coded binary]
 		p.fieldType = data[pos+1]
 		pos += 2
 		// Flags [weird len coded binary]
-		p.flags = uint16(p.unpackNumber(data[pos+1 : pos+3]))
+		p.flags = btoui16(data[pos+1 : pos+3])
 		pos += 3
 		// Decimals [8 bit uint]
 		p.decimals = data[pos]
@@ -690,16 +675,16 @@ func (p *packetPrepareOK) read(data []byte) (err os.Error) {
 	// Position (skip first byte/field count)
 	pos := 1
 	// Statement id [32 bit uint]
-	p.statementId = uint32(p.unpackNumber(data[pos : pos+4]))
+	p.statementId = btoui32(data[pos : pos+4])
 	pos += 4
 	// Column count [16 bit uint]
-	p.columnCount = uint16(p.unpackNumber(data[pos : pos+2]))
+	p.columnCount = btoui16(data[pos : pos+2])
 	pos += 2
 	// Param count [16 bit uint]
-	p.paramCount = uint16(p.unpackNumber(data[pos : pos+2]))
+	p.paramCount = btoui16(data[pos : pos+2])
 	pos += 2
 	// Warning count [16 bit uint]
-	p.warningCount = uint16(p.unpackNumber(data[pos : pos+2]))
+	p.warningCount = btoui16(data[pos : pos+2])
 	return
 }
 
@@ -744,9 +729,9 @@ func (p *packetLongData) write() (data []byte, err os.Error) {
 	// Make slice from command byte
 	data = []byte{byte(p.command)}
 	// Statement id
-	data = append(data, p.packNumber(uint64(p.statementId), 4)...)
+	data = append(data, ui32tob(p.statementId)...)
 	// Param number
-	data = append(data, p.packNumber(uint64(p.paramNumber), 2)...)
+	data = append(data, ui16tob(p.paramNumber)...)
 	// Data
 	data = append(data, p.data...)
 	// Add the packet header
@@ -778,11 +763,11 @@ func (p *packetExecute) write() (data []byte, err os.Error) {
 	// Make slice from command byte
 	data = []byte{byte(p.command)}
 	// Statement id
-	data = append(data, p.packNumber(uint64(p.statementId), 4)...)
+	data = append(data, ui32tob(p.statementId)...)
 	// Flags
 	data = append(data, p.flags)
 	// IterationCount
-	data = append(data, p.packNumber(uint64(p.iterationCount), 4)...)
+	data = append(data, ui32tob(p.iterationCount)...)
 	// Null bit map
 	data = append(data, p.nullBitMap...)
 	// New params bound

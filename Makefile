@@ -8,6 +8,7 @@ GOFILES=mysql.go\
         reader.go\
         writer.go\
         packet.go\
+	convert.go\
         result.go\
         statement.go
  
