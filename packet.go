@@ -102,6 +102,16 @@ func (p *packetBase) readLengthCodedBinary(data []byte) (num uint64, n int, err 
 
 // Read length coded string
 func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err os.Error) {
+	// Read bytes and convert to string
+	b, n, err := p.readLengthCodedBytes(data)
+	if err != nil {
+		return
+	}
+	s = string(b) 
+	return
+}
+
+func (p *packetBase) readLengthCodedBytes(data []byte) (b []byte, n int, err os.Error) {
 	// Get string length
 	num, n, err := p.readLengthCodedBinary(data)
 	if err != nil {
@@ -112,8 +122,8 @@ func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err os
 		err = os.EOF
 		return
 	}
-	// Get string
-	s = string(data[n : n+int(num)])
+	// Get bytes
+	b = data[n : n+int(num)]
 	n += int(num)
 	return
 }
@@ -636,15 +646,15 @@ func (p *packetRowData) read(data []byte) (err os.Error) {
 	// Loop until end of packet
 	for {
 		// Read string
-		str, n, err := p.readLengthCodedString(data[pos:])
+		b, n, err := p.readLengthCodedBytes(data[pos:])
 		if err != nil {
 			return
 		}
 		// Add to slice
 		if len(p.row) == 0 {
-			p.row = []interface{}{str}
+			p.row = []interface{}{b}
 		} else {
-			p.row = append(p.row, str)
+			p.row = append(p.row, b)
 		}
 		// Increment position and check for end of packet
 		pos += n
