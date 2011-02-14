@@ -200,7 +200,7 @@ func (c *Client) ChangeDb(dbname string) (err os.Error) {
 	}
 	// Read result from server
 	c.sequence++
-	_, err = c.getResult(PACKET_OK | PACKET_ERROR)
+	_, err = c.getResult(PACKET_OK | PACKET_ERROR, nil)
 	return
 }
 
@@ -232,7 +232,12 @@ func (c *Client) Query(sql string) (err os.Error) {
 	}
 	// Read result from server
 	c.sequence++
-	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
+	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT, nil)
+	if err != nil || c.result == nil {
+		return
+	}
+	// Store fields
+	err = c.getFields()
 	return
 }
 
@@ -248,14 +253,8 @@ func (c *Client) StoreResult() (result *Result, err os.Error) {
 	if c.result.mode != RESULT_UNUSED {
 		return nil, &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
-	// Set client and storage mode
-	c.result.c = c
+	// Set storage mode
 	c.result.mode = RESULT_STORED
-	// Store fields
-	err = c.getFields()
-	if err != nil {
-		return
-	}
 	// Store all rows
 	err = c.getAllRows()
 	if err != nil {
@@ -277,14 +276,8 @@ func (c *Client) UseResult() (result *Result, err os.Error) {
 	if c.result.mode != RESULT_UNUSED {
 		return nil, &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
-	// Set client and storage mode
-	c.result.c = c
+	// Set storage mode
 	c.result.mode = RESULT_USED
-	// Store fields
-	err = c.getFields()
-	if err != nil {
-		return
-	}
 	return c.result, nil
 }
 
@@ -295,14 +288,6 @@ func (c *Client) FreeResult() (err os.Error) {
 	// Check result
 	if !c.checkResult() {
 		return &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
-	}
-	// Check that result was used/stored
-	if c.result.mode == RESULT_UNUSED {
-		// Read fields
-		err = c.getFields()
-		if err != nil {
-			return
-		}
 	}
 	// Check for unread rows
 	if !c.result.allRead {
@@ -346,7 +331,7 @@ func (c *Client) NextResult() (more bool, err os.Error) {
 	}
 	// Read result from server
 	c.sequence++
-	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
+	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT, nil)
 	return
 }
 
@@ -556,7 +541,7 @@ func (c *Client) connect() (err os.Error) {
 	}
 	// Read result from server
 	c.sequence++
-	eof, err := c.getResult(PACKET_OK | PACKET_ERROR | PACKET_EOF)
+	eof, err := c.getResult(PACKET_OK | PACKET_ERROR | PACKET_EOF, nil)
 	// If eof need to authenticate with a 3.23 password
 	if eof {
 		c.sequence++
@@ -573,7 +558,7 @@ func (c *Client) connect() (err os.Error) {
 		c.log(1, "[%d] Sent old password packet", p.sequence)
 		// Read result
 		c.sequence++
-		_, err = c.getResult(PACKET_OK | PACKET_ERROR)
+		_, err = c.getResult(PACKET_OK | PACKET_ERROR, nil)
 	}
 	return
 }
@@ -778,7 +763,7 @@ func (c *Client) getFields() (err os.Error) {
 	// Read fields till EOF is returned
 	for {
 		c.sequence++
-		eof, err := c.getResult(PACKET_FIELD | PACKET_EOF)
+		eof, err := c.getResult(PACKET_FIELD | PACKET_EOF, nil)
 		if err != nil {
 			return
 		}
@@ -798,7 +783,7 @@ func (c *Client) getRow() (eof bool, err os.Error) {
 	}
 	// Read next row packet or EOF
 	c.sequence++
-	eof, err = c.getResult(PACKET_ROW | PACKET_EOF)
+	eof, err = c.getResult(PACKET_ROW | PACKET_EOF, nil)
 	return
 }
 
@@ -817,7 +802,7 @@ func (c *Client) getAllRows() (err os.Error) {
 }
 
 // Get result
-func (c *Client) getResult(types packetType) (eof bool, err os.Error) {
+func (c *Client) getResult(types packetType, s *Statement) (eof bool, err os.Error) {
 	// Log read result
 	c.log(1, "Reading result packet from server")
 	// Get result packet
@@ -842,6 +827,10 @@ func (c *Client) getResult(types packetType) (eof bool, err os.Error) {
 		err = c.processFieldResult(p.(*packetField))
 	case *packetRowData:
 		err = c.processRowResult(p.(*packetRowData))
+	case *packetPrepareOK:
+		err = s.processPrepareOKResult(p.(*packetPrepareOK))
+	case *packetParameter:
+		err = s.processParamResult(p.(*packetParameter))
 	}
 	return
 }
@@ -925,6 +914,7 @@ func (c *Client) processResultSetResult(p *packetResultSet) (err os.Error) {
 	}
 	// Create new result
 	c.result = &Result{
+		c: c,
 		fieldCount: p.fieldCount,
 	}
 	return

@@ -21,7 +21,7 @@ type Statement struct {
 	paramCount uint16
 	
 	// Fields
-	fieldCount uint16
+	fieldCount uint64
 }
 
 // Prepare new statement
@@ -41,7 +41,7 @@ func (s *Statement) Prepare(sql string) (err os.Error) {
 	}
 	// Read result from server
 	s.c.sequence++
-	_, err = s.getResult(PACKET_PREPARE_OK | PACKET_ERROR)
+	_, err = s.c.getResult(PACKET_PREPARE_OK | PACKET_ERROR, s)
 	if err != nil {
 		return
 	}
@@ -49,7 +49,7 @@ func (s *Statement) Prepare(sql string) (err os.Error) {
 	if s.paramCount > 0 {
 		for {
 			s.c.sequence++
-			eof, err := s.getResult(PACKET_PARAM | PACKET_EOF)
+			eof, err := s.c.getResult(PACKET_PARAM | PACKET_EOF, s)
 			if err != nil {
 				return
 			}
@@ -58,31 +58,22 @@ func (s *Statement) Prepare(sql string) (err os.Error) {
 			}
 		}
 	}
-	return
-}
-
-// Get result
-func (s *Statement) getResult(types packetType) (eof bool, err os.Error) {
-	// Log read result
-	s.c.log(1, "Reading result packet from server")
-	// Get result packet
-	p, err := s.c.r.readPacket(types)
-	if err != nil {
-		return
-	}
-	// Process result packet
-	switch i := p.(type) {
-	default:
-		err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
-	case *packetPrepareOK:
-		err = s.processPrepareOKResult(p.(*packetPrepareOK))
-	case *packetError:
-		err = s.c.processErrorResult(p.(*packetError))
-	case *packetParameter:
-		err = s.processParamResult(p.(*packetParameter))
-	case *packetEOF:
-		eof = true
-		err = s.c.processEOF(p.(*packetEOF))
+	// Read field packets
+	if s.fieldCount > 0 {
+		// Create a new result
+		s.c.result = &Result{
+			fieldCount: s.fieldCount,
+		}
+		for {
+			s.c.sequence++
+			eof, err := s.c.getResult(PACKET_FIELD | PACKET_EOF, s)
+			if err != nil {
+				return
+			}
+			if eof {
+				break
+			}
+		}
 	}
 	return
 }
@@ -99,7 +90,7 @@ func (s *Statement) processPrepareOKResult(p *packetPrepareOK) (err os.Error) {
 	// Store packet data
 	s.statementId = p.statementId
 	s.paramCount = p.paramCount
-	s.fieldCount = p.columnCount
+	s.fieldCount = uint64(p.columnCount)
 	s.c.Warnings = p.warningCount
 	return
 }
