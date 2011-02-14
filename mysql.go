@@ -225,7 +225,7 @@ func (c *Client) Query(sql string) (err os.Error) {
 	}
 	// Reset client
 	c.reset()
-	// Send close command
+	// Send query command
 	err = c.command(COM_QUERY, sql)
 	if err != nil {
 		return
@@ -408,18 +408,6 @@ func (c *Client) Escape(s string) (esc string) {
 	return b.String()
 }
 
-// Initialise and prepare a new statement
-func (c *Client) Prepare(sql string) (stmt *Statement, err os.Error) {
-	// Initialise a new statement
-	stmt, err = c.InitStmt()
-	if err != nil {
-		return
-	}
-	// Prepare statement
-	err = stmt.Prepare(sql)
-	return
-}
-
 // Initialise a new statment
 func (c *Client) InitStmt() (stmt *Statement, err os.Error) {
 	// Check connection
@@ -432,9 +420,22 @@ func (c *Client) InitStmt() (stmt *Statement, err os.Error) {
 	return
 }
 
+// Initialise and prepare a new statement
+func (c *Client) Prepare(sql string) (stmt *Statement, err os.Error) {
+	// Initialise a new statement
+	stmt, err = c.InitStmt()
+	if err != nil {
+		return
+	}
+	// Prepare statement
+	err = stmt.Prepare(sql)
+	return
+}
+
 // Reset the client
 func (c *Client) reset() {
 	c.sequence = 0
+	c.serverStatus = 0
 	c.AffectedRows = 0
 	c.LastInsertId = 0
 	c.Warnings = 0
@@ -825,7 +826,7 @@ func (c *Client) getResult(types packetType) (eof bool, err os.Error) {
 		return
 	}
 	// Process result packet
-	switch i := p.(type) {
+	switch p.(type) {
 	default:
 		err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 	case *packetOK:
@@ -883,6 +884,11 @@ func (c *Client) processErrorResult(p *packetError) (err os.Error) {
 	err = c.checkSequence(p.sequence)
 	if err != nil {
 		return
+	}
+	// Check and unset more results flag
+	// @todo maybe serverStatus should just be zeroed?
+	if c.MoreResults() {
+		c.serverStatus ^= SERVER_MORE_RESULTS_EXISTS
 	}
 	// Return error
 	return &ServerError{Errno(p.errno), Error(p.error)}
