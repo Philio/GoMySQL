@@ -200,7 +200,7 @@ func (c *Client) ChangeDb(dbname string) (err os.Error) {
 	}
 	// Read result from server
 	c.sequence++
-	_, err = c.getResult(PACKET_OK | PACKET_ERROR, nil)
+	_, err = c.getResult(PACKET_OK | PACKET_ERROR)
 	return
 }
 
@@ -232,7 +232,7 @@ func (c *Client) Query(sql string) (err os.Error) {
 	}
 	// Read result from server
 	c.sequence++
-	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT, nil)
+	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
 	if err != nil || c.result == nil {
 		return
 	}
@@ -322,7 +322,7 @@ func (c *Client) NextResult() (more bool, err os.Error) {
 	c.log(1, "=== Begin next result ===")
 	// Pre-run checks
 	if !c.checkConn() || c.checkResult() {
-		return //&ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
+		return false, &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	// Check for more results
 	more = c.MoreResults()
@@ -331,7 +331,7 @@ func (c *Client) NextResult() (more bool, err os.Error) {
 	}
 	// Read result from server
 	c.sequence++
-	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT, nil)
+	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
 	return
 }
 
@@ -541,7 +541,7 @@ func (c *Client) connect() (err os.Error) {
 	}
 	// Read result from server
 	c.sequence++
-	eof, err := c.getResult(PACKET_OK | PACKET_ERROR | PACKET_EOF, nil)
+	eof, err := c.getResult(PACKET_OK | PACKET_ERROR | PACKET_EOF)
 	// If eof need to authenticate with a 3.23 password
 	if eof {
 		c.sequence++
@@ -558,7 +558,7 @@ func (c *Client) connect() (err os.Error) {
 		c.log(1, "[%d] Sent old password packet", p.sequence)
 		// Read result
 		c.sequence++
-		_, err = c.getResult(PACKET_OK | PACKET_ERROR, nil)
+		_, err = c.getResult(PACKET_OK | PACKET_ERROR)
 	}
 	return
 }
@@ -763,7 +763,7 @@ func (c *Client) getFields() (err os.Error) {
 	// Read fields till EOF is returned
 	for {
 		c.sequence++
-		eof, err := c.getResult(PACKET_FIELD | PACKET_EOF, nil)
+		eof, err := c.getResult(PACKET_FIELD | PACKET_EOF)
 		if err != nil {
 			return
 		}
@@ -783,7 +783,7 @@ func (c *Client) getRow() (eof bool, err os.Error) {
 	}
 	// Read next row packet or EOF
 	c.sequence++
-	eof, err = c.getResult(PACKET_ROW | PACKET_EOF, nil)
+	eof, err = c.getResult(PACKET_ROW | PACKET_EOF)
 	return
 }
 
@@ -802,7 +802,7 @@ func (c *Client) getAllRows() (err os.Error) {
 }
 
 // Get result
-func (c *Client) getResult(types packetType, s *Statement) (eof bool, err os.Error) {
+func (c *Client) getResult(types packetType) (eof bool, err os.Error) {
 	// Log read result
 	c.log(1, "Reading result packet from server")
 	// Get result packet
@@ -827,10 +827,6 @@ func (c *Client) getResult(types packetType, s *Statement) (eof bool, err os.Err
 		err = c.processFieldResult(p.(*packetField))
 	case *packetRowData:
 		err = c.processRowResult(p.(*packetRowData))
-	case *packetPrepareOK:
-		err = s.processPrepareOKResult(p.(*packetPrepareOK))
-	case *packetParameter:
-		err = s.processParamResult(p.(*packetParameter))
 	}
 	return
 }
@@ -914,7 +910,7 @@ func (c *Client) processResultSetResult(p *packetResultSet) (err os.Error) {
 	}
 	// Create new result
 	c.result = &Result{
-		c: c,
+		c:          c,
 		fieldCount: p.fieldCount,
 	}
 	return

@@ -20,7 +20,7 @@ func itob(n int) []byte {
 
 // bytes to uint
 func btoui(b []byte) (n uint) {
-	for i := uint8(0); i < uint8(strconv.IntSize) / 8; i++ {
+	for i := uint8(0); i < uint8(strconv.IntSize)/8; i++ {
 		n |= uint(b[i]) << (i * 8)
 	}
 	return
@@ -28,8 +28,8 @@ func btoui(b []byte) (n uint) {
 
 // uint to bytes
 func uitob(n uint) (b []byte) {
-	b = make([]byte, strconv.IntSize / 8)
-	for i := uint8(0); i < uint8(strconv.IntSize) / 8; i++ {
+	b = make([]byte, strconv.IntSize/8)
+	for i := uint8(0); i < uint8(strconv.IntSize)/8; i++ {
 		b[i] = byte(n >> (i * 8))
 	}
 	return
@@ -63,7 +63,7 @@ func ui16tob(n uint16) (b []byte) {
 // bytes to int24
 func btoi24(b []byte) (n int32) {
 	u := btoui24(b)
-	if u & 0x800000 != 0 {
+	if u&0x800000 != 0 {
 		u |= 0xff000000
 	}
 	n = int32(u)

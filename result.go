@@ -51,7 +51,7 @@ func (r *Result) FetchField() *Field {
 	// Check if all fields have been fetched
 	if r.fieldPos < uint64(len(r.fields)) {
 		// Increment and return current field
-		r.fieldPos ++
+		r.fieldPos++
 		return r.fields[r.fieldPos-1]
 	}
 	return nil

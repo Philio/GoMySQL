@@ -107,7 +107,7 @@ func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err os
 	if err != nil {
 		return
 	}
-	s = string(b) 
+	s = string(b)
 	return
 }
 
