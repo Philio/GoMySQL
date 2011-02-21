@@ -85,7 +85,7 @@ const (
 	CR_INVALID_BUFFER_USE          Errno = 2035
 	CR_INVALID_BUFFER_USE_STR      Error = "Can't send long data for non-string/non-binary data types (parameter: %d)"
 	CR_UNSUPPORTED_PARAM_TYPE      Errno = 2036
-	CR_UNSUPPORTED_PARAM_TYPE_STR  Error = "Using unsupported buffer type: %d (parameter: %d)"
+	CR_UNSUPPORTED_PARAM_TYPE_STR  Error = "Using unsupported parameter type: %s (parameter: %d)"
 	CR_CONN_UNKNOW_PROTOCOL        Errno = 2047
 	CR_CONN_UNKNOW_PROTOCOL_STR    Error = "Wrong or unknown protocol"
 	CR_SECURE_AUTH                 Errno = 2049

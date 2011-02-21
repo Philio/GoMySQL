@@ -757,7 +757,7 @@ type packetExecute struct {
 	flags          uint8
 	iterationCount uint32
 	nullBitMap     []byte
-	newParamBound  uint8
+	newParamsBound uint8
 	paramType      [][]byte
 	paramData      [][]byte
 }
@@ -781,9 +781,9 @@ func (p *packetExecute) write() (data []byte, err os.Error) {
 	// Null bit map
 	data = append(data, p.nullBitMap...)
 	// New params bound
-	data = append(data, p.newParamBound)
+	data = append(data, p.newParamsBound)
 	// Param types
-	if p.newParamBound == 0x1 && len(p.paramType) > 0 {
+	if p.newParamsBound == 1 && len(p.paramType) > 0 {
 		for _, v := range p.paramType {
 			data = append(data, v...)
 		}

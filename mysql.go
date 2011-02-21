@@ -729,9 +729,6 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 		if len(args) != 4 {
 			return &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 		}
-	// Commands with custom functions
-	case COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA:
-		return &ClientError{CR_NOT_IMPLEMENTED, CR_NOT_IMPLEMENTED_STR}
 	// Everything else e.g. replication unsupported
 	default:
 		return &ClientError{CR_NOT_IMPLEMENTED, CR_NOT_IMPLEMENTED_STR}
