@@ -6,10 +6,10 @@
 package mysql
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"strconv"
-	"fmt"
 )
 
 // Prepared statement struct
@@ -38,6 +38,7 @@ type Statement struct {
 	LastInsertId uint64
 	Warnings     uint16
 	result       *Result
+	resultParams []interface{}
 }
 
 // Prepare new statement
@@ -296,11 +297,82 @@ func (s *Statement) Execute() (err os.Error) {
 
 // Bind result
 func (s *Statement) BindResult(params ...interface{}) (err os.Error) {
+	s.resultParams = params
 	return
 }
 
 // Fetch next row 
-func (s *Statement) Fetch() (err os.Error) {
+func (s *Statement) Fetch() (eof bool, err os.Error) {
+	// Log fetch
+	s.c.log(1, "=== Begin fetch ===")
+	// Check result
+	if !s.checkResult() {
+		return false, &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
+	}
+	var row Row
+	// Check result mode
+	switch s.result.mode{
+	// Used or unused result (needs fetching)
+	case RESULT_UNUSED, RESULT_USED:
+		s.result.mode = RESULT_USED
+		if s.result.allRead == true {
+			return true, nil
+		}
+		eof, err := s.getRow()
+		if err != nil {
+			return false, err
+		}
+		if eof {
+			s.result.allRead = true
+		}
+		row = s.result.rows[0]
+	// Stored result
+	case RESULT_STORED:
+		if s.result.rowPos >= uint64(len(s.result.rows)) {
+			return true, nil
+		}
+		row = s.result.rows[s.result.rowPos]
+		s.result.rowPos ++
+	}
+	// Recover possible errors from type conversion
+	defer func() {
+		if e := recover(); e != nil {
+			err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
+		}
+	}()
+	// Iterate bound params and assign from row (partial set quicker this way)
+	for k, v := range s.resultParams {
+		switch t := v.(type) {
+		case *int:
+			*t = int(atou64(row[k]))
+		case *uint:
+			*t = uint(atou64(row[k]))
+		case *int8:
+			*t = int8(atou64(row[k]))
+		case *uint8:
+			*t = uint8(atou64(row[k]))
+		case *int16:
+			*t = int16(atou64(row[k]))
+		case *uint16:
+			*t = uint16(atou64(row[k]))
+		case *int32:
+			*t = int32(atou64(row[k]))
+		case *uint32:
+			*t = uint32(atou64(row[k]))
+		case *int64:
+			*t = int64(atou64(row[k]))
+		case *uint64:
+			*t = atou64(row[k])
+		case *float32:
+			*t = float32(atof64(row[k]))
+		case *float64:
+			*t = atof64(row[k])
+		case *[]byte:
+			*t = row[k].([]byte)
+		case *string:
+			*t = atos(row[k])
+		}
+	}
 	return
 }
 
@@ -345,6 +417,14 @@ func (s *Statement) reset() {
 	s.Warnings = 0
 	s.result = nil
 	s.c.reset()
+}
+
+// Check if a result exists
+func (s *Statement) checkResult() bool {
+	if s.result != nil {
+		return true
+	}
+	return false
 }
 
 // Get null bit map

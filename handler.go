@@ -177,16 +177,17 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 	}
 	// Read data into fields
 	var row []interface{}
+	var field interface{}
 	// Get null bit map
 	nc := (r.fieldCount + 9) / 8
-	nbm := p.data[0:nc]
-	pos := nc
+	nbm := p.data[1:nc+1]
+	pos := nc + 1
 	for i, f := range r.fields {
 		// Check if field is null
 		posByte := (i + 2) / 8
 		posBit := i - (posByte * 8) + 2
 		if nbm[posByte]&(1<<uint8(posBit)) != 0 {
-			row = append(row, nil)
+			field = nil
 			continue
 		}
 		// Otherwise use field type
@@ -194,42 +195,42 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 		// Tiny int (8 bit int unsigned or signed)
 		case FIELD_TYPE_TINY:
 			if f.Flags&FLAG_UNSIGNED > 0 {
-				row = append(row, p.data[pos])
+				field = p.data[pos]
 			} else {
-				row = append(row, int8(p.data[pos]))
+				field = int8(p.data[pos])
 			}
 			pos++
 		// Small int (16 bit int unsigned or signed)
 		case FIELD_TYPE_SHORT, FIELD_TYPE_YEAR:
 			if f.Flags&FLAG_UNSIGNED > 0 {
-				row = append(row, btoui16(p.data[pos:pos+2]))
+				field = btoui16(p.data[pos:pos+2])
 			} else {
-				row = append(row, btoi16(p.data[pos:pos+2]))
+				field = btoi16(p.data[pos:pos+2])
 			}
 			pos += 2
 		// Int (32 bit int unsigned or signed) and medium int which is actually in int32 format
 		case FIELD_TYPE_LONG, FIELD_TYPE_INT24:
 			if f.Flags&FLAG_UNSIGNED > 0 {
-				row = append(row, btoui32(p.data[pos:pos+4]))
+				field = btoui32(p.data[pos:pos+4])
 			} else {
-				row = append(row, btoi32(p.data[pos:pos+4]))
+				field = btoi32(p.data[pos:pos+4])
 			}
 			pos += 4
 		// Big int (64 bit int unsigned or signed)
 		case FIELD_TYPE_LONGLONG:
 			if f.Flags&FLAG_UNSIGNED > 0 {
-				row = append(row, btoui64(p.data[pos:pos+8]))
+				field = btoui64(p.data[pos:pos+8])
 			} else {
-				row = append(row, btoi64(p.data[pos:pos+8]))
+				field = btoi64(p.data[pos:pos+8])
 			}
 			pos += 8
 		// Floats (Single precision floating point, 32 bit signed)
 		case FIELD_TYPE_FLOAT:
-			row = append(row, btof32(p.data[pos:pos+4]))
+			field = btof32(p.data[pos:pos+4])
 			pos += 4
 		// Double (Double precision floating point, 64 bit signed)
 		case FIELD_TYPE_DOUBLE:
-			row = append(row, btof64(p.data[pos:pos+8]))
+			field = btof64(p.data[pos:pos+8])
 			pos += 8
 		// Bit, decimal, strings, blobs etc, all length coded binary strings
 		case FIELD_TYPE_BIT, FIELD_TYPE_DECIMAL, FIELD_TYPE_NEWDECIMAL, FIELD_TYPE_VARCHAR, FIELD_TYPE_TINY_BLOB, FIELD_TYPE_MEDIUM_BLOB, FIELD_TYPE_LONG_BLOB, FIELD_TYPE_BLOB, FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING, FIELD_TYPE_GEOMETRY:
@@ -237,7 +238,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 			if err != nil {
 				return
 			}
-			row = append(row, p.data[pos+uint64(n):pos+uint64(n)+num])
+			field = p.data[pos+uint64(n):pos+uint64(n)+num]
 			pos += uint64(n) + num
 		// Date/Datetime/Timestamp YYYY-MM-DD HH:MM:SS (From libmysql/libmysql.c read_binary_datetime)
 		case FIELD_TYPE_DATE, FIELD_TYPE_TIMESTAMP, FIELD_TYPE_DATETIME:
@@ -246,6 +247,8 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 		case FIELD_TYPE_TIME:
 			// @todo
 		}
+		// Add to row
+		row = append(row, field)
 	}
 	// Stored result
 	if r.mode == RESULT_STORED {

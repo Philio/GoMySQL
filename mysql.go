@@ -332,6 +332,8 @@ func (c *Client) NextResult() (more bool, err os.Error) {
 	// Read result from server
 	c.sequence++
 	_, err = c.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
+	// Store fields
+	err = c.getFields()
 	return
 }
 
