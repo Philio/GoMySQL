@@ -283,7 +283,7 @@ func (c *Client) UseResult() (result *Result, err os.Error) {
 
 // Free the current result
 func (c *Client) FreeResult() (err os.Error) {
-	// Log use result
+	// Log free result
 	c.log(1, "=== Begin free result ===")
 	// Check result
 	if !c.checkResult() {

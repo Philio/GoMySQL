@@ -46,7 +46,7 @@ func (s *Statement) Prepare(sql string) (err os.Error) {
 	// Log prepare
 	s.c.log(1, "=== Begin prepare '%s' ===", sql)
 	// Pre-run checks
-	if !s.c.checkConn() || s.c.checkResult() {
+	if !s.c.checkConn() || s.checkResult() {
 		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	// Reset client
@@ -196,7 +196,7 @@ func (s *Statement) SendLongData(num int, data []byte) (err os.Error) {
 		return &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
 	}
 	// Pre-run checks
-	if !s.c.checkConn() || s.c.checkResult() {
+	if !s.c.checkConn() || s.checkResult() {
 		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	// Reset client
@@ -397,6 +397,48 @@ func (s *Statement) StoreResult() (err os.Error) {
 
 // Free result
 func (s *Statement) FreeResult() (err os.Error) {
+	// Log free result
+	s.c.log(1, "=== Begin free result ===")
+	// Check result
+	if !s.checkResult() {
+		return &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
+	}
+	// Check for unread rows
+	if !s.result.allRead {
+		// Read all rows
+		err = s.getAllRows()
+		if err != nil {
+			return
+		}
+	}
+	// Unset the result
+	s.result = nil
+	return
+}
+
+// More results
+func (s *Statement) MoreResults() bool {
+	return s.c.MoreResults()
+}
+
+// Next result
+func (s *Statement) NextResult() (more bool, err os.Error) {
+	// Log next result
+	s.c.log(1, "=== Begin next result ===")
+	// Pre-run checks
+	if !s.c.checkConn() || s.checkResult() {
+		return false, &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
+	}
+	// Check for more results
+	more = s.MoreResults()
+	if !more {
+		return
+	}
+	// Read result from server
+	s.c.sequence++
+	_, err = s.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
+	// Store fields
+	err = s.getFields()
 	return
 }
 
