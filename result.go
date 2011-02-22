@@ -32,8 +32,8 @@ type Field struct {
 	Table    string
 	Name     string
 	Length   uint32
-	Type     uint8
-	Flags    uint16
+	Type     FieldType
+	Flags    FieldFlag
 	Decimals uint8
 }
 

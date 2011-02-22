@@ -765,7 +765,6 @@ func (c *Client) getFields() (err os.Error) {
 			return
 		}
 		if eof {
-			c.result.fieldPos = 0
 			break
 		}
 	}
@@ -812,18 +811,19 @@ func (c *Client) getResult(types packetType) (eof bool, err os.Error) {
 	default:
 		err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 	case *packetOK:
-		err = c.processOKResult(p.(*packetOK))
+		err = handleOK(p.(*packetOK), c, &c.AffectedRows, &c.LastInsertId, &c.Warnings)
 	case *packetError:
-		err = c.processErrorResult(p.(*packetError))
+		err = handleError(p.(*packetError), c)
 	case *packetEOF:
 		eof = true
-		err = c.processEOF(p.(*packetEOF))
+		err = handleEOF(p.(*packetEOF), c)
 	case *packetResultSet:
-		err = c.processResultSetResult(p.(*packetResultSet))
+		c.result = &Result{c: c}
+		err = handleResultSet(p.(*packetResultSet), c, c.result)
 	case *packetField:
-		err = c.processFieldResult(p.(*packetField))
+		err = handleField(p.(*packetField), c, c.result)
 	case *packetRowData:
-		err = c.processRowResult(p.(*packetRowData))
+		err = handleRow(p.(*packetRowData), c, c.result)
 	}
 	return
 }
@@ -833,139 +833,6 @@ func (c *Client) checkSequence(sequence uint8) (err os.Error) {
 	if sequence != c.sequence {
 		c.log(1, "Sequence doesn't match - expected %d but got %d, commands out of sync", c.sequence, sequence)
 		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
-	}
-	return
-}
-
-// Process OK packet
-func (c *Client) processOKResult(p *packetOK) (err os.Error) {
-	// Log OK result
-	c.log(1, "[%d] Received OK packet", p.sequence)
-	// Check sequence
-	err = c.checkSequence(p.sequence)
-	if err != nil {
-		return
-	}
-	// Store packet data
-	c.AffectedRows = p.affectedRows
-	c.LastInsertId = p.insertId
-	c.Warnings = p.warningCount
-	c.serverStatus = ServerStatus(p.serverStatus)
-	// Full logging [level 3]
-	if c.LogLevel > 2 {
-		c.logStatus()
-	}
-	return
-}
-
-// Process error packet
-func (c *Client) processErrorResult(p *packetError) (err os.Error) {
-	// Log error result
-	c.log(1, "[%d] Received error packet", p.sequence)
-	// Check sequence
-	err = c.checkSequence(p.sequence)
-	if err != nil {
-		return
-	}
-	// Check and unset more results flag
-	// @todo maybe serverStatus should just be zeroed?
-	if c.MoreResults() {
-		c.serverStatus ^= SERVER_MORE_RESULTS_EXISTS
-	}
-	// Return error
-	return &ServerError{Errno(p.errno), Error(p.error)}
-}
-
-// Process EOF packet
-func (c *Client) processEOF(p *packetEOF) (err os.Error) {
-	// Log EOF result
-	c.log(1, "[%d] Received EOF packet", p.sequence)
-	// Check sequence
-	err = c.checkSequence(p.sequence)
-	if err != nil {
-		return
-	}
-	// Store packet data
-	if p.useStatus {
-		c.serverStatus = ServerStatus(p.serverStatus)
-		// Full logging [level 3]
-		if c.LogLevel > 2 {
-			c.logStatus()
-		}
-	}
-	return
-}
-
-// Process result set packet
-func (c *Client) processResultSetResult(p *packetResultSet) (err os.Error) {
-	// Log error result
-	c.log(1, "[%d] Received result set packet", p.sequence)
-	// Check sequence
-	err = c.checkSequence(p.sequence)
-	if err != nil {
-		return
-	}
-	// Create new result
-	c.result = &Result{
-		c:          c,
-		fieldCount: p.fieldCount,
-	}
-	return
-}
-
-// Process field packet
-func (c *Client) processFieldResult(p *packetField) (err os.Error) {
-	// Log field result
-	c.log(1, "[%d] Received field packet", p.sequence)
-	// Check sequence
-	err = c.checkSequence(p.sequence)
-	if err != nil {
-		return
-	}
-	// Check if there is a result set
-	if c.result == nil || c.result.mode == RESULT_FREE {
-		return
-	}
-	// Assign fields if needed
-	if len(c.result.fields) == 0 {
-		c.result.fields = make([]*Field, c.result.fieldCount)
-	}
-	// Create new field and add to result
-	c.result.fields[c.result.fieldPos] = &Field{
-		Database: p.database,
-		Table:    p.table,
-		Name:     p.name,
-		Length:   p.length,
-		Type:     p.fieldType,
-		Flags:    p.flags,
-		Decimals: p.decimals,
-	}
-	c.result.fieldPos++
-	return
-}
-
-// Process row packet
-func (c *Client) processRowResult(p *packetRowData) (err os.Error) {
-	// Log field result
-	c.log(1, "[%d] Received row packet", p.sequence)
-	// Check sequence
-	err = c.checkSequence(p.sequence)
-	if err != nil {
-		return
-	}
-	// Check if there is a result set
-	if c.result == nil || c.result.mode == RESULT_FREE {
-		return
-	}
-	// Stored result
-	if c.result.mode == RESULT_STORED {
-		// Cast and append the row
-		c.result.rows = append(c.result.rows, Row(p.row))
-	}
-	// Used result
-	if c.result.mode == RESULT_USED {
-		// Only save 1 row, overwrite previous
-		c.result.rows = []Row{Row(p.row)}
 	}
 	return
 }

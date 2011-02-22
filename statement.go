@@ -9,6 +9,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"fmt"
 )
 
 // Prepared statement struct
@@ -75,16 +76,9 @@ func (s *Statement) Prepare(sql string) (err os.Error) {
 	}
 	// Read field packets
 	if s.columnCount > 0 {
-		// Create a new result
-		for {
-			s.c.sequence++
-			eof, err := s.getResult(PACKET_FIELD | PACKET_EOF)
-			if err != nil {
-				return
-			}
-			if eof {
-				break
-			}
+		err = s.getFields()
+		if err != nil {
+			return
 		}
 	}
 	// Statement is preapred
@@ -171,11 +165,13 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 		// String
 		case string:
 			t = FIELD_TYPE_STRING
-			d = []byte(param.(string))
+			d = lcbtob(uint64(len(param.(string))))
+			d = append(d, []byte(param.(string))...)
 		// Byte array
 		case []byte:
 			t = FIELD_TYPE_BLOB
-			d = param.([]byte)
+			d = lcbtob(uint64(len(param.([]byte))))
+			d = append(d, param.([]byte)...)
 		// Other types
 		default:
 			return &ClientError{CR_UNSUPPORTED_PARAM_TYPE, s.c.fmtError(CR_UNSUPPORTED_PARAM_TYPE_STR, reflect.NewValue(param).Type(), num)}
@@ -277,6 +273,7 @@ func (s *Statement) Execute() (err os.Error) {
 	if s.paramsRebound {
 		p.newParamsBound = byte(1)
 	}
+	fmt.Printf("%#v\n", p)
 	// Write packet
 	err = s.c.w.writePacket(p)
 	if err != nil {
@@ -284,6 +281,16 @@ func (s *Statement) Execute() (err os.Error) {
 	}
 	// Log write success
 	s.c.log(1, "[%d] Sent execute packet", p.sequence)
+	// Read result from server
+	s.c.sequence++
+	_, err = s.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
+	if err != nil || s.result == nil {
+		return
+	}
+	// Store fields
+	err = s.getFields()
+	// Unflag params rebound
+	s.paramsRebound = false
 	return
 }
 
@@ -299,6 +306,20 @@ func (s *Statement) Fetch() (err os.Error) {
 
 // Store result
 func (s *Statement) StoreResult() (err os.Error) {
+	// Log store result
+	s.c.log(1, "=== Begin store result ===")
+	// Check if result already used/stored
+	if s.result.mode != RESULT_UNUSED {
+		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
+	}
+	// Set storage mode
+	s.result.mode = RESULT_STORED
+	// Store all rows
+	err = s.getAllRows()
+	if err != nil {
+		return
+	}
+	s.result.allRead = true
 	return
 }
 
@@ -343,6 +364,48 @@ func (s *Statement) getNullBitMap() (nbm []byte) {
 	return
 }
 
+// Get all result fields
+func (s *Statement) getFields() (err os.Error) {
+	// Loop till EOF
+	for {
+		s.c.sequence++
+		eof, err := s.getResult(PACKET_FIELD | PACKET_EOF)
+		if err != nil {
+			return
+		}
+		if eof {
+			break
+		}
+	}
+	return
+}
+
+// Get next row for a result
+func (s *Statement) getRow() (eof bool, err os.Error) {
+	// Check for a valid result
+	if s.result == nil {
+		return false, &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
+	}
+	// Read next row packet or EOF
+	s.c.sequence++
+	eof, err = s.getResult(PACKET_ROW_BINARY | PACKET_EOF)
+	return
+}
+
+// Get all rows for the result
+func (s *Statement) getAllRows() (err os.Error) {
+	for {
+		eof, err := s.getRow()
+		if err != nil {
+			return
+		}
+		if eof {
+			break
+		}
+	}
+	return
+}
+
 // Get result
 func (s *Statement) getResult(types packetType) (eof bool, err os.Error) {
 	// Log read result
@@ -356,98 +419,24 @@ func (s *Statement) getResult(types packetType) (eof bool, err os.Error) {
 	switch p.(type) {
 	default:
 		err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
-	case *packetPrepareOK:
-		err = s.processPrepareOKResult(p.(*packetPrepareOK))
+	case *packetOK:
+		err = handleOK(p.(*packetOK), s.c, &s.AffectedRows, &s.LastInsertId, &s.Warnings)
 	case *packetError:
-		err = s.c.processErrorResult(p.(*packetError))
-	case *packetParameter:
-		err = s.processParamResult(p.(*packetParameter))
-	case *packetField:
-		err = s.processFieldResult(p.(*packetField))
+		err = handleError(p.(*packetError), s.c)
 	case *packetEOF:
 		eof = true
-		err = s.processEOF(p.(*packetEOF))
-	}
-	return
-}
-
-// Process prepare OK result
-func (s *Statement) processPrepareOKResult(p *packetPrepareOK) (err os.Error) {
-	// Log result
-	s.c.log(1, "[%d] Received prepare OK packet", p.sequence)
-	// Check sequence
-	err = s.c.checkSequence(p.sequence)
-	if err != nil {
-		return
-	}
-	// Store packet data
-	s.statementId = p.statementId
-	s.paramCount = p.paramCount
-	s.columnCount = uint64(p.columnCount)
-	s.Warnings = p.warningCount
-	return
-}
-
-// Process (ignore) parameter packet result
-func (s *Statement) processParamResult(p *packetParameter) (err os.Error) {
-	// Log result
-	s.c.log(1, "[%d] Received parameter packet [ignored]", p.sequence)
-	// Check sequence
-	err = s.c.checkSequence(p.sequence)
-	if err != nil {
-		return
-	}
-	return
-}
-
-// Process field packet result
-func (s *Statement) processFieldResult(p *packetField) (err os.Error) {
-	// Log result
-	s.c.log(1, "[%d] Received field packet", p.sequence)
-	// Check sequence
-	err = s.c.checkSequence(p.sequence)
-	if err != nil {
-		return
-	}
-	// Check if there is a result set
-	if s.result == nil {
-		return
-	}
-	// Assign fields if needed
-	if len(s.result.fields) == 0 {
-		s.result.fields = make([]*Field, s.result.fieldCount)
-	}
-	// Create new field and add to result
-	s.result.fields[s.result.fieldPos] = &Field{
-		Database: p.database,
-		Table:    p.table,
-		Name:     p.name,
-		Length:   p.length,
-		Type:     p.fieldType,
-		Flags:    p.flags,
-		Decimals: p.decimals,
-	}
-	s.result.fieldPos++
-	return
-	return
-}
-
-// Process EOF packet
-func (s *Statement) processEOF(p *packetEOF) (err os.Error) {
-	// Log EOF result
-	s.c.log(1, "[%d] Received EOF packet", p.sequence)
-	// Check sequence
-	err = s.c.checkSequence(p.sequence)
-	if err != nil {
-		return
-	}
-	// Store packet data
-	if p.useStatus {
-		s.c.serverStatus = ServerStatus(p.serverStatus)
-		// Full logging [level 3]
-		if s.c.LogLevel > 2 {
-			s.c.logStatus()
-		}
+		err = handleEOF(p.(*packetEOF), s.c)
+	case *packetPrepareOK:
+		err = handlePrepareOK(p.(*packetPrepareOK), s.c, s)
+	case *packetParameter:
+		err = handleParam(p.(*packetParameter), s.c)
+	case *packetField:
+		err = handleField(p.(*packetField), s.c, s.result)
+	case *packetResultSet:
+		s.result = &Result{c: s.c}
+		err = handleResultSet(p.(*packetResultSet), s.c, s.result)
+	case *packetRowBinary:
+		err = handleBinaryRow(p.(*packetRowBinary), s.c, s.result)
 	}
 	return
 }

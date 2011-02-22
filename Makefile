@@ -9,6 +9,7 @@ GOFILES=mysql.go\
         writer.go\
         packet.go\
 	convert.go\
+	handler.go\
         result.go\
         statement.go
  

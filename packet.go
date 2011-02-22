@@ -8,6 +8,7 @@ package mysql
 import (
 	"bytes"
 	"os"
+	"fmt"
 )
 
 // Packet type identifier
@@ -65,41 +66,6 @@ func (p *packetBase) readSlice(data []byte, delim byte) (slice []byte, err os.Er
 	return
 }
 
-// Read length coded binary
-func (p *packetBase) readLengthCodedBinary(data []byte) (num uint64, n int, err os.Error) {
-	switch {
-	// 0-250 = value of first byte
-	case data[0] <= 250:
-		num = uint64(data[0])
-		n = 1
-		return
-	// 251 column value = NULL
-	case data[0] == 251:
-		num = 0
-		n = 1
-		return
-	// 252 following 2 = value of following 16-bit word
-	case data[0] == 252:
-		n = 3
-	// 253 following 3 = value of following 24-bit word
-	case data[0] == 253:
-		n = 4
-	// 254 following 8 = value of following 64-bit word
-	case data[0] == 254:
-		n = 9
-	}
-	// Check there are enough bytes
-	if len(data) < n {
-		err = os.EOF
-		return
-	}
-	// Get uint64
-	b := make([]byte, 8)
-	copy(b, data[1:n])
-	num = btoui64(b)
-	return
-}
-
 // Read length coded string
 func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err os.Error) {
 	// Read bytes and convert to string
@@ -113,7 +79,7 @@ func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err os
 
 func (p *packetBase) readLengthCodedBytes(data []byte) (b []byte, n int, err os.Error) {
 	// Get string length
-	num, n, err := p.readLengthCodedBinary(data)
+	num, n, err := btolcb(data)
 	if err != nil {
 		return
 	}
@@ -283,14 +249,14 @@ func (p *packetOK) read(data []byte) (err os.Error) {
 	// Position (skip first byte/field count)
 	pos := 1
 	// Affected rows [length coded binary]
-	num, n, err := p.readLengthCodedBinary(data[pos:])
+	num, n, err := btolcb(data[pos:])
 	if err != nil {
 		return
 	}
 	p.affectedRows = num
 	pos += n
 	// Insert id [length coded binary]
-	num, n, err = p.readLengthCodedBinary(data[pos:])
+	num, n, err = btolcb(data[pos:])
 	if err != nil {
 		return
 	}
@@ -495,14 +461,14 @@ func (p *packetResultSet) read(data []byte) (err os.Error) {
 	// Position and bytes read
 	var pos, n int
 	// Field count [length coded binary]
-	p.fieldCount, n, err = p.readLengthCodedBinary(data[pos:])
+	p.fieldCount, n, err = btolcb(data[pos:])
 	if err != nil {
 		return
 	}
 	pos += n
 	// Extra [length coded binary]
 	if pos < len(data) {
-		p.extra, n, err = p.readLengthCodedBinary(data[pos:])
+		p.extra, n, err = btolcb(data[pos:])
 		if err != nil {
 			return
 		}
@@ -594,7 +560,7 @@ func (p *packetField) read(data []byte) (err os.Error) {
 		pos++
 		// Default value [len coded binary]
 		if pos < len(data) {
-			p.defaultVal, _, err = p.readLengthCodedBinary(data[pos:])
+			p.defaultVal, _, err = btolcb(data[pos:])
 		}
 	} else {
 		// Table [len coded string]
@@ -651,11 +617,7 @@ func (p *packetRowData) read(data []byte) (err os.Error) {
 			return
 		}
 		// Add to slice
-		if len(p.row) == 0 {
-			p.row = []interface{}{b}
-		} else {
-			p.row = append(p.row, b)
-		}
+		p.row = append(p.row, b)
 		// Increment position and check for end of packet
 		pos += n
 		if pos == len(data) {
@@ -798,13 +760,14 @@ func (p *packetExecute) write() (data []byte, err os.Error) {
 	}
 	// Add the packet header
 	data = p.addHeader(data)
+	fmt.Printf("%#v\n", data)
 	return
 }
 
 // Binary row struct
 type packetRowBinary struct {
 	packetBase
-	row []interface{}
+	data []byte
 }
 
 // Row binary packet reader
@@ -815,5 +778,7 @@ func (p *packetRowBinary) read(data []byte) (err os.Error) {
 			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
 	}()
+	// Simply store the row
+	p.data = data
 	return
 }

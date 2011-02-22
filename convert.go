@@ -6,6 +6,7 @@
 package mysql
 
 import "math"
+import "os"
 import "strconv"
 
 // bytes to int
@@ -163,4 +164,55 @@ func btof64(b []byte) float64 {
 // float64 to bytes
 func f64tob(f float64) []byte {
 	return ui64tob(math.Float64bits(f))
+}
+
+// bytes to length
+func btolcb(b []byte) (num uint64, n int, err os.Error) {
+	switch {
+	// 0-250 = value of first byte
+	case b[0] <= 250:
+		num = uint64(b[0])
+		n = 1
+		return
+	// 251 column value = NULL
+	case b[0] == 251:
+		num = 0
+		n = 1
+		return
+	// 252 following 2 = value of following 16-bit word
+	case b[0] == 252:
+		n = 3
+	// 253 following 3 = value of following 24-bit word
+	case b[0] == 253:
+		n = 4
+	// 254 following 8 = value of following 64-bit word
+	case b[0] == 254:
+		n = 9
+	}
+	// Check there are enough bytes
+	if len(b) < n {
+		err = os.EOF
+		return
+	}
+	// Get uint64
+	t := make([]byte, 8)
+	copy(t, b[1:n])
+	num = btoui64(t)
+	return
+}
+
+// length to bytes
+func lcbtob(n uint64) (b []byte) {
+	switch {
+	// <= 250 = 1 byte
+	case n <= 250:
+		b = []byte{byte(n)}
+	// <= 0xffff = 252 + 2 bytes
+	case n <= 0xffff:
+		b = []byte{0xfc, byte(n), byte(n >> 8)}
+	// <= 0xffffff = 253 + 3 bytes
+	case n <= 0xffffff:
+		b = []byte{0xfd, byte(n), byte(n >> 8), byte(n >> 16)}
+	}
+	return
 }
