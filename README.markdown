@@ -52,9 +52,9 @@ About
 
 The most complete and stable MySQL client library written completely in Go. The aim of this project is to provide a library with a high level of usability, good internal error handling and to emulate similar libraries available for other languages to provide an easy migration of MySQL based systems into the Go language.
 
-For discussions, ideas, suggestions, comments, please visit the Google Group: https://groups.google.com/group/gomysql
+For discussions, ideas, suggestions, comments, please visit the Google Group: [https://groups.google.com/group/gomysql](https://groups.google.com/group/gomysql)
 
-Please report bugs via the GitHub issue tracker: 
+Please report bugs via the GitHub issue tracker: [https://github.com/Philio/GoMySQL/issues](https://github.com/Philio/GoMySQL/issues)
 
 
 License
