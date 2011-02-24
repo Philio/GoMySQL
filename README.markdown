@@ -268,29 +268,29 @@ Usage examples
 
 1. A simple query
 
-    // Connect to database  
-    db, err := mysql.DialUnix(mysql.DEFAULT_SOCKET, "user", "password", "database")  
-    if err != nil {  
-    	os.Exit(1)  
-    }  
-    // Perform query  
-    err = db.Query("select * from my_table")  
-    if err != nil {  
-    	os.Exit(1)  
-    }  
-    // Get result set  
-    result, err := db.UseResult()  
-    if err != nil {  
-    	os.Exit(1)  
-    }  
-    // Get each row from the result and perform some processing  
-    for {  
-    	row := result.FetchRow()  
-    	if row == nil {  
-    		break  
-    	}  
-    	// ADD SOME ROW PROCESSING HERE  
-    }  
+      // Connect to database  
+      db, err := mysql.DialUnix(mysql.DEFAULT_SOCKET, "user", "password", "database")  
+      if err != nil {  
+      	os.Exit(1)  
+      }  
+      // Perform query  
+      err = db.Query("select * from my_table")  
+      if err != nil {  
+      	os.Exit(1)  
+      }  
+      // Get result set  
+      result, err := db.UseResult()  
+      if err != nil {  
+      	os.Exit(1)  
+      }  
+      // Get each row from the result and perform some processing  
+      for {  
+      	row := result.FetchRow()  
+      	if row == nil {  
+      		break  
+      	}  
+      	// ADD SOME ROW PROCESSING HERE  
+      }  
 
 
 
