@@ -169,6 +169,37 @@ Client methods
 
 **Client.Connect(network, raddr, user, passwd string, dbname ...string) (err os.Error)** - Connect to the server using the provided details.
 
+**Close() (err os.Error)** - Close the connection to the server.
+
+**ChangeDb(dbname string) (err os.Error)** - Change database.
+
+**Query(sql string) (err os.Error)** - Perform an SQL query.
+
+**StoreResult() (result *Result, err os.Error)** - Store the complete result set and return a pointer to the result.
+
+**UseResult() (result *Result, err os.Error)** - Use the result set but do not store the result, data is read from the server one row at a time via Result.Fetch functions (see below).
+
+**FreeResult() (err os.Error)** - Traditionally this function would free the memory used by the result set, in GoMySQL this removes the reference to allow the GC to clean up the memory. All results must be freed before more queries can be performed at present. FreeResult also reads and discards any remaining row packets received for the result set.
+
+**MoreResults() bool** - Check if more results are available.
+
+**NextResult() (more bool, err os.Error)** - Get the next result set from the server.
+
+**SetAutoCommit(state bool) (err os.Error)** - Set the auto commit state of the connection.
+
+**Start() (err os.Error)** - Start a new transaction.
+
+**Commit() (err os.Error)** - Commit the current transaction.
+
+**Rollback() (err os.Error)** - Rollback the current transaction.
+
+**Escape(s string) (esc string)** - Escape a string.
+
+**InitStmt() (stmt *Statement, err os.Error)** - Initialise a new statement.
+
+**Prepare(sql string) (stmt *Statement, err os.Error)** - Initialise and prepare a new statement using the supplied query.
+
+
 Result Functions
 ----------------
 
