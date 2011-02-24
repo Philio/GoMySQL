@@ -60,7 +60,9 @@ Please report bugs via the GitHub issue tracker: [https://github.com/Philio/GoMy
 License
 -------
 
-GoMySQL is licensed under a Creative Commons Attribution-Share Alike 2.0 UK: England & Wales License.
+GoMySQL 0.3 is governed by a BSD-style license that can be found in the LICENSE file.
+
+GoMySQL 0.1.x and 0.2.x is licensed under a Creative Commons Attribution-Share Alike 2.0 UK: England & Wales License.
 
 
 Compatibility
