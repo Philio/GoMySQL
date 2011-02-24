@@ -1,5 +1,5 @@
-GoMySQL Version 0.3.0-alpha-3
-=============================
+GoMySQL Version 0.3.0-beta-1
+============================
 
 
 Revision History
@@ -7,7 +7,8 @@ Revision History
 
 0.3.x series [development]
 
-* 0.3.0-alpha-3 - Added new error structs ClientError and ServerError. Replaced majority of os.Error/os.NewError functionality with MySQL specific ClientError objects. Server error responses now return a ServerError. Removed Client.Errno and Client.Error. Added deferred error processing to reader, writer and packets to catch and errors and always return a ClientError. Rewrote auto reconnect to check for specific MySQL error codes.
+* 0.3.0-beta-1 - Added full statement and functions. Refactored packet handlers into generic functions. Added new BindResult/Fetch method to get result data from prepared statements. Added type conversions for similar types to populate the result pointers with values from the row data. Added simple type conversion to standard queries. Added automatic reconnect for a select number of operations. Added greater number of client errors from the MySQL manual. Added date/time types to allow date/time elements to be stored as integers and ints, making them more useful.
+* 0.3.0-alpha-3 - Added new error structs ClientError and ServeThe most complete and stable MySQL client library written completely in Go. For discussion, ideas, suggestions, feature requests etc, please visit the GoMySQL Google Group (link below). For any issues/bugs or need some help, please post an issue on Github.rError. Replaced majority of os.Error/os.NewError functionality with MySQL specific ClientError objects. Server error responses now return a ServerError. Removed Client.Errno and Client.Error. Added deferred error processing to reader, writer and packets to catch and errors and always return a ClientError. Rewrote auto reconnect to check for specific MySQL error codes.
 * 0.3.0-alpha-2 - Added transaction wrappers, Added auto-reconnect functionality to repeatable methods. Removed mutex lock/unlocking, as it is now more appropriate that the application decides when thread safe functions are required and it's considerably safer to have a sequence such as Client.Lock(), Client.Query(...), Client.Unlock(). Added a new test which performs create, drop, select, insert and update queries on a simple demo table to test the majority of the library functionality. Added additional error messages to places where an error could be returned but there was no error number/string set. Many small changes and general improvements.
 * 0.3.0-alpha-1 - First test release of new library, completely rewritten from scratch. Fully compatible with all versions of MySQL using the 4.1+ protocol and 4.0 protocol (which supports earlier versions). Fully supports old and new passwords, including old passwords using the 4.1 protocol. Includes new Go style constructors 'NewClient', 'DialTCP', 'DialUnix' replacing 'New' from the 0.2 branch. All structs have been renamed to be more user friendly, MySQL has also now been replaced with Client. Removed many dependencies on external packages such as bufio. New reader that reads the entire packet completely to a slice then processes afterwards. New writer that constructs the entire packet completely to a slice and writes in a single operation. The Client.Query function no longer returns a result set and now uses the tradition store/use result mechanism for retrieving the result and processing it's contents. The 'MultiQuery' function has been removed as this is now supported by the Client.Query function. Currently all result sets must be freed before another query can be executed either using the Result.Free() method or Client.FreeResult() method, a check for additional result sets can be made using Client.MoreResults() and the next result can be retrieved using Client.NextResult(). Client.FreeResult() is capable of reading and discarding an entire result set (provided the first result set packet has been read), a partially read result set (e.g. from Client.UseResult) or a fully stored result. Transaction support and prepared statements are NOT available in this alpha release.
 
@@ -49,9 +50,11 @@ Revision History
 About
 -----
 
-A MySQL client library written in Go. The aim of this project is to provide a library with a high level of usability, good internal error handling and to emulate similar libraries available for other languages to provide an easy migration of MySQL based systems into the Go language.
+The most complete and stable MySQL client library written completely in Go. The aim of this project is to provide a library with a high level of usability, good internal error handling and to emulate similar libraries available for other languages to provide an easy migration of MySQL based systems into the Go language.
 
-Please report bugs via the GitHub issue tracker, also comments and suggestions are very welcome.
+For discussions, ideas, suggestions, comments, please visit the Google Group: https://groups.google.com/group/gomysql
+
+Please report bugs via the GitHub issue tracker: 
 
 
 License
@@ -63,18 +66,17 @@ GoMySQL is licensed under a Creative Commons Attribution-Share Alike 2.0 UK: Eng
 Compatibility
 -------------
 
-Implements the MySQL protocol version 4.1 so should work with MySQL server versions 4.1, 5.0, 5.1 and future releases.
+Implements the MySQL protocol version 4.0- and 4.1+
+
+Tested on versions of MySQL 4.x, 5.x (including 5.5), MariaDB and Percona.
 
 
 Thread Safety
 -------------
 
-As of version 0.1.8 all client functions (including statements) should be thread safe.
-At the time of writing this has been tested with the following configurations:
+As of version 0.3 of the client, the thread safe functionality was removed from the library, but the inherited functions from sync.Mutex were retained. The reasons for this is that the inclusions of locking/unlocking within the client itself conflicted with the new functionality that had been added and it was clear that locking should be performed within the calling program and not the library. For convenience to the programmer, the mutex functions were retained allowing for Client.Lock() and Client.Unlock() to be used for thread safe operations.
 
-* GOMAXPROCS=1, 2 goroutines, 4 goroutines
-* GOMAXPROCS=2, 2 goroutines, 4 goroutines
-
+In older versions of the client from 0.1.8 - 0.2.x internal locking remains, however it is not recommended to use these versions as version 0.3.x is a much better implementation.
 
 Installation
 ------------
@@ -106,224 +108,34 @@ This installs the package as 'mysql' so can be imported as so:
 `import "mysql"`
 
 
-MySQL functions
+A note about 0.3 methods and functionality
+------------------------------------------
+
+Version 0.3 is a complete rewrite of the library and a vast improvement on the 0.2 branch, because of this there are considerable changes to available methods and usage. Please see the migration guide below for more information.
+
+
+Client functions
+----------------
+
+todo
+
+
+Result Functions
+----------------
+
+todo
+
+
+Statement Functions
 -------------------
 
-**MySQL.Logging** - Can be set to true or false to enable or disable logging.
-
-**MySQL.Errno** - Error number for last operation.  
- 
-**MySQL.Error** - Error description for last operation.  
-
-**MySQL.New()**
-
-Create a new MySQL instance.
-
-Example:
-
-`db := mysql.New()`
-
-**MySQL.Connect(host string, username string, [password string, [dbname string, [port int || socket string]]])**
-
-Connect to database defined by host.  
-The minimum required params to connect are host and username, dependant on server settings.  
-If the host provided is localhost or 127.0.0.1 then a socket connection will be made, otherwise TCP will be used.
-The fifth parameter can either be an integer value which will be assigned as the port number, or a string which will be assigned as the socket. In versions prior to 0.1.4 it was nescessary to specify both, however as both are never required together this has been changed.
-The port will default to 3306.  
-The socket will default to /var/run/mysql/mysql.sock (Debian/Ubuntu).  
-
-Returns os.Error, error number and description can be retrieved for failure description (see error handling section)
-
-Example:
-
-`connected := db.Connect("localhost", "user", "password", "database")`
-
-**MySQL.Reconnect()**
-
-Reconnect to the server using the credentials previously provided to Connect().
-
-Example:
-
-`connected := db.Reconnect()`
-
-**MySQL.Close()**
-
-Closes the connection to the database.  
-Returns os.Error, error number and description can be retrieved for failure description (see error handling section)
-
-Example:
-
-`closed = db.Close()`
-
-**MySQL.Query(sql string)**
-
-Perform an SQL query, as of 0.1.1 supports multiple statements.  
-Returns a MySQLResult object and os.Error, data contained within result object varies depending on query type. If query contains multiple statements then the first result set is returned.
-
-Example:
-
-`res := db.Query("SELECT * FROM table")`
-
-**MySQL.MultiQuery(sql string)**
-
-Identical in function to MySQL.Query, intended for use with multiple statements.  
-Returns an array of MySQLResult objects and os.Error.
-
-Example:
-
-`resArray := db.MultiQuery("UPDATE t1 SET a = 1; UPDATE t2 SET b = 2")`
-
-resArray[0] contains result of UPDATE t1 SET a = 1  
-resArray[1] contains result of UPDATE t2 SET b = 2
-
-**MySQL.ChangeDb(dbname string)**
-
-Change the currently active database.  
-Returns os.Error.
-
-Example:  
-
-`ok := db.ChangeDb("my_database")`
-
-**MySQL.Ping()**
-
-Ping the server.  
-Returns os.Error.  
-
-Example:
-
-`ok := db.Ping()`
-
-**MySQL.InitStmt()**
-
-Create a new prepared statement.
-Returns a new statement and os.Error.
-
-Example:
-
-`stmt := db.InitStmt()`
-
-**MySQL.Escape(str string)**
-
-Escape a string.
-Returns an escaped copy of the string.
-
-Example:
-
-`str = db.Escape("I 'should' be escaped because I contain single quotes!")`
-
-
-MySQL Result Functions
-----------------------
-
-**MySQLResult.AffectedRows** - Number of rows affected by the query.  
-
-**MySQLResult.InsertId** - The insert id of the row inserted by the query.  
-
-**MySQLResult.WarningCount** - The number of warnings the server returned.  
-
-**MySQLResult.Message** - The message returned by the server.  
-
-**MySQLResult.Fields** - An array of fields returned by the server.  
-
-**MySQLResult.FieldCount** - The number of fields returned by the server.  
-
-**MySQLResult.Rows** - An array of rows returned by the server.  
-
-**MySQLResult.RowCount** - The number of rows returned by the server.
-
-**MySQLResult.FetchRow()**
-
-Get the next row in the result set.  
-Returns an array or nil if there are no more rows.
-
-Example:
-
-`row := res.FetchRow()`
-
-**MySQLResult.FetchMap()**
-
-Get the next row in the result set as a map.  
-Returns a map or nil if there are no more rows.
-
-Example:
-
-`row := res.FetchMap()`
-
-
-MySQL Statement Functions
--------------------------
-
-**MySQLStatement.Errno** - Error number for last operation.  
- 
-**MySQLStatement.Error** - Error description for last operation.  
-
-**MySQLStatement.StatementId** - The statement id.
-
-**MySQLStatement.Params** - Array of param data [not implemented].
-
-**MySQLStatement.ParamCount** - Number of params in the current statement.
-
-**MySQLStatement.Prepare(sql string)**
-
-Prepare a query.  
-Returns true on success or false on failure.
-
-Example:
-
-`ok := stmt.Prepare("SELECT a, b, c FROM table1 WHERE a > ? OR b < ?)`
-
-**MySQLStatement.BindParams(params)**
-
-Bind params to a query, the number of params should equal the number of ?'s in the query sent to prepare.  
-Returns os.Error.  
-*Please read limitations section below for supported param types*
-
-Example:
-
-`ok := stmt.BindParams(10, 15)`
-
-**MySQLStatement.SendLongData(num uint16, data string)**
-
-Send parameter as long data.  
-Multiple packets can be sent per parameter, each up to the maximum packet size.  
-Parameters that are sent as long data should be bound as nil (NULL).
-Returns os.Error.  
-
-Example:
-
-`ok := stmt.SendLongData(0, "A very long string!")`
-
-**MySQLStatement.Execute()**
-
-Execute the prepared query.  
-Returns a MySQLResult object and os.Error, data contained within result object varies depending on query type.
-
-Example:
-
-`res := stmt.Execute()`
-
-**MySQLStatement.Reset()**
-
-Reset the statement.  
-Returns os.Error.  
-
-Example:
-
-`ok := stmt.Reset()`
-
-**MySQLStatement.Close()**
-
-Close the statement.  
-Returns os.Error.
-
-Example:
-
-`ok := stmt.Close()`
+todo
 
 
 Prepared Statement Notes (previously limitations)
 -------------------------------------------------
+
+This section is less relavent to the 0.3 client as it has full binary support and excellent type support but has been retained for reference.
 
 When using prepared statements the data packets sent to/from the server are in binary format (normal queries send results as text).  
 
@@ -456,7 +268,15 @@ Strings/other tyes: string
 Error handling
 --------------
 
+As of version 0.3.0 all functions return a ClientError or ServerError struct which contains a MySQL error code and description. The original Errno and Error public properties are deprecated.
+
 As of version 0.2.0 all functions return os.Error. If the command succeeded the return value will be nil, otherwise it will contain the error.
 If returned value is not nil then MySQL error code and description can then be retrieved from Errno and Error properties for additional info/debugging.
 Prepared statements have their own copy of the Errno and Error properties.  
 Generated errors attempt to follow MySQL protocol/specifications as closely as possible.
+
+
+Migration guide from 0.2 - 0.3
+------------------------------
+
+Todo!
