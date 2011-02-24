@@ -1,4 +1,4 @@
-GoMySQL Version 0.3.0-beta-1
+﻿GoMySQL Version 0.3.0-beta-1
 ============================
 
 
@@ -8,7 +8,7 @@ Revision History
 0.3.x series [development]
 
 * 0.3.0-beta-1 - Added full statement and functions. Refactored packet handlers into generic functions. Added new BindResult/Fetch method to get result data from prepared statements. Added type conversions for similar types to populate the result pointers with values from the row data. Added simple type conversion to standard queries. Added automatic reconnect for a select number of operations. Added greater number of client errors from the MySQL manual. Added date/time types to allow date/time elements to be stored as integers and ints, making them more useful.
-* 0.3.0-alpha-3 - Added new error structs ClientError and ServeThe most complete and stable MySQL client library written completely in Go. For discussion, ideas, suggestions, feature requests etc, please visit the GoMySQL Google Group (link below). For any issues/bugs or need some help, please post an issue on Github.rError. Replaced majority of os.Error/os.NewError functionality with MySQL specific ClientError objects. Server error responses now return a ServerError. Removed Client.Errno and Client.Error. Added deferred error processing to reader, writer and packets to catch and errors and always return a ClientError. Rewrote auto reconnect to check for specific MySQL error codes.
+* 0.3.0-alpha-3 - Added new error structs ClientError and ServerError. Replaced majority of os.Error/os.NewError functionality with MySQL specific ClientError objects. Server error responses now return a ServerError. Removed Client.Errno and Client.Error. Added deferred error processing to reader, writer and packets to catch and errors and always return a ClientError. Rewrote auto reconnect to check for specific MySQL error codes.
 * 0.3.0-alpha-2 - Added transaction wrappers, Added auto-reconnect functionality to repeatable methods. Removed mutex lock/unlocking, as it is now more appropriate that the application decides when thread safe functions are required and it's considerably safer to have a sequence such as Client.Lock(), Client.Query(...), Client.Unlock(). Added a new test which performs create, drop, select, insert and update queries on a simple demo table to test the majority of the library functionality. Added additional error messages to places where an error could be returned but there was no error number/string set. Many small changes and general improvements.
 * 0.3.0-alpha-1 - First test release of new library, completely rewritten from scratch. Fully compatible with all versions of MySQL using the 4.1+ protocol and 4.0 protocol (which supports earlier versions). Fully supports old and new passwords, including old passwords using the 4.1 protocol. Includes new Go style constructors 'NewClient', 'DialTCP', 'DialUnix' replacing 'New' from the 0.2 branch. All structs have been renamed to be more user friendly, MySQL has also now been replaced with Client. Removed many dependencies on external packages such as bufio. New reader that reads the entire packet completely to a slice then processes afterwards. New writer that constructs the entire packet completely to a slice and writes in a single operation. The Client.Query function no longer returns a result set and now uses the tradition store/use result mechanism for retrieving the result and processing it's contents. The 'MultiQuery' function has been removed as this is now supported by the Client.Query function. Currently all result sets must be freed before another query can be executed either using the Result.Free() method or Client.FreeResult() method, a check for additional result sets can be made using Client.MoreResults() and the next result can be retrieved using Client.NextResult(). Client.FreeResult() is capable of reading and discarding an entire result set (provided the first result set packet has been read), a partially read result set (e.g. from Client.UseResult) or a fully stored result. Transaction support and prepared statements are NOT available in this alpha release.
 
@@ -16,17 +16,17 @@ Revision History
 
 * 0.2.12 - Fix a bug in getPrepareResult() causing queries returning no fields (e.g. DROP TABLE ...) to hang.
 * 0.2.11 - Skipped
-* 0.2.10 - Compatability update for Go release.2011-01-20
+* 0.2.10 - Compatibility update for Go release.2011-01-20
 * 0.2.9 - Added support for MySQL 5.5
 * 0.2.8 - Fixes issue #38.
 * 0.2.7 - Added additional binary type support: medium int (int32/uint32), decimal (string), new decimal (string), bit ([]byte), year (uint16), set ([]byte), enum/set use string type.
 * 0.2.6 - Replaced buffer checks in prepared statements, similar to change in 0.2.5, more robust method to handle end of packets.
 * 0.2.5 - Fixes issue #10, removed buffer check from query function as no longer needed.
-* 0.2.4 - Fixes issue #7 and related issues with prepared statment - thanks to Tom Lee [[thomaslee]](/thomaslee). New faster Escape function - thanks to [[jteeuwen]](/jteeuwen). Updated/fixed examples - thanks to [[jteeuwen]](/jteeuwen). Fixes issues (#10, #21) with reading full packet, due to some delay e.g. network lag - thanks to Michał Derkacz [[ziutek]](/ziutek) and Damian Reeves for submitting fixes for this.
+* 0.2.4 - Fixes issue #7 and related issues with prepared statement - thanks to Tom Lee [[thomaslee]](/thomaslee). New faster Escape function - thanks to [[jteeuwen]](/jteeuwen). Updated/fixed examples - thanks to [[jteeuwen]](/jteeuwen). Fixes issues (#10, #21) with reading full packet, due to some delay e.g. network lag - thanks to Michał Derkacz [[ziutek]](/ziutek) and Damian Reeves for submitting fixes for this.
 * 0.2.3 - Fixes issue #6 - thanks to Tom Lee [[thomaslee]](/thomaslee).
 * 0.2.2 - Resolves issue #16.
 * 0.2.1 - Updated to work with latest release of Go plus 1 or 2 minor tweaks.
-* 0.2.0 - Functions have been reworked and now always return os.Error to provide a generic and consistent design. Improved logging output. Improved client stability. Removed length vs buffered length checks as they don't work with packets > 4096 bytes. Added new Escape function, although this is currently only suitiable for short strings. Tested library with much larger databases such as multi-gigabyte tables and multi-megabyte blogs. Many minor bug fixes. Resolved issue #3, #4 and #5.
+* 0.2.0 - Functions have been reworked and now always return os.Error to provide a generic and consistent design. Improved logging output. Improved client stability. Removed length vs buffered length checks as they don't work with packets > 4096 bytes. Added new Escape function, although this is currently only suitable for short strings. Tested library with much larger databases such as multi-gigabyte tables and multi-megabyte blogs. Many minor bug fixes. Resolved issue #3, #4 and #5.
 
 0.1.x series [deprecated]
 
@@ -169,35 +169,35 @@ Client methods
 
 **Client.Connect(network, raddr, user, passwd string, dbname ...string) (err os.Error)** - Connect to the server using the provided details.
 
-**Close() (err os.Error)** - Close the connection to the server.
+**Client.Close() (err os.Error)** - Close the connection to the server.
 
-**ChangeDb(dbname string) (err os.Error)** - Change database.
+**Client.ChangeDb(dbname string) (err os.Error)** - Change database.
 
-**Query(sql string) (err os.Error)** - Perform an SQL query.
+**Client.Query(sql string) (err os.Error)** - Perform an SQL query.
 
-**StoreResult() (result *Result, err os.Error)** - Store the complete result set and return a pointer to the result.
+**Client.StoreResult() (result *Result, err os.Error)** - Store the complete result set and return a pointer to the result.
 
-**UseResult() (result *Result, err os.Error)** - Use the result set but do not store the result, data is read from the server one row at a time via Result.Fetch functions (see below).
+**Client.UseResult() (result *Result, err os.Error)** - Use the result set but do not store the result, data is read from the server one row at a time via Result.Fetch functions (see below).
 
-**FreeResult() (err os.Error)** - Traditionally this function would free the memory used by the result set, in GoMySQL this removes the reference to allow the GC to clean up the memory. All results must be freed before more queries can be performed at present. FreeResult also reads and discards any remaining row packets received for the result set.
+**Client.FreeResult() (err os.Error)** - Traditionally this function would free the memory used by the result set, in GoMySQL this removes the reference to allow the GC to clean up the memory. All results must be freed before more queries can be performed at present. FreeResult also reads and discards any remaining row packets received for the result set.
 
-**MoreResults() bool** - Check if more results are available.
+**Client.MoreResults() bool** - Check if more results are available.
 
-**NextResult() (more bool, err os.Error)** - Get the next result set from the server.
+**Client.NextResult() (more bool, err os.Error)** - Get the next result set from the server.
 
-**SetAutoCommit(state bool) (err os.Error)** - Set the auto commit state of the connection.
+**Client.SetAutoCommit(state bool) (err os.Error)** - Set the auto commit state of the connection.
 
-**Start() (err os.Error)** - Start a new transaction.
+**Client.Start() (err os.Error)** - Start a new transaction.
 
-**Commit() (err os.Error)** - Commit the current transaction.
+**Client.Commit() (err os.Error)** - Commit the current transaction.
 
-**Rollback() (err os.Error)** - Rollback the current transaction.
+**Client.Rollback() (err os.Error)** - Rollback the current transaction.
 
-**Escape(s string) (esc string)** - Escape a string.
+**Client.Escape(s string) (esc string)** - Escape a string.
 
-**InitStmt() (stmt *Statement, err os.Error)** - Initialise a new statement.
+**Client.InitStmt() (stmt *Statement, err os.Error)** - Initialise a new statement.
 
-**Prepare(sql string) (stmt *Statement, err os.Error)** - Initialise and prepare a new statement using the supplied query.
+**Client.Prepare(sql string) (stmt *Statement, err os.Error)** - Initialise and prepare a new statement using the supplied query.
 
 
 Result methods
@@ -245,9 +245,9 @@ Statement methods
 
 **Statement.FetchColumns() []*Field** - Get all fields in the statement result set.
 
-**Statement.BindResult(params ...interface{}) (err os.Error)** - Bind the result, parameters passed to this functions should be pointers to variables which will be populated with the data from the fetched row. If a column value is not needed a nil can be used. Parameters should be of a "similar" type to the actual column value in the MySQL table, e.g. for an INT field, the parameter can be any integer type or a string and the relavent conversion is performed. Using integer sizes smaller than the size in the table is not recommended. The number of parameters bound can be equal or less than the number of fields in the table, providing more parameters than actual columns will result in a crash.
+**Statement.BindResult(params ...interface{}) (err os.Error)** - Bind the result, parameters passed to this functions should be pointers to variables which will be populated with the data from the fetched row. If a column value is not needed a nil can be used. Parameters should be of a "similar" type to the actual column value in the MySQL table, e.g. for an INT field, the parameter can be any integer type or a string and the relevant conversion is performed. Using integer sizes smaller than the size in the table is not recommended. The number of parameters bound can be equal or less than the number of fields in the table, providing more parameters than actual columns will result in a crash.
 
-**Statement.Fetch() (eof bool, err os.Error)** - Fetch the next row in the result, values are populated into paramaters bound using BindResult.
+**Statement.Fetch() (eof bool, err os.Error)** - Fetch the next row in the result, values are populated into parameters bound using BindResult.
 
 **Statement.StoreResult() (err os.Error)** - Store all rows for a result set,
 
@@ -333,7 +333,7 @@ Usage examples
 			if err != nil {
 				os.Exit(1)  
 			}
-			if eof == nil {  
+			if eof {  
 				break  
 			}  
 			// ADD SOME ROW PROCESSING HERE  
@@ -343,13 +343,13 @@ Usage examples
 Prepared statement notes (previously limitations)
 -------------------------------------------------
 
-This section is less relavent to the 0.3 client as it has full binary support and excellent type support but has been retained for reference.
+This section is less relevant to the 0.3 client as it has full binary support and excellent type support but has been retained for reference.
 
 When using prepared statements the data packets sent to/from the server are in binary format (normal queries send results as text).  
 
 Prior to version 0.2.7 there were a number of unsupported data types in the library which limited the use of prepared statement selects to the most common field types.
 
-As of version 0.2.7 all currently supported MySQL data types are fully supported, as well as a wide range of support of Go types for binding paramaters. There are some minor limitations in the usage of unsigned numeric types, as Go does not natively support unsigned floating point numbers unsigned floats and doubles are limited to the maximum value of a signed float or double.
+As of version 0.2.7 all currently supported MySQL data types are fully supported, as well as a wide range of support of Go types for binding parameters. There are some minor limitations in the usage of unsigned numeric types, as Go does not natively support unsigned floating point numbers unsigned floats and doubles are limited to the maximum value of a signed float or double.
 
 **Supported parameter types:**
 
@@ -487,4 +487,14 @@ Generated errors attempt to follow MySQL protocol/specifications as closely as p
 Migration guide from 0.2 - 0.3
 ------------------------------
 
-Todo!
+1. Constructors
+
+The original 'New()' method has gone and in it's place are a number of Go-style constructors: NewClient, DialTCP and DialUnix. This offers greater flexibility (such as the ability to connect to localhost via TCP) and simplified usage. If features such as logging are required or the 4.0 protocol, the NewClient constructor can be used to set options before connect, then Connect can be called as with previous versions.
+
+2. Queries
+
+As the Query method no longer returns a result set an extra step is needed here, either UseResult or StoreResult. UseResult allows you to read rows 1 at a time from the buffer which can reduce memory requirements for large result sets considerably. It is currently also a requirement to call FreeResult once you have finished with a result set, this may change with a later release. The MultiQuery method has been removed as the Query method can now support multiple queries, when using this feature you should check MoreResults and use NextResult to move to the next result set. You must free the previous result before calling NextResult, although again this may change later as we feel it would be more intuitive to free the result automatically.
+
+3. Statements
+
+The main changes for statements are that you must now bind the result parameters before fetching a row, this means type conversion is automated and there is no longer a need for type assertions on the rows. The bound result parameters can be individual vars or struct properties or really anything that can be passed as a pointer.
