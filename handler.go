@@ -5,7 +5,9 @@
 // license that can be found in the LICENSE file.
 package mysql
 
-import "os"
+import (
+	"os"
+)
 
 // OK packet handler
 func handleOK(p *packetOK, c *Client, a, i *uint64, w *uint16) (err os.Error) {
@@ -180,7 +182,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 	var field interface{}
 	// Get null bit map
 	nc := (r.fieldCount + 9) / 8
-	nbm := p.data[1:nc+1]
+	nbm := p.data[1 : nc+1]
 	pos := nc + 1
 	for i, f := range r.fields {
 		// Check if field is null
@@ -203,49 +205,117 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 		// Small int (16 bit int unsigned or signed)
 		case FIELD_TYPE_SHORT, FIELD_TYPE_YEAR:
 			if f.Flags&FLAG_UNSIGNED > 0 {
-				field = btoui16(p.data[pos:pos+2])
+				field = btoui16(p.data[pos : pos+2])
 			} else {
-				field = btoi16(p.data[pos:pos+2])
+				field = btoi16(p.data[pos : pos+2])
 			}
 			pos += 2
 		// Int (32 bit int unsigned or signed) and medium int which is actually in int32 format
 		case FIELD_TYPE_LONG, FIELD_TYPE_INT24:
 			if f.Flags&FLAG_UNSIGNED > 0 {
-				field = btoui32(p.data[pos:pos+4])
+				field = btoui32(p.data[pos : pos+4])
 			} else {
-				field = btoi32(p.data[pos:pos+4])
+				field = btoi32(p.data[pos : pos+4])
 			}
 			pos += 4
 		// Big int (64 bit int unsigned or signed)
 		case FIELD_TYPE_LONGLONG:
 			if f.Flags&FLAG_UNSIGNED > 0 {
-				field = btoui64(p.data[pos:pos+8])
+				field = btoui64(p.data[pos : pos+8])
 			} else {
-				field = btoi64(p.data[pos:pos+8])
+				field = btoi64(p.data[pos : pos+8])
 			}
 			pos += 8
 		// Floats (Single precision floating point, 32 bit signed)
 		case FIELD_TYPE_FLOAT:
-			field = btof32(p.data[pos:pos+4])
+			field = btof32(p.data[pos : pos+4])
 			pos += 4
 		// Double (Double precision floating point, 64 bit signed)
 		case FIELD_TYPE_DOUBLE:
-			field = btof64(p.data[pos:pos+8])
+			field = btof64(p.data[pos : pos+8])
 			pos += 8
 		// Bit, decimal, strings, blobs etc, all length coded binary strings
-		case FIELD_TYPE_BIT, FIELD_TYPE_DECIMAL, FIELD_TYPE_NEWDECIMAL, FIELD_TYPE_VARCHAR, FIELD_TYPE_TINY_BLOB, FIELD_TYPE_MEDIUM_BLOB, FIELD_TYPE_LONG_BLOB, FIELD_TYPE_BLOB, FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING, FIELD_TYPE_GEOMETRY:
+		case FIELD_TYPE_BIT, FIELD_TYPE_DECIMAL, FIELD_TYPE_NEWDECIMAL, FIELD_TYPE_VARCHAR,
+			FIELD_TYPE_TINY_BLOB, FIELD_TYPE_MEDIUM_BLOB, FIELD_TYPE_LONG_BLOB, FIELD_TYPE_BLOB,
+			FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING, FIELD_TYPE_GEOMETRY:
 			num, n, err := btolcb(p.data[pos:])
 			if err != nil {
 				return
 			}
-			field = p.data[pos+uint64(n):pos+uint64(n)+num]
+			field = p.data[pos+uint64(n) : pos+uint64(n)+num]
 			pos += uint64(n) + num
-		// Date/Datetime/Timestamp YYYY-MM-DD HH:MM:SS (From libmysql/libmysql.c read_binary_datetime)
-		case FIELD_TYPE_DATE, FIELD_TYPE_TIMESTAMP, FIELD_TYPE_DATETIME:
-			// @todo
-			// Time  (From libmysql/libmysql.c read_binary_time)
+		// Date (From libmysql/libmysql.c read_binary_datetime)
+		case FIELD_TYPE_DATE:
+			num, n, err := btolcb(p.data[pos:])
+			if err != nil {
+				return
+			}
+			// New date
+			d := Date{}
+			// Check zero
+			if num == 0 {
+				field = d
+				pos++
+				break
+			}
+			// Year 2 bytes
+			d.Year = btoui16(p.data[pos+uint64(n) : pos+uint64(n)+2])
+			// Month 1 byte
+			d.Month = p.data[pos+uint64(n)+2]
+			// Day 1 byte
+			d.Day = p.data[pos+uint64(n)+3]
+			field = d
+			pos += uint64(n) + num
+		// Time  (From libmysql/libmysql.c read_binary_time)
 		case FIELD_TYPE_TIME:
-			// @todo
+			num, n, err := btolcb(p.data[pos:])
+			if err != nil {
+				return
+			}
+			// New time
+			t := Time{}
+			// Default zero values
+			if num == 0 {
+				field = t
+				pos++
+				break
+			}
+			// Hour 1 byte
+			t.Hour = p.data[pos+6]
+			// Minute 1 byte
+			t.Minute = p.data[pos+7]
+			// Second 1 byte
+			t.Second = p.data[pos+8]
+			field = t
+			pos += uint64(n) + num
+		// Datetime/Timestamp (From libmysql/libmysql.c read_binary_datetime)
+		case FIELD_TYPE_TIMESTAMP, FIELD_TYPE_DATETIME:
+			num, n, err := btolcb(p.data[pos:])
+			if err != nil {
+				return
+			}
+			// New datetime
+			d := DateTime{}
+			// Check zero
+			if num == 0 {
+				field = d
+				pos++
+				break
+			}
+			// Year 2 bytes
+			d.Year = btoui16(p.data[pos+uint64(n) : pos+uint64(n)+2])
+			// Month 1 byte
+			d.Month = p.data[pos+uint64(n)+2]
+			// Day 1 byte
+			d.Day = p.data[pos+uint64(n)+3]
+			// Hour 1 byte
+			d.Hour = p.data[pos+uint64(n)+4]
+			// Minute 1 byte
+			d.Minute = p.data[pos+uint64(n)+5]
+			// Second 1 byte
+			d.Second = p.data[pos+uint64(n)+6]
+			field = d
+			pos += uint64(n) + num
 		}
 		// Add to row
 		row = append(row, field)

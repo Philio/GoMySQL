@@ -5,9 +5,11 @@
 // license that can be found in the LICENSE file.
 package mysql
 
-import "math"
-import "os"
-import "strconv"
+import (
+	"math"
+	"os"
+	"strconv"
+)
 
 // bytes to int
 func btoi(b []byte) int {
@@ -213,7 +215,7 @@ func lcbtob(n uint64) (b []byte) {
 	// <= 0xffffff = 253 + 3 bytes
 	case n <= 0xffffff:
 		b = []byte{0xfd, byte(n), byte(n >> 8), byte(n >> 16)}
-	// Due to max packet size the 8 byte version is never actually used so is ommited
+		// Due to max packet size the 8 byte version is never actually used so is ommited
 	}
 	return
 }
@@ -221,16 +223,26 @@ func lcbtob(n uint64) (b []byte) {
 // any to uint64
 func atou64(i interface{}) (n uint64) {
 	switch t := i.(type) {
-	case int: n = uint64(t)
-	case uint: n = uint64(t)
-	case int8: n = uint64(t)
-	case uint8: n = uint64(t)
-	case int16: n = uint64(t)
-	case uint16: n = uint64(t)
-	case int32: n = uint64(t)
-	case uint32: n = uint64(t)
-	case int64: n = uint64(t)
-	case uint64: return t
+	case int:
+		n = uint64(t)
+	case uint:
+		n = uint64(t)
+	case int8:
+		n = uint64(t)
+	case uint8:
+		n = uint64(t)
+	case int16:
+		n = uint64(t)
+	case uint16:
+		n = uint64(t)
+	case int32:
+		n = uint64(t)
+	case uint32:
+		n = uint64(t)
+	case int64:
+		n = uint64(t)
+	case uint64:
+		return t
 	default:
 		panic("Not a numeric type")
 	}
@@ -240,8 +252,10 @@ func atou64(i interface{}) (n uint64) {
 // any to float64
 func atof64(i interface{}) (f float64) {
 	switch t := i.(type) {
-	case float32: f = float64(t)
-	case float64: return t
+	case float32:
+		f = float64(t)
+	case float64:
+		return t
 	default:
 		panic("Not a floating point type")
 	}
@@ -250,9 +264,11 @@ func atof64(i interface{}) (f float64) {
 
 // any to string
 func atos(i interface{}) (s string) {
-	switch t:= i.(type) {
-	case []byte: s = string(t)
-	case string: return t
+	switch t := i.(type) {
+	case []byte:
+		s = string(t)
+	case string:
+		return t
 	default:
 		panic("Not a string or compatible type")
 	}

@@ -6,7 +6,6 @@
 package mysql
 
 import (
-	"fmt"
 	"os"
 	"reflect"
 	"strconv"
@@ -97,8 +96,11 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 	if len(params) != int(s.paramCount) {
 		return &ClientError{CR_INVALID_PARAMETER_NO, CR_INVALID_PARAMETER_NO_STR}
 	}
+	// Reset params
+	s.paramType = [][]byte{}
+	s.paramData = [][]byte{}
 	// Convert params into bytes
-	for num, param := range params {
+	for k, param := range params {
 		// Temp vars
 		var t FieldType
 		var d []byte
@@ -175,7 +177,7 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 			d = append(d, param.([]byte)...)
 		// Other types
 		default:
-			return &ClientError{CR_UNSUPPORTED_PARAM_TYPE, s.c.fmtError(CR_UNSUPPORTED_PARAM_TYPE_STR, reflect.NewValue(param).Type(), num)}
+			return &ClientError{CR_UNSUPPORTED_PARAM_TYPE, s.c.fmtError(CR_UNSUPPORTED_PARAM_TYPE_STR, reflect.NewValue(param).Type(), k)}
 		}
 		// Append values
 		s.paramType = append(s.paramType, []byte{byte(t), 0x0})
@@ -252,7 +254,7 @@ func (s *Statement) Execute() (err os.Error) {
 		return &ClientError{CR_PARAMS_NOT_BOUND, CR_PARAMS_NOT_BOUND_STR}
 	}
 	// Pre-run checks
-	if !s.c.checkConn() || s.c.checkResult() {
+	if !s.c.checkConn() || s.checkResult() {
 		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
 	}
 	// Reset client
@@ -274,7 +276,6 @@ func (s *Statement) Execute() (err os.Error) {
 	if s.paramsRebound {
 		p.newParamsBound = byte(1)
 	}
-	fmt.Printf("%#v\n", p)
 	// Write packet
 	err = s.c.w.writePacket(p)
 	if err != nil {
@@ -295,6 +296,35 @@ func (s *Statement) Execute() (err os.Error) {
 	return
 }
 
+// Get field count
+func (s *Statement) FieldCount() uint64 {
+	if s.checkResult() {
+		return s.result.fieldCount
+	}
+	return 0
+}
+
+// Fetch the next field
+func (s *Statement) FetchColumn() *Field {
+	if s.checkResult() {
+		// Check if all fields have been fetched
+		if s.result.fieldPos < uint64(len(s.result.fields)) {
+			// Increment and return current field
+			s.result.fieldPos++
+			return s.result.fields[s.result.fieldPos-1]
+		}
+	}
+	return nil
+}
+
+// Fetch all fields
+func (s *Statement) FetchColumns() []*Field {
+	if s.checkResult() {
+		return s.result.fields
+	}
+	return nil
+}
+
 // Bind result
 func (s *Statement) BindResult(params ...interface{}) (err os.Error) {
 	s.resultParams = params
@@ -305,13 +335,17 @@ func (s *Statement) BindResult(params ...interface{}) (err os.Error) {
 func (s *Statement) Fetch() (eof bool, err os.Error) {
 	// Log fetch
 	s.c.log(1, "=== Begin fetch ===")
+	// Check prepared
+	if !s.prepared {
+		return false, &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
+	}
 	// Check result
 	if !s.checkResult() {
 		return false, &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
 	}
 	var row Row
 	// Check result mode
-	switch s.result.mode{
+	switch s.result.mode {
 	// Used or unused result (needs fetching)
 	case RESULT_UNUSED, RESULT_USED:
 		s.result.mode = RESULT_USED
@@ -324,6 +358,7 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 		}
 		if eof {
 			s.result.allRead = true
+			return true, nil
 		}
 		row = s.result.rows[0]
 	// Stored result
@@ -332,17 +367,19 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 			return true, nil
 		}
 		row = s.result.rows[s.result.rowPos]
-		s.result.rowPos ++
+		s.result.rowPos++
 	}
 	// Recover possible errors from type conversion
 	defer func() {
 		if e := recover(); e != nil {
 			err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
+			return
 		}
 	}()
 	// Iterate bound params and assign from row (partial set quicker this way)
 	for k, v := range s.resultParams {
 		switch t := v.(type) {
+		// Integer types
 		case *int:
 			*t = int(atou64(row[k]))
 		case *uint:
@@ -363,14 +400,24 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 			*t = int64(atou64(row[k]))
 		case *uint64:
 			*t = atou64(row[k])
+		// Floating point types
 		case *float32:
 			*t = float32(atof64(row[k]))
 		case *float64:
 			*t = atof64(row[k])
+		// Byte slice, assertion
 		case *[]byte:
 			*t = row[k].([]byte)
+		// Strings
 		case *string:
 			*t = atos(row[k])
+		// Date/time, assertion
+		case *Date:
+			*t = row[k].(Date)
+		case *Time:
+			*t = row[k].(Time)
+		case *DateTime:
+			*t = row[k].(DateTime)
 		}
 	}
 	return
@@ -380,6 +427,10 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 func (s *Statement) StoreResult() (err os.Error) {
 	// Log store result
 	s.c.log(1, "=== Begin store result ===")
+	// Check prepared
+	if !s.prepared {
+		return &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
+	}
 	// Check if result already used/stored
 	if s.result.mode != RESULT_UNUSED {
 		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
@@ -399,6 +450,10 @@ func (s *Statement) StoreResult() (err os.Error) {
 func (s *Statement) FreeResult() (err os.Error) {
 	// Log free result
 	s.c.log(1, "=== Begin free result ===")
+	// Check prepared
+	if !s.prepared {
+		return &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
+	}
 	// Check result
 	if !s.checkResult() {
 		return &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
@@ -425,6 +480,10 @@ func (s *Statement) MoreResults() bool {
 func (s *Statement) NextResult() (more bool, err os.Error) {
 	// Log next result
 	s.c.log(1, "=== Begin next result ===")
+	// Check prepared
+	if !s.prepared {
+		return false, &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
+	}
 	// Pre-run checks
 	if !s.c.checkConn() || s.checkResult() {
 		return false, &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
@@ -442,13 +501,47 @@ func (s *Statement) NextResult() (more bool, err os.Error) {
 	return
 }
 
-// Reset
+// Reset statement
 func (s *Statement) Reset() (err os.Error) {
+	// Log next result
+	s.c.log(1, "=== Begin reset statement ===")
+	// Check prepared
+	if !s.prepared {
+		return &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
+	}
+	// Pre-run checks
+	if !s.c.checkConn() || s.checkResult() {
+		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
+	}
+	// Reset client
+	s.reset()
+	// Send command
+	err = s.c.command(COM_STMT_RESET, s.statementId)
+	if err != nil {
+		return
+	}
+	// Read result from server
+	s.c.sequence++
+	_, err = s.getResult(PACKET_OK | PACKET_ERROR)
 	return
 }
 
-// Close
+// Close statement
 func (s *Statement) Close() (err os.Error) {
+	// Log next result
+	s.c.log(1, "=== Begin close statement ===")
+	// Check prepared
+	if !s.prepared {
+		return &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
+	}
+	// Pre-run checks
+	if !s.c.checkConn() || s.checkResult() {
+		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
+	}
+	// Reset client
+	s.reset()
+	// Send command
+	err = s.c.command(COM_STMT_RESET, s.statementId)
 	return
 }
 

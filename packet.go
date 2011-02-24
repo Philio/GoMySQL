@@ -8,7 +8,6 @@ package mysql
 import (
 	"bytes"
 	"os"
-	"fmt"
 )
 
 // Packet type identifier
@@ -760,7 +759,6 @@ func (p *packetExecute) write() (data []byte, err os.Error) {
 	}
 	// Add the packet header
 	data = p.addHeader(data)
-	fmt.Printf("%#v\n", data)
 	return
 }
 

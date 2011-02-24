@@ -2,6 +2,7 @@ include $(GOROOT)/src/Make.inc
  
 TARG=mysql
 GOFILES=mysql.go\
+	types.go\
         const.go\
         error.go\
         password.go\
