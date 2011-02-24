@@ -200,10 +200,22 @@ Client methods
 **Prepare(sql string) (stmt *Statement, err os.Error)** - Initialise and prepare a new statement using the supplied query.
 
 
-Result Functions
-----------------
+Result methods
+--------------
 
-todo
+**Result.FieldCount() uint64** - Get the number of fields in the result set.
+
+**Result.FetchField() *Field** - Get the next field in the result set.
+
+**Result.FetchFields() []*Field** - Get all fields in the result set.
+
+**Result.RowCount() uint64** - Get the number of rows in the result set, works for stored results only, used result always return 0.
+
+**Result.FetchRow() Row** - Get the next row in the result set.
+
+**Result.FetchMap() Map** - Get the next row in the result set and convert to a map with field names as keys.
+
+**Result.FetchRows() []Row** - Get all rows in the result set, works for stored results only, used results always return nil.
 
 
 Statement Functions
