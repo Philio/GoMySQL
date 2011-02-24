@@ -293,6 +293,51 @@ Usage examples
 		}  
 
 
+2. Prepared statement
+
+
+		// Define a struct to hold row data  
+		type MyRow struct {  
+			Id          uint64
+			Name        string
+			Description string
+		}  
+
+		// Connect to database  
+		db, err := mysql.DialUnix(mysql.DEFAULT_SOCKET, "user", "password", "database")  
+		if err != nil {  
+			os.Exit(1)  
+		}  
+		// Prepare statement  
+		stmt, err := db.Prepare("select * from my_table where name = ?")  
+		if err != nil {  
+			os.Exit(1)  
+		}  
+		// Bind params  
+		err = stmt.BindParams("param")  
+		if err != nil {  
+			os.Exit(1)  
+		}  
+		// Execute statement  
+		err = stmt.Execute()  
+		if err != nil {  
+			os.Exit(1)  
+		}  
+		// Define a new row to hold result
+		var myrow MyRow
+		// Bind result
+		stmt.BindResult(&myrow.Id, &myrow.Name, &myrow.Description)
+		// Get each row from the result and perform some processing  
+		for {  
+			eof, err := stmt.Fetch()  
+			if err != nil {
+				os.Exit(1)  
+			}
+			if eof == nil {  
+				break  
+			}  
+			// ADD SOME ROW PROCESSING HERE  
+		}  
 
 
 Prepared statement notes (previously limitations)
