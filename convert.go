@@ -243,6 +243,13 @@ func atou64(i interface{}) (n uint64) {
 		n = uint64(t)
 	case uint64:
 		return t
+	case string:
+		// Convert to int64 first for signing bit
+		in, err := strconv.Atoi64(t)
+		if err != nil {
+			panic("Invalid string for integer conversion")
+		}
+		n = uint64(in)
 	default:
 		panic("Not a numeric type")
 	}
@@ -256,6 +263,12 @@ func atof64(i interface{}) (f float64) {
 		f = float64(t)
 	case float64:
 		return t
+	case string:
+		var err os.Error
+		f, err = strconv.Atof64(t)
+		if err != nil {
+			panic("Invalid string for floating point conversion")
+		}
 	default:
 		panic("Not a floating point type")
 	}
@@ -265,6 +278,12 @@ func atof64(i interface{}) (f float64) {
 // any to string
 func atos(i interface{}) (s string) {
 	switch t := i.(type) {
+	case int, uint, int8, uint8, int16, uint16, int32, uint32, int64, uint64:
+		s = strconv.Uitoa64(atou64(i))
+	case float32:
+		s = strconv.Ftoa32(t, 'f', -1)
+	case float64:
+		s = strconv.Ftoa64(t, 'f', -1)
 	case []byte:
 		s = string(t)
 	case string:
