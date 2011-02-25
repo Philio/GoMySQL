@@ -7,6 +7,7 @@ package mysql
 
 import (
 	"os"
+	"strconv"
 )
 
 // OK packet handler
@@ -121,15 +122,47 @@ func handleRow(p *packetRowData, c *Client, r *Result) (err os.Error) {
 	if r == nil || r.mode == RESULT_FREE {
 		return
 	}
+	// Basic type conversion
+	var row []interface{}
+	var field interface{}
+	// Iterate fields to get types
+	for i, f := range r.fields {
+		switch f.Type {
+		// Signed/unsigned ints
+		case FIELD_TYPE_TINY, FIELD_TYPE_SHORT, FIELD_TYPE_YEAR, FIELD_TYPE_INT24, FIELD_TYPE_LONG, FIELD_TYPE_LONGLONG:
+			if f.Flags&FLAG_UNSIGNED > 0 {
+				field, err = strconv.Atoui64(string(p.row[i].([]byte)))
+			} else {
+				field, err = strconv.Atoi64(string(p.row[i].([]byte)))
+			}
+			if err != nil {
+				return
+			}
+		// Floats and doubles
+		case FIELD_TYPE_FLOAT, FIELD_TYPE_DOUBLE:
+			field, err = strconv.Atof64(string(p.row[i].([]byte)))
+			if err != nil {
+				return
+			}
+		// Strings
+		case FIELD_TYPE_DECIMAL, FIELD_TYPE_NEWDECIMAL, FIELD_TYPE_VARCHAR:
+			field = string(p.row[i].([]byte))
+		// Anything else
+		default:
+			field = p.row[i]
+		}
+		// Add to row
+		row = append(row, field)
+	}
 	// Stored result
 	if r.mode == RESULT_STORED {
 		// Cast and append the row
-		r.rows = append(r.rows, Row(p.row))
+		r.rows = append(r.rows, Row(row))
 	}
 	// Used result
 	if r.mode == RESULT_USED {
 		// Only save 1 row, overwrite previous
-		r.rows = []Row{Row(p.row)}
+		r.rows = []Row{Row(row)}
 	}
 	return
 }
