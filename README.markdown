@@ -1,16 +1,11 @@
-<<<<<<< HEAD
-GoMySQL Version 0.2.10
-======================
-=======
 ﻿GoMySQL Version 0.3.0-beta-1
 ============================
->>>>>>> dev
 
 
 Revision History
 ----------------
 
-0.3.x series [development]
+0.3.x series [testing]
 
 * 0.3.0-beta-1 - Added full statement and functions. Refactored packet handlers into generic functions. Added new BindResult/Fetch method to get result data from prepared statements. Added type conversions for similar types to populate the result pointers with values from the row data. Added simple type conversion to standard queries. Added automatic reconnect for a select number of operations. Added greater number of client errors from the MySQL manual. Added date/time types to allow date/time elements to be stored as integers and ints, making them more useful.
 * 0.3.0-alpha-3 - Added new error structs ClientError and ServerError. Replaced majority of os.Error/os.NewError functionality with MySQL specific ClientError objects. Server error responses now return a ServerError. Removed Client.Errno and Client.Error. Added deferred error processing to reader, writer and packets to catch and errors and always return a ClientError. Rewrote auto reconnect to check for specific MySQL error codes.
@@ -19,15 +14,9 @@ Revision History
 
 0.2.x series [current]
 
-<<<<<<< HEAD
-* 0.2.12 - Forgot to bump the version constant.
-* 0.2.11 - Fix a bug in getPrepareResult() causing queries returning no fields (e.g. DROP TABLE ...) to hang.
-* 0.2.10 - Compatability update for Go release.2011-01-20
-=======
 * 0.2.12 - Fix a bug in getPrepareResult() causing queries returning no fields (e.g. DROP TABLE ...) to hang.
 * 0.2.11 - Skipped
 * 0.2.10 - Compatibility update for Go release.2011-01-20
->>>>>>> dev
 * 0.2.9 - Added support for MySQL 5.5
 * 0.2.8 - Fixes issue #38.
 * 0.2.7 - Added additional binary type support: medium int (int32/uint32), decimal (string), new decimal (string), bit ([]byte), year (uint16), set ([]byte), enum/set use string type.

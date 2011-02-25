@@ -20,12 +20,6 @@ import (
 
 // Constants
 const (
-<<<<<<< HEAD
-	Version       = "0.2.12"
-	DefaultPort   = 3306
-	DefaultSock   = "/var/run/mysqld/mysqld.sock"
-	MaxPacketSize = 1 << 24
-=======
 	// General
 	VERSION          = "0.3.0-beta-1"
 	DEFAULT_PORT     = "3306"
@@ -48,7 +42,6 @@ const (
 	RESULT_STORED = 0x1
 	RESULT_USED   = 0x2
 	RESULT_FREE   = 0x3
->>>>>>> dev
 )
 
 // Client struct
@@ -592,12 +585,6 @@ func (c *Client) dial() (err os.Error) {
 		}
 		return
 	}
-<<<<<<< HEAD
-	// Get packet
-	pkt := new(packetInit)
-	pkt.header = hdr
-	err = pkt.read(mysql.reader)
-=======
 	// Log connect success
 	c.log(1, "Connected to server")
 	// Create reader and writer
@@ -614,7 +601,6 @@ func (c *Client) init() (err os.Error) {
 	c.log(1, "Reading handshake initialization packet from server")
 	// Read packet
 	p, err := c.r.readPacket(PACKET_INIT)
->>>>>>> dev
 	if err != nil {
 		return
 	}
@@ -650,43 +636,6 @@ func (c *Client) init() (err os.Error) {
 	return
 }
 
-<<<<<<< HEAD
-/**
- * Generic function to determine type of result packet received and process it
- */
-func (mysql *MySQL) getResult() (err os.Error) {
-	// Get header and validate header info
-	hdr := new(packetHeader)
-	err = hdr.read(mysql.reader)
-	// Read error
-	if err != nil {
-		if mysql.connected {
-			// Assume lost connection to server
-			mysql.error(CR_SERVER_LOST, CR_SERVER_LOST_STR)
-		} else {
-			mysql.error(CR_SERVER_HANDSHAKE_ERR, CR_SERVER_HANDSHAKE_ERR_STR)
-		}
-		return os.NewError("An error occured receiving packet from MySQL")
-	}
-	// Check sequence number
-	if hdr.sequence != mysql.sequence {
-		mysql.error(CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR)
-		return os.NewError("An error occured receiving packet from MySQL")
-	}
-	// Read the next byte to identify the type of packet
-	c, err := mysql.reader.ReadByte()
-	mysql.reader.UnreadByte()
-	switch {
-	// Unknown packet, remove it from the buffer
-	default:
-		bytes := make([]byte, hdr.length)
-		_, err = io.ReadFull(mysql.reader, bytes)
-		// Set error response
-		if err != nil {
-			err = os.NewError("An unknown packet was received from MySQL, in addition an error occurred when attempting to read the packet from the buffer: " + err.String());
-		} else {
-			err = os.NewError("An unknown packet was received from MySQL")
-=======
 // Send auth packet to the server
 func (c *Client) auth() (err os.Error) {
 	// Log write packet
@@ -719,7 +668,6 @@ func (c *Client) auth() (err os.Error) {
 		if c.serverFlags&CLIENT_CONNECT_WITH_DB > 0 && len(c.dbname) > 0 {
 			p.clientFlags |= uint32(CLIENT_CONNECT_WITH_DB)
 			p.database = c.dbname
->>>>>>> dev
 		}
 	} else {
 		p.scrambleBuff = scramble323(c.scrambleBuff, []byte(c.passwd))
