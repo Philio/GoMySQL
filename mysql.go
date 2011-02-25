@@ -21,7 +21,7 @@ import (
 // Constants
 const (
 	// General
-	VERSION          = "0.3.0-beta-1"
+	VERSION          = "0.3.0-RC"
 	DEFAULT_PORT     = "3306"
 	DEFAULT_SOCKET   = "/var/run/mysqld/mysqld.sock"
 	MAX_PACKET_SIZE  = 1<<24 - 1
