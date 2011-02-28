@@ -221,24 +221,8 @@ func lcbtob(n uint64) (b []byte) {
 }
 
 // any to uint64
-func atou64(i interface{}) (n uint64) {
+func atoui64(i interface{}) (n uint64) {
 	switch t := i.(type) {
-	case int:
-		n = uint64(t)
-	case uint:
-		n = uint64(t)
-	case int8:
-		n = uint64(t)
-	case uint8:
-		n = uint64(t)
-	case int16:
-		n = uint64(t)
-	case uint16:
-		n = uint64(t)
-	case int32:
-		n = uint64(t)
-	case uint32:
-		n = uint64(t)
 	case int64:
 		n = uint64(t)
 	case uint64:
@@ -278,14 +262,22 @@ func atof64(i interface{}) (f float64) {
 // any to string
 func atos(i interface{}) (s string) {
 	switch t := i.(type) {
-	case int, uint, int8, uint8, int16, uint16, int32, uint32, int64, uint64:
-		s = strconv.Uitoa64(atou64(i))
+	case int64:
+		s = strconv.Itoa64(t)
+	case uint64:
+		s = strconv.Uitoa64(t)
 	case float32:
 		s = strconv.Ftoa32(t, 'f', -1)
 	case float64:
 		s = strconv.Ftoa64(t, 'f', -1)
 	case []byte:
 		s = string(t)
+	case Date:
+		return t.String()
+	case Time:
+		return t.String()
+	case DateTime:
+		return t.String()
 	case string:
 		return t
 	default:

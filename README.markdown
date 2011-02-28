@@ -7,7 +7,7 @@ Revision History
 
 0.3.x series [testing]
 
-* 0.3.0-RC - Fixed SimpleTest unit test.
+* 0.3.0-RC - Fixed SimpleTest unit test. Fixed and variable length strings for normal queries now return string types not []byte, text/blobs are indistinguishable so are left in []byte format. All integer values in prepared statements are stored as either int64 or uint64 depending on the unsigned flag, this simplifies conversion greatly when binding the result. Added ParamCount() and RowCount() methods to statements. The built in Date, Time and DateTime types can now be bound as strings in statements.
 * 0.3.0-beta-1 - Added full statement and functions. Refactored packet handlers into generic functions. Added new BindResult/Fetch method to get result data from prepared statements. Added type conversions for similar types to populate the result pointers with values from the row data. Added simple type conversion to standard queries. Added automatic reconnect for a select number of operations. Added greater number of client errors from the MySQL manual. Added date/time types to allow date/time elements to be stored as integers and ints, making them more useful.
 * 0.3.0-alpha-3 - Added new error structs ClientError and ServerError. Replaced majority of os.Error/os.NewError functionality with MySQL specific ClientError objects. Server error responses now return a ServerError. Removed Client.Errno and Client.Error. Added deferred error processing to reader, writer and packets to catch and errors and always return a ClientError. Rewrote auto reconnect to check for specific MySQL error codes.
 * 0.3.0-alpha-2 - Added transaction wrappers, Added auto-reconnect functionality to repeatable methods. Removed mutex lock/unlocking, as it is now more appropriate that the application decides when thread safe functions are required and it's considerably safer to have a sequence such as Client.Lock(), Client.Query(...), Client.Unlock(). Added a new test which performs create, drop, select, insert and update queries on a simple demo table to test the majority of the library functionality. Added additional error messages to places where an error could be returned but there was no error number/string set. Many small changes and general improvements.
@@ -236,6 +236,8 @@ Statement methods
 
 **Statement.Prepare(sql string) (err os.Error)** - Prepare a new statement using the supplied query.
 
+**Statement.ParamCount() uint16** - Get the number of parameters.
+
 **Statement.BindParams(params ...interface{}) (err os.Error)** - Bind parameters to the statement.
 
 **Statement.SendLongData(num int, data []byte) (err os.Error)** - Send a parameter as long data. The data can be > than the maximum packet size and will be split automatically.
@@ -249,6 +251,8 @@ Statement methods
 **Statement.FetchColumns() []*Field** - Get all fields in the statement result set.
 
 **Statement.BindResult(params ...interface{}) (err os.Error)** - Bind the result, parameters passed to this functions should be pointers to variables which will be populated with the data from the fetched row. If a column value is not needed a nil can be used. Parameters should be of a "similar" type to the actual column value in the MySQL table, e.g. for an INT field, the parameter can be any integer type or a string and the relevant conversion is performed. Using integer sizes smaller than the size in the table is not recommended. The number of parameters bound can be equal or less than the number of fields in the table, providing more parameters than actual columns will result in a crash.
+
+**Statement.RowCount() uint64** - Get the number of rows in the result set, works for stored results only, otherwise returns 0.
 
 **Statement.Fetch() (eof bool, err os.Error)** - Fetch the next row in the result, values are populated into parameters bound using BindResult.
 

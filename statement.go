@@ -86,6 +86,11 @@ func (s *Statement) Prepare(sql string) (err os.Error) {
 	return
 }
 
+// Get number of params
+func (s *Statement) ParamCount() uint16 {
+	return s.paramCount
+}
+
 // Bind params
 func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 	// Check prepared
@@ -331,6 +336,15 @@ func (s *Statement) BindResult(params ...interface{}) (err os.Error) {
 	return
 }
 
+// Get row count
+func (s *Statement) RowCount() uint64 {
+	// Stored mode
+	if s.checkResult() && s.result.mode == RESULT_STORED {
+		return uint64(len(s.result.rows))
+	}
+	return 0
+}
+
 // Fetch next row 
 func (s *Statement) Fetch() (eof bool, err os.Error) {
 	// Log fetch
@@ -381,25 +395,25 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 		switch t := v.(type) {
 		// Integer types
 		case *int:
-			*t = int(atou64(row[k]))
+			*t = int(atoui64(row[k]))
 		case *uint:
-			*t = uint(atou64(row[k]))
+			*t = uint(atoui64(row[k]))
 		case *int8:
-			*t = int8(atou64(row[k]))
+			*t = int8(atoui64(row[k]))
 		case *uint8:
-			*t = uint8(atou64(row[k]))
+			*t = uint8(atoui64(row[k]))
 		case *int16:
-			*t = int16(atou64(row[k]))
+			*t = int16(atoui64(row[k]))
 		case *uint16:
-			*t = uint16(atou64(row[k]))
+			*t = uint16(atoui64(row[k]))
 		case *int32:
-			*t = int32(atou64(row[k]))
+			*t = int32(atoui64(row[k]))
 		case *uint32:
-			*t = uint32(atou64(row[k]))
+			*t = uint32(atoui64(row[k]))
 		case *int64:
-			*t = int64(atou64(row[k]))
+			*t = int64(atoui64(row[k]))
 		case *uint64:
-			*t = atou64(row[k])
+			*t = atoui64(row[k])
 		// Floating point types
 		case *float32:
 			*t = float32(atof64(row[k]))

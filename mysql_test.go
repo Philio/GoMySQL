@@ -35,11 +35,13 @@ const (
 	TEST_DBNAMEBAD  = "gomysql_bad"   // This is a nonexistant database
 
 	// Simple table queries
-	CREATE_SIMPLE = "CREATE TABLE `simple` (`id` SERIAL NOT NULL, `number` BIGINT NOT NULL, `string` VARCHAR(32) NOT NULL, `text` TEXT NOT NULL, `datetime` DATETIME NOT NULL) ENGINE = InnoDB CHARACTER SET utf8 COLLATE utf8_unicode_ci COMMENT = 'GoMySQL Test Suite Simple Table';"
-	SELECT_SIMPLE = "SELECT * FROM simple"
-	INSERT_SIMPLE = "INSERT INTO simple VALUES (null, %d, '%s', '%s', NOW())"
-	UPDATE_SIMPLE = "UPDATE simple SET `text` = '%s', `datetime` = NOW() WHERE id = %d"
-	DROP_SIMPLE   = "DROP TABLE `simple`"
+	CREATE_SIMPLE      = "CREATE TABLE `simple` (`id` SERIAL NOT NULL, `number` BIGINT NOT NULL, `string` VARCHAR(32) NOT NULL, `text` TEXT NOT NULL, `datetime` DATETIME NOT NULL) ENGINE = InnoDB CHARACTER SET utf8 COLLATE utf8_unicode_ci COMMENT = 'GoMySQL Test Suite Simple Table';"
+	SELECT_SIMPLE      = "SELECT * FROM simple"
+	INSERT_SIMPLE      = "INSERT INTO simple VALUES (null, %d, '%s', '%s', NOW())"
+	INSERT_SIMPLE_STMT = "INSERT INTO simple VALUES (null, ?, ?, ?, NOW())"
+	UPDATE_SIMPLE      = "UPDATE simple SET `text` = '%s', `datetime` = NOW() WHERE id = %d"
+	UPDATE_SIMPLE_STMT = "UPDATE simple SET `text` = ?, `datetime` = NOW() WHERE id = ?"
+	DROP_SIMPLE        = "DROP TABLE `simple`"
 
 	// All types table queries
 	CREATE_ALLTYPES = "CREATE TABLE `all_types` (`id` SERIAL NOT NULL, `tiny_int` TINYINT NOT NULL, `tiny_uint` TINYINT UNSIGNED NOT NULL, `small_int` SMALLINT NOT NULL, `small_uint` SMALLINT UNSIGNED NOT NULL, `medium_int` MEDIUMINT NOT NULL, `medium_uint` MEDIUMINT UNSIGNED NOT NULL, `int` INT NOT NULL, `uint` INT UNSIGNED NOT NULL, `big_int` BIGINT NOT NULL, `big_uint` BIGINT UNSIGNED NOT NULL, `decimal` DECIMAL(10,4) NOT NULL, `float` FLOAT NOT NULL, `double` DOUBLE NOT NULL, `real` REAL NOT NULL, `bit` BIT(32) NOT NULL, `boolean` BOOLEAN NOT NULL, `date` DATE NOT NULL, `datetime` DATETIME NOT NULL, `timestamp` TIMESTAMP NOT NULL, `time` TIME NOT NULL, `year` YEAR NOT NULL, `char` CHAR(32) NOT NULL, `varchar` VARCHAR(32) NOT NULL, `tiny_text` TINYTEXT NOT NULL, `text` TEXT NOT NULL, `medium_text` MEDIUMTEXT NOT NULL, `long_text` LONGTEXT NOT NULL, `binary` BINARY(32) NOT NULL, `var_binary` VARBINARY(32) NOT NULL, `tiny_blob` TINYBLOB NOT NULL, `medium_blob` MEDIUMBLOB NOT NULL, `blob` BLOB NOT NULL, `long_blob` LONGBLOB NOT NULL, `enum` ENUM('a','b','c','d','e') NOT NULL, `set` SET('a','b','c','d','e') NOT NULL, `geometry` GEOMETRY NOT NULL) ENGINE = InnoDB CHARACTER SET utf8 COLLATE utf8_unicode_ci COMMENT = 'GoMySQL Test Suite All Types Table'"
@@ -50,6 +52,14 @@ var (
 	db  *Client
 	err os.Error
 )
+
+type SimpleRow struct {
+	Id     uint64
+	Number int64
+	String string
+	Text   string
+	Date   Date
+}
 
 // Test connect to server via TCP
 func TestDialTCP(t *testing.T) {
@@ -171,7 +181,7 @@ func TestSimple(t *testing.T) {
 			break
 		}
 		id := row[0].(uint64)
-		num, str1, str2 := strconv.Itoa64(row[1].(int64)), string(row[2].([]byte)), string(row[3].([]byte))
+		num, str1, str2 := strconv.Itoa64(row[1].(int64)), row[2].(string), string(row[3].([]byte))
 		if rowMap[id][0] != num || rowMap[id][1] != str1 || rowMap[id][2] != str2 {
 			t.Logf("String from database doesn't match local string")
 			t.Fail()
@@ -215,7 +225,7 @@ func TestSimple(t *testing.T) {
 			break
 		}
 		id := row[0].(uint64)
-		num, str1, str2 := strconv.Itoa64(row[1].(int64)), string(row[2].([]byte)), string(row[3].([]byte))
+		num, str1, str2 := strconv.Itoa64(row[1].(int64)), row[2].(string), string(row[3].([]byte))
 		if rowMap[id][0] != num || rowMap[id][1] != str1 || rowMap[id][2] != str2 {
 			t.Logf("%#v %#v", rowMap[id], row)
 			t.Logf("String from database doesn't match local string")
@@ -239,6 +249,57 @@ func TestSimple(t *testing.T) {
 	if err != nil {
 		t.Logf("Error %s", err)
 		t.Fail()
+	}
+}
+
+// Test queries on a simple table (create database, select, insert, update, drop database) using a statement
+func TestSimpleStatement(t *testing.T) {
+	t.Logf("Running simple table statement tests")
+	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAME)
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	t.Logf("Init statement")
+	stmt, err := db.InitStmt()
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	t.Logf("Prepare create table")
+	err = stmt.Prepare(CREATE_SIMPLE)
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	t.Logf("Execute create table")
+	err = stmt.Execute()
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	t.Logf("Prepare insert")
+	err = stmt.Prepare(INSERT_SIMPLE_STMT)
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	t.Logf("Insert 1000 records")
+	rowMap := make(map[uint64][]string)
+	for i := 0; i < 1000; i++ {
+		num, str1, str2 := rand.Int(), randString(32), randString(128)
+		err = stmt.BindParams(num, str1, str2)
+		if err != nil {
+			t.Logf("Error %s", err)
+			t.Fail()
+		}
+		err = stmt.Execute()
+		if err != nil {
+			t.Logf("Error %s", err)
+			t.Fail()
+		}
+		row := []string{fmt.Sprintf("%d", num), str1, str2}
+		rowMap[db.LastInsertId] = row
 	}
 }
 

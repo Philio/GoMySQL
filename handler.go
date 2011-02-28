@@ -145,7 +145,7 @@ func handleRow(p *packetRowData, c *Client, r *Result) (err os.Error) {
 				return
 			}
 		// Strings
-		case FIELD_TYPE_DECIMAL, FIELD_TYPE_NEWDECIMAL, FIELD_TYPE_VARCHAR:
+		case FIELD_TYPE_DECIMAL, FIELD_TYPE_NEWDECIMAL, FIELD_TYPE_VARCHAR, FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING:
 			field = string(p.row[i].([]byte))
 		// Anything else
 		default:
@@ -230,25 +230,25 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 		// Tiny int (8 bit int unsigned or signed)
 		case FIELD_TYPE_TINY:
 			if f.Flags&FLAG_UNSIGNED > 0 {
-				field = p.data[pos]
+				field = uint64(p.data[pos])
 			} else {
-				field = int8(p.data[pos])
+				field = int64(p.data[pos])
 			}
 			pos++
 		// Small int (16 bit int unsigned or signed)
 		case FIELD_TYPE_SHORT, FIELD_TYPE_YEAR:
 			if f.Flags&FLAG_UNSIGNED > 0 {
-				field = btoui16(p.data[pos : pos+2])
+				field = uint64(btoui16(p.data[pos : pos+2]))
 			} else {
-				field = btoi16(p.data[pos : pos+2])
+				field = int64(btoi16(p.data[pos : pos+2]))
 			}
 			pos += 2
 		// Int (32 bit int unsigned or signed) and medium int which is actually in int32 format
 		case FIELD_TYPE_LONG, FIELD_TYPE_INT24:
 			if f.Flags&FLAG_UNSIGNED > 0 {
-				field = btoui32(p.data[pos : pos+4])
+				field = uint64(btoui32(p.data[pos : pos+4]))
 			} else {
-				field = btoi32(p.data[pos : pos+4])
+				field = int64(btoi32(p.data[pos : pos+4]))
 			}
 			pos += 4
 		// Big int (64 bit int unsigned or signed)
