@@ -209,6 +209,10 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 
 // Send long data
 func (s *Statement) SendLongData(num int, data []byte) (err os.Error) {
+	// Auto reconnect
+	defer func() {
+		err = s.c.simpleReconnect(err)
+	}()
 	// Log send long data
 	s.c.log(1, "=== Begin send long data ===")
 	// Check prepared
@@ -374,6 +378,10 @@ func (s *Statement) RowCount() uint64 {
 
 // Fetch next row 
 func (s *Statement) Fetch() (eof bool, err os.Error) {
+	// Auto reconnect
+	defer func() {
+		err = s.c.simpleReconnect(err)
+	}()
 	// Log fetch
 	s.c.log(1, "=== Begin fetch ===")
 	// Check prepared
@@ -466,6 +474,10 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 
 // Store result
 func (s *Statement) StoreResult() (err os.Error) {
+	// Auto reconnect
+	defer func() {
+		err = s.c.simpleReconnect(err)
+	}()
 	// Log store result
 	s.c.log(1, "=== Begin store result ===")
 	// Check prepared
@@ -489,6 +501,10 @@ func (s *Statement) StoreResult() (err os.Error) {
 
 // Free result
 func (s *Statement) FreeResult() (err os.Error) {
+	// Auto reconnect
+	defer func() {
+		err = s.c.simpleReconnect(err)
+	}()
 	// Log free result
 	s.c.log(1, "=== Begin free result ===")
 	// Check prepared
@@ -519,6 +535,10 @@ func (s *Statement) MoreResults() bool {
 
 // Next result
 func (s *Statement) NextResult() (more bool, err os.Error) {
+	// Auto reconnect
+	defer func() {
+		err = s.c.simpleReconnect(err)
+	}()
 	// Log next result
 	s.c.log(1, "=== Begin next result ===")
 	// Check prepared
@@ -544,6 +564,10 @@ func (s *Statement) NextResult() (more bool, err os.Error) {
 
 // Reset statement
 func (s *Statement) Reset() (err os.Error) {
+	// Auto reconnect
+	defer func() {
+		err = s.c.simpleReconnect(err)
+	}()
 	// Log next result
 	s.c.log(1, "=== Begin reset statement ===")
 	// Check prepared
@@ -569,6 +593,10 @@ func (s *Statement) Reset() (err os.Error) {
 
 // Close statement
 func (s *Statement) Close() (err os.Error) {
+	// Auto reconnect
+	defer func() {
+		err = s.c.simpleReconnect(err)
+	}()
 	// Log next result
 	s.c.log(1, "=== Begin close statement ===")
 	// Check prepared

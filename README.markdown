@@ -7,7 +7,7 @@ Revision History
 
 0.3.x series [testing]
 
-* 0.3.0-RC - Fixed SimpleTest unit test. Fixed and variable length strings for normal queries now return string types not []byte, text/blobs are indistinguishable so are left in []byte format. All integer values in prepared statements are stored as either int64 or uint64 depending on the unsigned flag, this simplifies conversion greatly when binding the result. Added ParamCount() and RowCount() methods to statements. The built in Date, Time and DateTime types can now be bound as strings in statements.
+* 0.3.0-RC - Fixed SimpleTest unit test. Fixed and variable length strings for normal queries now return string types not []byte, text/blobs are indistinguishable so are left in []byte format. All integer values in prepared statements are stored as either int64 or uint64 depending on the unsigned flag, this simplifies conversion greatly when binding the result. Added ParamCount() and RowCount() methods to statements. The built in Date, Time and DateTime types can now be bound as strings in statements. Added auto-reconnect to all methods using the network and added reconnect/recovery support to Prepare and Execute functions.
 * 0.3.0-beta-1 - Added full statement and functions. Refactored packet handlers into generic functions. Added new BindResult/Fetch method to get result data from prepared statements. Added type conversions for similar types to populate the result pointers with values from the row data. Added simple type conversion to standard queries. Added automatic reconnect for a select number of operations. Added greater number of client errors from the MySQL manual. Added date/time types to allow date/time elements to be stored as integers and ints, making them more useful.
 * 0.3.0-alpha-3 - Added new error structs ClientError and ServerError. Replaced majority of os.Error/os.NewError functionality with MySQL specific ClientError objects. Server error responses now return a ServerError. Removed Client.Errno and Client.Error. Added deferred error processing to reader, writer and packets to catch and errors and always return a ClientError. Rewrote auto reconnect to check for specific MySQL error codes.
 * 0.3.0-alpha-2 - Added transaction wrappers, Added auto-reconnect functionality to repeatable methods. Removed mutex lock/unlocking, as it is now more appropriate that the application decides when thread safe functions are required and it's considerably safer to have a sequence such as Client.Lock(), Client.Query(...), Client.Unlock(). Added a new test which performs create, drop, select, insert and update queries on a simple demo table to test the majority of the library functionality. Added additional error messages to places where an error could be returned but there was no error number/string set. Many small changes and general improvements.
@@ -345,6 +345,19 @@ Usage examples
 			}  
 			// ADD SOME ROW PROCESSING HERE  
 		}  
+
+
+Auto-reconnect functionality
+----------------------------
+
+As of version 0.3.0 the library can detect network failures and try and reconnect automatically. Any methods that use the network connection support reconnect but may still return a network error (as the process is too complicated to recover) while a number of core methods are able to attempt to reconnect and recover the operation. The default setting for the feature is OFF.
+
+Methods supporting recovery:
+
+* Client.ChangeDb - Will attempt to reconnect and rerun the changedb command.
+* Client.Query - Will attempt to reconnect and rerun the query.
+* Statement.Prepare - Will attempt to reconnect and prepare the statement again.
+* Statement.Execute - Will attempt to reconnect, prepare and execute the statement again. **Long data packets are not resent!**
 
 
 Prepared statement notes (previously limitations)

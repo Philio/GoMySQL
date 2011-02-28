@@ -243,6 +243,10 @@ func (c *Client) Query(sql string) (err os.Error) {
 
 // Fetch all rows for a result and store it, returning the result set
 func (c *Client) StoreResult() (result *Result, err os.Error) {
+	// Auto reconnect
+	defer func() {
+		err = c.simpleReconnect(err)
+	}()
 	// Log store result
 	c.log(1, "=== Begin store result ===")
 	// Check result
@@ -266,6 +270,10 @@ func (c *Client) StoreResult() (result *Result, err os.Error) {
 
 // Use a result set, does not store rows
 func (c *Client) UseResult() (result *Result, err os.Error) {
+	// Auto reconnect
+	defer func() {
+		err = c.simpleReconnect(err)
+	}()
 	// Log use result
 	c.log(1, "=== Begin use result ===")
 	// Check result
@@ -283,6 +291,10 @@ func (c *Client) UseResult() (result *Result, err os.Error) {
 
 // Free the current result
 func (c *Client) FreeResult() (err os.Error) {
+	// Auto reconnect
+	defer func() {
+		err = c.simpleReconnect(err)
+	}()
 	// Log free result
 	c.log(1, "=== Begin free result ===")
 	// Check result
@@ -318,6 +330,10 @@ func (c *Client) MoreResults() bool {
 
 // Move to the next available result
 func (c *Client) NextResult() (more bool, err os.Error) {
+	// Auto reconnect
+	defer func() {
+		err = c.simpleReconnect(err)
+	}()
 	// Log next result
 	c.log(1, "=== Begin next result ===")
 	// Pre-run checks
@@ -680,6 +696,19 @@ func (c *Client) auth() (err os.Error) {
 	// Log write success
 	c.log(1, "[%d] Sent authentication packet", p.sequence)
 	return
+}
+
+// Simple non-recovered reconnect
+func (c *Client) simpleReconnect(err os.Error) os.Error {
+	if err != nil && c.checkNet(err) && c.Reconnect {
+		c.log(1, "!!! Lost connection to server !!!")
+		c.connected = false
+		rcErr := c.reconnect()
+		if rcErr != nil {
+			return rcErr
+		}
+	}
+	return err
 }
 
 // Perform reconnect if a network error occurs
