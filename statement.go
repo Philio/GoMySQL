@@ -18,6 +18,7 @@ type Statement struct {
 
 	// Statement status flags
 	prepared      bool
+	preparedSql   string
 	paramsBound   bool
 	paramsRebound bool
 
@@ -42,6 +43,17 @@ type Statement struct {
 
 // Prepare new statement
 func (s *Statement) Prepare(sql string) (err os.Error) {
+	// Auto reconnect
+	defer func() {
+		if err != nil && s.c.checkNet(err) && s.c.Reconnect {
+			s.c.log(1, "!!! Lost connection to server !!!")
+			s.c.connected = false
+			err = s.c.reconnect()
+			if err == nil {
+				err = s.Prepare(sql)
+			}
+		}
+	}()
 	// Log prepare
 	s.c.log(1, "=== Begin prepare '%s' ===", sql)
 	// Pre-run checks
@@ -83,6 +95,7 @@ func (s *Statement) Prepare(sql string) (err os.Error) {
 	}
 	// Statement is preapred
 	s.prepared = true
+	s.preparedSql = sql
 	return
 }
 
@@ -248,6 +261,20 @@ func (s *Statement) SendLongData(num int, data []byte) (err os.Error) {
 
 // Execute
 func (s *Statement) Execute() (err os.Error) {
+	// Auto reconnect
+	defer func() {
+		if err != nil && s.c.checkNet(err) && s.c.Reconnect {
+			s.c.log(1, "!!! Lost connection to server !!!")
+			s.c.connected = false
+			err = s.c.reconnect()
+			if err == nil {
+				err = s.Prepare(s.preparedSql)
+				if err == nil {
+					err = s.Execute()
+				}
+			}
+		}
+	}()
 	// Log execute
 	s.c.log(1, "=== Begin execute ===")
 	// Check prepared
