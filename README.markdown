@@ -1,12 +1,13 @@
-﻿GoMySQL Version 0.3.0-RC-2
-==========================
+﻿GoMySQL Version 0.3.0
+=====================
 
 
 Revision History
 ----------------
 
-0.3.x series [testing]
+0.3.x series [current]
 
+* 0.3.0 - No changes since RC2.
 * 0.3.0-RC-2 - Convert additional string types (issue 47). Added a check for NULL fields in the row packet handler to prevent a crash in strconv (issue 48).
 * 0.3.0-RC-1 - Fixed TestSimple unit test and added TestSimpleStatement which performs the same tests as TestSimple but uses a prepared statement throughout. Fixed and variable length strings for normal queries now return string types not []byte, text/blobs are indistinguishable so are left in []byte format which is more efficient. All integer values in prepared statements are stored as either int64 or uint64 depending on the unsigned flag, this simplifies conversion greatly when binding the result. Added ParamCount() and RowCount() methods to statements. The built in Date, Time and DateTime types can now be bound as strings in statements. Added auto-reconnect to all methods using the network and added reconnect/recovery support to Prepare and Execute functions. Statement.Reset now frees any remaining rows or complete result sets from the connection before sending the reset command so no longer requires a call to FreeResult prior to calling.
 * 0.3.0-beta-1 - Added full statement and functions. Refactored packet handlers into generic functions. Added new BindResult/Fetch method to get result data from prepared statements. Added type conversions for similar types to populate the result pointers with values from the row data. Added simple type conversion to standard queries. Added automatic reconnect for a select number of operations. Added greater number of client errors from the MySQL manual. Added date/time types to allow date/time elements to be stored as integers and ints, making them more useful.
@@ -14,7 +15,7 @@ Revision History
 * 0.3.0-alpha-2 - Added transaction wrappers, Added auto-reconnect functionality to repeatable methods. Removed mutex lock/unlocking, as it is now more appropriate that the application decides when thread safe functions are required and it's considerably safer to have a sequence such as Client.Lock(), Client.Query(...), Client.Unlock(). Added a new test which performs create, drop, select, insert and update queries on a simple demo table to test the majority of the library functionality. Added additional error messages to places where an error could be returned but there was no error number/string set. Many small changes and general improvements.
 * 0.3.0-alpha-1 - First test release of new library, completely rewritten from scratch. Fully compatible with all versions of MySQL using the 4.1+ protocol and 4.0 protocol (which supports earlier versions). Fully supports old and new passwords, including old passwords using the 4.1 protocol. Includes new Go style constructors 'NewClient', 'DialTCP', 'DialUnix' replacing 'New' from the 0.2 branch. All structs have been renamed to be more user friendly, MySQL has also now been replaced with Client. Removed many dependencies on external packages such as bufio. New reader that reads the entire packet completely to a slice then processes afterwards. New writer that constructs the entire packet completely to a slice and writes in a single operation. The Client.Query function no longer returns a result set and now uses the tradition store/use result mechanism for retrieving the result and processing it's contents. The 'MultiQuery' function has been removed as this is now supported by the Client.Query function. Currently all result sets must be freed before another query can be executed either using the Result.Free() method or Client.FreeResult() method, a check for additional result sets can be made using Client.MoreResults() and the next result can be retrieved using Client.NextResult(). Client.FreeResult() is capable of reading and discarding an entire result set (provided the first result set packet has been read), a partially read result set (e.g. from Client.UseResult) or a fully stored result. Transaction support and prepared statements are NOT available in this alpha release.
 
-0.2.x series [current]
+0.2.x series [deprecated]
 
 * 0.2.12 - Fix a bug in getPrepareResult() causing queries returning no fields (e.g. DROP TABLE ...) to hang.
 * 0.2.11 - Skipped
@@ -30,7 +31,7 @@ Revision History
 * 0.2.1 - Updated to work with latest release of Go plus 1 or 2 minor tweaks.
 * 0.2.0 - Functions have been reworked and now always return os.Error to provide a generic and consistent design. Improved logging output. Improved client stability. Removed length vs buffered length checks as they don't work with packets > 4096 bytes. Added new Escape function, although this is currently only suitable for short strings. Tested library with much larger databases such as multi-gigabyte tables and multi-megabyte blogs. Many minor bug fixes. Resolved issue #3, #4 and #5.
 
-0.1.x series [deprecated]
+0.1.x series [obsolete]
 
 * 0.1.14 - Added support for long data packets.
 * 0.1.13 - Added proper support for NULL bit map in binary row data packets.
