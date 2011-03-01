@@ -55,10 +55,10 @@ var (
 
 type SimpleRow struct {
 	Id     uint64
-	Number int64
+	Number string
 	String string
 	Text   string
-	Date   Date
+	Date   string
 }
 
 // Test connect to server via TCP
@@ -144,12 +144,14 @@ func TestSimple(t *testing.T) {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Create table")
 	err = db.Query(CREATE_SIMPLE)
 	if err != nil {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Insert 1000 records")
 	rowMap := make(map[uint64][]string)
 	for i := 0; i < 1000; i++ {
@@ -162,18 +164,21 @@ func TestSimple(t *testing.T) {
 		row := []string{fmt.Sprintf("%d", num), str1, str2}
 		rowMap[db.LastInsertId] = row
 	}
+	
 	t.Logf("Select inserted data")
 	err = db.Query(SELECT_SIMPLE)
 	if err != nil {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Use result")
 	res, err := db.UseResult()
 	if err != nil {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Validate inserted data")
 	for {
 		row := res.FetchRow()
@@ -187,12 +192,14 @@ func TestSimple(t *testing.T) {
 			t.Fail()
 		}
 	}
+	
 	t.Logf("Free result")
 	err = res.Free()
 	if err != nil {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Update some records")
 	for i := uint64(0); i < 1000; i += 5 {
 		rowMap[i+1][2] = randString(256)
@@ -206,18 +213,21 @@ func TestSimple(t *testing.T) {
 			t.Fail()
 		}
 	}
+	
 	t.Logf("Select updated data")
 	err = db.Query(SELECT_SIMPLE)
 	if err != nil {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Store result")
 	res, err = db.StoreResult()
 	if err != nil {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Validate updated data")
 	for {
 		row := res.FetchRow()
@@ -232,6 +242,7 @@ func TestSimple(t *testing.T) {
 			t.Fail()
 		}
 	}
+	
 	t.Logf("Free result")
 	err = res.Free()
 	if err != nil {
@@ -245,6 +256,8 @@ func TestSimple(t *testing.T) {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
+	t.Logf("Close connection")
 	err = db.Close()
 	if err != nil {
 		t.Logf("Error %s", err)
@@ -260,30 +273,35 @@ func TestSimpleStatement(t *testing.T) {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Init statement")
 	stmt, err := db.InitStmt()
 	if err != nil {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Prepare create table")
 	err = stmt.Prepare(CREATE_SIMPLE)
 	if err != nil {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Execute create table")
 	err = stmt.Execute()
 	if err != nil {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Prepare insert")
 	err = stmt.Prepare(INSERT_SIMPLE_STMT)
 	if err != nil {
 		t.Logf("Error %s", err)
 		t.Fail()
 	}
+	
 	t.Logf("Insert 1000 records")
 	rowMap := make(map[uint64][]string)
 	for i := 0; i < 1000; i++ {
@@ -299,7 +317,135 @@ func TestSimpleStatement(t *testing.T) {
 			t.Fail()
 		}
 		row := []string{fmt.Sprintf("%d", num), str1, str2}
-		rowMap[db.LastInsertId] = row
+		rowMap[stmt.LastInsertId] = row
+	}
+	
+	t.Logf("Prepare select")
+	err = stmt.Prepare(SELECT_SIMPLE)
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	
+	t.Logf("Execute select")
+	err = stmt.Execute()
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	
+	t.Logf("Bind result")
+	row := SimpleRow{}
+	stmt.BindResult(&row.Id, &row.Number, &row.String, &row.Text, &row.Date)
+	
+	t.Logf("Validate inserted data")
+	for {
+		eof, err := stmt.Fetch()
+		if err != nil {
+			t.Logf("Error %s", err)
+			t.Fail()
+		}
+		if eof {
+			break
+		}
+		if rowMap[row.Id][0] != row.Number || rowMap[row.Id][1] != row.String || rowMap[row.Id][2] != row.Text {
+			t.Logf("String from database doesn't match local string")
+			t.Fail()
+		}
+	}
+	
+	t.Logf("Reset statement")
+	err = stmt.Reset()
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	
+	t.Logf("Prepare update")
+	err = stmt.Prepare(UPDATE_SIMPLE_STMT)
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	
+	t.Logf("Update some records")
+	for i := uint64(0); i < 1000; i += 5 {
+		rowMap[i+1][2] = randString(256)
+		stmt.BindParams(rowMap[i+1][2], i+1)
+		err = stmt.Execute()
+		if err != nil {
+			t.Logf("Error %s", err)
+			t.Fail()
+		}
+		if stmt.AffectedRows != 1 {
+			t.Logf("Expected 1 effected row but got %d", db.AffectedRows)
+			t.Fail()
+		}
+	}
+	
+	t.Logf("Prepare select updated")
+	err = stmt.Prepare(SELECT_SIMPLE)
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	
+	t.Logf("Execute select updated")
+	err = stmt.Execute()
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	
+	t.Logf("Validate updated data")
+	for {
+		eof, err := stmt.Fetch()
+		if err != nil {
+			t.Logf("Error %s", err)
+			t.Fail()
+		}
+		if eof {
+			break
+		}
+		if rowMap[row.Id][0] != row.Number || rowMap[row.Id][1] != row.String || rowMap[row.Id][2] != row.Text {
+			t.Logf("String from database doesn't match local string")
+			t.Fail()
+		}
+	}
+	
+	t.Logf("Free result")
+	err = stmt.FreeResult()
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	
+	t.Logf("Prepare drop")
+	err = stmt.Prepare(DROP_SIMPLE)
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	
+	t.Logf("Execute drop")
+	err = stmt.Execute()
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	
+	t.Logf("Close statement")
+	err = stmt.Close()
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
+	}
+	
+	t.Logf("Close connection")
+	err = db.Close()
+	if err != nil {
+		t.Logf("Error %s", err)
+		t.Fail()
 	}
 }
 
