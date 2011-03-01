@@ -212,7 +212,7 @@ Result methods
 
 **Result.FetchFields() []*Field** - Get all fields in the result set.
 
-**Result.RowCount() uint64** - Get the number of rows in the result set, works for stored results only, used result always return 0.
+**Result.RowCount() uint64** - Get the number of rows in the result set, **works for stored results only**, used result always return 0.
 
 **Result.FetchRow() Row** - Get the next row in the result set.
 
@@ -252,7 +252,7 @@ Statement methods
 
 **Statement.BindResult(params ...interface{}) (err os.Error)** - Bind the result, parameters passed to this functions should be pointers to variables which will be populated with the data from the fetched row. If a column value is not needed a nil can be used. Parameters should be of a "similar" type to the actual column value in the MySQL table, e.g. for an INT field, the parameter can be any integer type or a string and the relevant conversion is performed. Using integer sizes smaller than the size in the table is not recommended. The number of parameters bound can be equal or less than the number of fields in the table, providing more parameters than actual columns will result in a crash.
 
-**Statement.RowCount() uint64** - Get the number of rows in the result set, works for stored results only, otherwise returns 0.
+**Statement.RowCount() uint64** - Get the number of rows in the result set, **works for stored results only**, otherwise returns 0.
 
 **Statement.Fetch() (eof bool, err os.Error)** - Fetch the next row in the result, values are populated into parameters bound using BindResult.
 
