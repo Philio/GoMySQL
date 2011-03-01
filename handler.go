@@ -8,7 +8,6 @@ package mysql
 import (
 	"os"
 	"strconv"
-	"fmt"
 )
 
 // OK packet handler
@@ -112,9 +111,6 @@ func handleField(p *packetField, c *Client, r *Result) (err os.Error) {
 
 // Row packet hander
 func handleRow(p *packetRowData, c *Client, r *Result) (err os.Error) {
-	defer func() {
-		fmt.Printf("Error: %#v\n", err)
-	}()
 	// Log field result
 	c.log(1, "[%d] Received row packet", p.sequence)
 	// Check sequence
@@ -163,16 +159,13 @@ func handleRow(p *packetRowData, c *Client, r *Result) (err os.Error) {
 		// Add to row
 		row = append(row, field)
 	}
-	fmt.Printf("%#v\n", row)
 	// Stored result
 	if r.mode == RESULT_STORED {
-		fmt.Println("Appending")
 		// Cast and append the row
 		r.rows = append(r.rows, Row(row))
 	}
 	// Used result
 	if r.mode == RESULT_USED {
-		fmt.Println("Overwriting")
 		// Only save 1 row, overwrite previous
 		r.rows = []Row{Row(row)}
 	}
