@@ -515,16 +515,8 @@ func (s *Statement) FreeResult() (err os.Error) {
 	if !s.checkResult() {
 		return &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
 	}
-	// Check for unread rows
-	if !s.result.allRead {
-		// Read all rows
-		err = s.getAllRows()
-		if err != nil {
-			return
-		}
-	}
-	// Unset the result
-	s.result = nil
+	// Free the current result set
+	s.freeAll(false)
 	return
 }
 
@@ -557,6 +549,9 @@ func (s *Statement) NextResult() (more bool, err os.Error) {
 	// Read result from server
 	s.c.sequence++
 	_, err = s.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
+	if err != nil || s.result == nil {
+		return
+	}
 	// Store fields
 	err = s.getFields()
 	return
@@ -575,8 +570,12 @@ func (s *Statement) Reset() (err os.Error) {
 		return &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
 	}
 	// Pre-run checks
-	if !s.c.checkConn() || s.checkResult() {
+	if !s.c.checkConn() {
 		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
+	}
+	// Free any results
+	if s.checkResult() {
+		err = s.freeAll(true)
 	}
 	// Reset client
 	s.reset()
@@ -721,6 +720,51 @@ func (s *Statement) getResult(types packetType) (eof bool, err os.Error) {
 		err = handleResultSet(p.(*packetResultSet), s.c, s.result)
 	case *packetRowBinary:
 		err = handleBinaryRow(p.(*packetRowBinary), s.c, s.result)
+	}
+	return
+}
+
+// Free any result sets waiting to be read
+func (s *Statement) freeAll(next bool) (err os.Error) {
+	// Check for unread rows
+	if !s.result.allRead {
+		// Read all rows
+		err = s.getAllRows()
+		if err != nil {
+			return
+		}
+	}
+	// Unset the result
+	s.result = nil
+	// Check for next result
+	if next {
+		for {
+			// Check if more results exist
+			if !s.c.MoreResults() {
+				break
+			}
+			// Get next result
+			s.c.sequence++
+			_, err = s.getResult(PACKET_OK | PACKET_ERROR | PACKET_RESULT)
+			if err != nil {
+				return
+			}
+			if s.result == nil {
+				continue
+			}
+			// Set result mode to RESULT_FREE
+			s.result.mode = RESULT_FREE
+			// Read fields
+			err = s.getFields()
+			if err != nil {
+				return
+			}
+			// Read rows
+			err = s.getAllRows()
+			if err != nil {
+				return
+			}
+		}
 	}
 	return
 }
