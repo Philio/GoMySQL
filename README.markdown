@@ -1,4 +1,4 @@
-﻿GoMySQL Version 0.3.0
+﻿GoMySQL Version 0.3.1
 =====================
 
 
@@ -7,6 +7,7 @@ Revision History
 
 0.3.x series [current]
 
+* 0.3.1 - Updated to support weekly.2011-04-04 Go build, change to usage of net.Dial.
 * 0.3.0 - No changes since RC2.
 * 0.3.0-RC-2 - Convert additional string types (issue 47). Added a check for NULL fields in the row packet handler to prevent a crash in strconv (issue 48).
 * 0.3.0-RC-1 - Fixed TestSimple unit test and added TestSimpleStatement which performs the same tests as TestSimple but uses a prepared statement throughout. Fixed and variable length strings for normal queries now return string types not []byte, text/blobs are indistinguishable so are left in []byte format which is more efficient. All integer values in prepared statements are stored as either int64 or uint64 depending on the unsigned flag, this simplifies conversion greatly when binding the result. Added ParamCount() and RowCount() methods to statements. The built in Date, Time and DateTime types can now be bound as strings in statements. Added auto-reconnect to all methods using the network and added reconnect/recovery support to Prepare and Execute functions. Statement.Reset now frees any remaining rows or complete result sets from the connection before sending the reset command so no longer requires a call to FreeResult prior to calling.
