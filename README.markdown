@@ -2,6 +2,16 @@
 =====================
 
 
+Important: Which release to use?
+--------------------------------
+
+The latest Go weekly build made changes to the net package, which are implemented in GoMySQL 0.3.1.
+
+For release weekly.2011-04-04 builds and later, use GoMySQL 0.3.1 (the master branch).
+
+For releases prior to weekly.2011-04-04 (including the latest release build), use GoMySQL 0.3.0 (the release branch).
+
+
 Revision History
 ----------------
 
