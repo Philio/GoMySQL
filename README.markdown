@@ -1,15 +1,5 @@
-﻿GoMySQL Version 0.3.1
+﻿GoMySQL Version 0.3.2
 =====================
-
-
-Important: Which release to use?
---------------------------------
-
-The latest Go weekly build made changes to the net package, which are implemented in GoMySQL 0.3.1.
-
-For release weekly.2011-04-04 builds and later, use GoMySQL 0.3.1 (the master branch).
-
-For releases prior to weekly.2011-04-04 (including the latest release build), use GoMySQL 0.3.0 (the release branch).
 
 
 Revision History
@@ -17,6 +7,7 @@ Revision History
 
 0.3.x series [current]
 
+* 0.3.2 - Updated to support release.r57.1 Go build, change to usage of reflect.
 * 0.3.1 - Updated to support weekly.2011-04-04 Go build, change to usage of net.Dial.
 * 0.3.0 - No changes since RC2.
 * 0.3.0-RC-2 - Convert additional string types (issue 47). Added a check for NULL fields in the row packet handler to prevent a crash in strconv (issue 48).
