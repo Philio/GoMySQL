@@ -10,18 +10,21 @@ import (
 	"os"
 	"rand"
 	"strconv"
+	"sync"
 	"testing"
 )
 
-const (
-	// Testing credentials, run the following on server client prior to running:
-	// create database gomysql_test;
-	// create database gomysql_test2;
-	// create database gomysql_test3;
-	// create user gomysql_test@localhost identified by 'abc123';
-	// grant all privileges on gomysql_test.* to gomysql_test@localhost;
-	// grant all privileges on gomysql_test2.* to gomysql_test@localhost;
+const instructions = `To run the GoMySQL tests, run the following on the server first:
 
+   create database gomysql_test;
+   create database gomysql_test2;
+   create database gomysql_test3;
+   create user gomysql_test@localhost identified by 'abc123';
+   grant all privileges on gomysql_test.* to gomysql_test@localhost;
+   grant all privileges on gomysql_test2.* to gomysql_test@localhost;
+`
+
+const (
 	// Testing settings
 	TEST_HOST       = "localhost"
 	TEST_PORT       = "3306"
@@ -49,8 +52,10 @@ const (
 )
 
 var (
-	db  *Client
-	err os.Error
+	db        *Client
+	err       os.Error
+	checkOnce sync.Once
+	skipTests bool
 )
 
 type SimpleRow struct {
@@ -61,8 +66,40 @@ type SimpleRow struct {
 	Date   string
 }
 
+func verifyConnections() {
+	db, err = DialTCP(TEST_HOST, TEST_USER, TEST_PASSWD, TEST_DBNAME)
+	if db != nil {
+		db.Close()
+	}
+	if err != nil {
+		skipTests = true
+		os.Stderr.Write([]byte(instructions))
+		return
+	}
+	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAME)
+	if db != nil {
+		db.Close()
+	}
+	if err != nil {
+		skipTests = true
+		os.Stderr.Write([]byte(instructions))
+		return
+	}
+}
+
+func skipTest(t *testing.T) bool {
+	checkOnce.Do(verifyConnections)
+	if skipTests {
+		t.Logf("skipping test; see instructions")
+	}
+	return skipTests
+}
+
 // Test connect to server via TCP
 func TestDialTCP(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	t.Logf("Running DialTCP test to %s:%s", TEST_HOST, TEST_PORT)
 	db, err = DialTCP(TEST_HOST, TEST_USER, TEST_PASSWD, TEST_DBNAME)
 	if err != nil {
@@ -78,6 +115,9 @@ func TestDialTCP(t *testing.T) {
 
 // Test connect to server via Unix socket
 func TestDialUnix(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	t.Logf("Running DialUnix test to %s", TEST_SOCK)
 	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAME)
 	if err != nil {
@@ -93,6 +133,9 @@ func TestDialUnix(t *testing.T) {
 
 // Test connect to server with unprivileged database
 func TestDialUnixUnpriv(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	t.Logf("Running DialUnix test to unprivileged database %s", TEST_DBNAMEUP)
 	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAMEUP)
 	if err != nil {
@@ -108,6 +151,9 @@ func TestDialUnixUnpriv(t *testing.T) {
 
 // Test connect to server with nonexistant database
 func TestDialUnixNonex(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	t.Logf("Running DialUnix test to nonexistant database %s", TEST_DBNAMEBAD)
 	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAMEBAD)
 	if err != nil {
@@ -123,6 +169,9 @@ func TestDialUnixNonex(t *testing.T) {
 
 // Test connect with bad password
 func TestDialUnixBadPass(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	t.Logf("Running DialUnix test with bad password")
 	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_BAD_PASSWD, TEST_DBNAME)
 	if err != nil {
@@ -138,6 +187,9 @@ func TestDialUnixBadPass(t *testing.T) {
 
 // Test queries on a simple table (create database, select, insert, update, drop database)
 func TestSimple(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	t.Logf("Running simple table tests")
 	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAME)
 	if err != nil {
@@ -267,6 +319,9 @@ func TestSimple(t *testing.T) {
 
 // Test queries on a simple table (create database, select, insert, update, drop database) using a statement
 func TestSimpleStatement(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
 	t.Logf("Running simple table statement tests")
 	db, err = DialUnix(TEST_SOCK, TEST_USER, TEST_PASSWD, TEST_DBNAME)
 	if err != nil {
