@@ -123,7 +123,7 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 		var t FieldType
 		var d []byte
 		// Switch on type
-		switch param.(type) {
+		switch p := param.(type) {
 		// Nil
 		case nil:
 			t = FIELD_TYPE_NULL
@@ -134,7 +134,7 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 			} else {
 				t = FIELD_TYPE_LONGLONG
 			}
-			d = itob(param.(int))
+			d = itob(p)
 		// Uint
 		case uint:
 			if strconv.IntSize == 32 {
@@ -142,57 +142,57 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 			} else {
 				t = FIELD_TYPE_LONGLONG
 			}
-			d = uitob(param.(uint))
+			d = uitob(p)
 		// Int8
 		case int8:
 			t = FIELD_TYPE_TINY
-			d = []byte{byte(param.(int8))}
+			d = []byte{byte(p)}
 		// Uint8
 		case uint8:
 			t = FIELD_TYPE_TINY
-			d = []byte{param.(uint8)}
+			d = []byte{p}
 		// Int16
 		case int16:
 			t = FIELD_TYPE_SHORT
-			d = i16tob(param.(int16))
+			d = i16tob(p)
 		// Uint16
 		case uint16:
 			t = FIELD_TYPE_SHORT
-			d = ui16tob(param.(uint16))
+			d = ui16tob(p)
 		// Int32
 		case int32:
 			t = FIELD_TYPE_LONG
-			d = i32tob(param.(int32))
+			d = i32tob(p)
 		// Uint32
 		case uint32:
 			t = FIELD_TYPE_LONG
-			d = ui32tob(param.(uint32))
+			d = ui32tob(p)
 		// Int64
 		case int64:
 			t = FIELD_TYPE_LONGLONG
-			d = i64tob(param.(int64))
+			d = i64tob(p)
 		// Uint64
 		case uint64:
 			t = FIELD_TYPE_LONGLONG
-			d = ui64tob(param.(uint64))
+			d = ui64tob(p)
 		// Float32
 		case float32:
 			t = FIELD_TYPE_FLOAT
-			d = f32tob(param.(float32))
+			d = f32tob(p)
 		// Float64
 		case float64:
 			t = FIELD_TYPE_DOUBLE
-			d = f64tob(param.(float64))
+			d = f64tob(p)
 		// String
 		case string:
 			t = FIELD_TYPE_STRING
-			d = lcbtob(uint64(len(param.(string))))
-			d = append(d, []byte(param.(string))...)
+			d = lcbtob(uint64(len(p)))
+			d = append(d, []byte(p)...)
 		// Byte array
 		case []byte:
 			t = FIELD_TYPE_BLOB
-			d = lcbtob(uint64(len(param.([]byte))))
-			d = append(d, param.([]byte)...)
+			d = lcbtob(uint64(len(p)))
+			d = append(d, p...)
 		// Other types
 		default:
 			return &ClientError{CR_UNSUPPORTED_PARAM_TYPE, s.c.fmtError(CR_UNSUPPORTED_PARAM_TYPE_STR, reflect.ValueOf(param).Type(), k)}
