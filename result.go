@@ -12,6 +12,10 @@ type Result struct {
 	// Pointer to the client
 	c *Client
 
+	// if non-nil, the Result came from a Statement, not
+	// via Client.Query.
+	s *Statement
+
 	// Fields
 	fieldCount uint64
 	fieldPos   uint64
@@ -71,6 +75,13 @@ func (r *Result) RowCount() uint64 {
 	return 0
 }
 
+func (r *Result) getRow() (eof bool, err os.Error) {
+	if r.s != nil {
+		return r.s.getRow()
+	}
+	return r.c.getRow()
+}
+
 // Fetch a row
 func (r *Result) FetchRow() Row {
 	// Stored result
@@ -85,7 +96,7 @@ func (r *Result) FetchRow() Row {
 	// Used result
 	if r.mode == RESULT_USED {
 		if r.allRead == false {
-			eof, err := r.c.getRow()
+			eof, err := r.getRow()
 			if err != nil {
 				return nil
 			}
@@ -123,6 +134,10 @@ func (r *Result) FetchRows() []Row {
 
 // Free the result
 func (r *Result) Free() (err os.Error) {
-	err = r.c.FreeResult()
+	if r.s != nil {
+		err = r.s.FreeResult()
+	} else {
+		err = r.c.FreeResult()
+	}
 	return
 }

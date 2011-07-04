@@ -472,6 +472,23 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 	return
 }
 
+// Use result
+func (s *Statement) UseResult() (*Result, os.Error) {
+	// Log use result
+	s.c.log(1, "=== Begin use result ===")
+	// Check prepared
+	if !s.prepared {
+		return nil, &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
+	}
+	// Check if result already used/stored
+	if s.result.mode != RESULT_UNUSED {
+		return nil, &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
+	}
+	s.result.mode = RESULT_USED
+	s.result.s = s // tell the result that we own it
+	return s.result, nil
+}
+
 // Store result
 func (s *Statement) StoreResult() (err os.Error) {
 	// Auto reconnect
