@@ -694,32 +694,32 @@ func (s *Statement) getResult(types packetType) (eof bool, err os.Error) {
 	// Log read result
 	s.c.log(1, "Reading result packet from server")
 	// Get result packet
-	p, err := s.c.r.readPacket(types)
+	pr, err := s.c.r.readPacket(types)
 	if err != nil {
 		return
 	}
 	// Process result packet
-	switch p.(type) {
+	switch p := pr.(type) {
 	default:
 		err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 	case *packetOK:
-		err = handleOK(p.(*packetOK), s.c, &s.AffectedRows, &s.LastInsertId, &s.Warnings)
+		err = handleOK(p, s.c, &s.AffectedRows, &s.LastInsertId, &s.Warnings)
 	case *packetError:
-		err = handleError(p.(*packetError), s.c)
+		err = handleError(p, s.c)
 	case *packetEOF:
 		eof = true
-		err = handleEOF(p.(*packetEOF), s.c)
+		err = handleEOF(p, s.c)
 	case *packetPrepareOK:
-		err = handlePrepareOK(p.(*packetPrepareOK), s.c, s)
+		err = handlePrepareOK(p, s.c, s)
 	case *packetParameter:
-		err = handleParam(p.(*packetParameter), s.c)
+		err = handleParam(p, s.c)
 	case *packetField:
-		err = handleField(p.(*packetField), s.c, s.result)
+		err = handleField(p, s.c, s.result)
 	case *packetResultSet:
 		s.result = &Result{c: s.c}
-		err = handleResultSet(p.(*packetResultSet), s.c, s.result)
+		err = handleResultSet(p, s.c, s.result)
 	case *packetRowBinary:
-		err = handleBinaryRow(p.(*packetRowBinary), s.c, s.result)
+		err = handleBinaryRow(p, s.c, s.result)
 	}
 	return
 }
