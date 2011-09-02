@@ -128,32 +128,32 @@ func handleRow(p *packetRowData, c *Client, r *Result) (err os.Error) {
 	// Iterate fields to get types
 	for i, f := range r.fields {
 		// Check null
-		if len(p.row[i].([]byte)) ==0 {
+		if p.row[i].IsNull() {
 			field = nil
 		} else {
 			switch f.Type {
 			// Signed/unsigned ints
 			case FIELD_TYPE_TINY, FIELD_TYPE_SHORT, FIELD_TYPE_YEAR, FIELD_TYPE_INT24, FIELD_TYPE_LONG, FIELD_TYPE_LONGLONG:
 				if f.Flags&FLAG_UNSIGNED > 0 {
-					field, err = strconv.Atoui64(string(p.row[i].([]byte)))
+					field, err = strconv.Atoui64(string(p.row[i].Data()))
 				} else {
-					field, err = strconv.Atoi64(string(p.row[i].([]byte)))
+					field, err = strconv.Atoi64(string(p.row[i].Data()))
 				}
 				if err != nil {
 					return
 				}
 			// Floats and doubles
 			case FIELD_TYPE_FLOAT, FIELD_TYPE_DOUBLE:
-				field, err = strconv.Atof64(string(p.row[i].([]byte)))
+				field, err = strconv.Atof64(string(p.row[i].Data()))
 				if err != nil {
 					return
 				}
 			// Strings
 			case FIELD_TYPE_DECIMAL, FIELD_TYPE_NEWDECIMAL, FIELD_TYPE_VARCHAR, FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING:
-				field = string(p.row[i].([]byte))
+				field = string(p.row[i].Data())
 			// Anything else
 			default:
-				field = p.row[i]
+				field = p.row[i].Data()
 			}
 		}
 		// Add to row
