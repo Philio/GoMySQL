@@ -6,10 +6,8 @@
 package mysql
 
 import (
-	"fmt"
 	"os"
 	"reflect"
-        "runtime/debug"
 	"strconv"
 )
 
@@ -423,16 +421,12 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 	// Recover possible errors from type conversion
 	defer func() {
 		if e := recover(); e != nil {
-                        fmt.Printf("recovered error: %s\n", e)
-                        fmt.Printf("stack: %s\n", debug.Stack())
+                        // fmt.Printf("recovered error: %s\n", e)
+                        // fmt.Printf("stack: %s\n", debug.Stack())
 			err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 			return
 		}
 	}()
-
-        fmt.Printf("row: %s\n", row)
-        fmt.Printf("len(row): %d\n", len(row))
-        fmt.Printf("len(resultParams): %d\n", len(s.resultParams))
 
 	// Iterate bound params and assign from row (partial set quicker this way)
 	for k, v := range s.resultParams {
@@ -468,7 +462,6 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 			*t = row[k].([]byte)
 		// Strings
 		case *string:
-                        fmt.Printf("row[k]: %v\n", row[k])
                         if row[k] == nil {
                                 *t = ""
                         } else {
