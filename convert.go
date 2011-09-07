@@ -6,6 +6,7 @@
 package mysql
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"strconv"
@@ -234,8 +235,10 @@ func atoui64(i interface{}) (n uint64) {
 			panic("Invalid string for integer conversion")
 		}
 		n = uint64(in)
+        case nil:
+                return 0
 	default:
-		panic("Not a numeric type")
+                panic(fmt.Sprintf("Not a numeric type: %v", t))
 	}
 	return
 }

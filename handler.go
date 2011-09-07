@@ -228,6 +228,8 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 		posBit := i - (posByte * 8) + 2
 		if nbm[posByte]&(1<<uint8(posBit)) != 0 {
 			field = nil
+                        // PC:  this is necessary to add the field to the row slice
+                        row = append(row, field)
 			continue
 		}
 		// Otherwise use field type
