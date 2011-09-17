@@ -256,7 +256,10 @@ func atof64(i interface{}) (f float64) {
                 if err != nil {
                         panic("Invalid string for floating point conversion")
                 }
+        case nil:
+                f = 0.0
         default:
+                fmt.Printf("type: %v\n", t)
                 panic("Not a floating point type")
         }
         return

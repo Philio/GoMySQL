@@ -6,6 +6,8 @@
 package mysql
 
 import (
+        //        "runtime/debug"
+        //        "fmt"
         "os"
         "reflect"
         "strconv"
