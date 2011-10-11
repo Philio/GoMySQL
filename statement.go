@@ -601,28 +601,28 @@ func (s *Statement) Reset() (err os.Error) {
 
 // Close statement
 func (s *Statement) Close() (err os.Error) {
-	// Auto reconnect
-	defer func() {
-		err = s.c.simpleReconnect(err)
-	}()
-	// Log next result
-	s.c.log(1, "=== Begin close statement ===")
-	// Check prepared
-	if !s.prepared {
-		return &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
-	}
-	// Pre-run checks
-	if !s.c.checkConn() || s.checkResult() {
-		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
-	}
-	// Reset client
-	s.reset()
-	// Send command
-	err = s.c.command(COM_STMT_CLOSE, s.statementId)
+        // Auto reconnect
+        defer func() {
+                err = s.c.simpleReconnect(err)
+        }()
+        // Log next result
+        s.c.log(1, "=== Begin close statement ===")
+        // Check prepared
+        if !s.prepared {
+                return &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
+        }
+        // Pre-run checks
+        if !s.c.checkConn() || s.checkResult() {
+                return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
+        }
+        // Reset client
+        s.reset()
+        // Send command
+        err = s.c.command(COM_STMT_CLOSE, s.statementId)
 
         // XXX release had this command instead of CLOSE above...
         // err = s.c.command(COM_STMT_RESET, s.statementId)
-	return
+        return
 }
 
 // Reset the statement
