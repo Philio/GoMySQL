@@ -8,6 +8,7 @@ package mysql
 import (
         "os"
         "strconv"
+        "log"
 )
 
 // OK packet handler
@@ -334,6 +335,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
                         if err != nil {
                                 return
                         }
+                        log.Printf("handler:timestamp/datetime: num = %d, n = %d", num, n)
                         // New datetime
                         d := DateTime{}
                         // Check zero
