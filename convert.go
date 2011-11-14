@@ -6,8 +6,8 @@
 package mysql
 
 import (
+	"io"
 	"math"
-	"os"
 	"strconv"
 )
 
@@ -169,7 +169,7 @@ func f64tob(f float64) []byte {
 }
 
 // bytes to length
-func btolcb(b []byte) (num uint64, n int, err os.Error) {
+func btolcb(b []byte) (num uint64, n int, err error) {
 	switch {
 	// 0-250 = value of first byte
 	case b[0] <= 250:
@@ -193,7 +193,7 @@ func btolcb(b []byte) (num uint64, n int, err os.Error) {
 	}
 	// Check there are enough bytes
 	if len(b) < n {
-		err = os.EOF
+		err = io.EOF
 		return
 	}
 	// Get uint64
@@ -248,7 +248,7 @@ func atof64(i interface{}) (f float64) {
 	case float64:
 		return t
 	case string:
-		var err os.Error
+		var err error
 		f, err = strconv.Atof64(t)
 		if err != nil {
 			panic("Invalid string for floating point conversion")

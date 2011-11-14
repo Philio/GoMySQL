@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -100,7 +100,7 @@ func NewClient(protocol ...uint8) (c *Client) {
 }
 
 // Connect to server via TCP
-func DialTCP(raddr, user, passwd string, dbname ...string) (c *Client, err os.Error) {
+func DialTCP(raddr, user, passwd string, dbname ...string) (c *Client, err error) {
 	c = NewClient(DEFAULT_PROTOCOL)
 	// Add port if not set
 	if strings.Index(raddr, ":") == -1 {
@@ -112,7 +112,7 @@ func DialTCP(raddr, user, passwd string, dbname ...string) (c *Client, err os.Er
 }
 
 // Connect to server via unix socket
-func DialUnix(raddr, user, passwd string, dbname ...string) (c *Client, err os.Error) {
+func DialUnix(raddr, user, passwd string, dbname ...string) (c *Client, err error) {
 	c = NewClient(DEFAULT_PROTOCOL)
 	// Use default socket if socket is empty
 	if raddr == "" {
@@ -124,7 +124,7 @@ func DialUnix(raddr, user, passwd string, dbname ...string) (c *Client, err os.E
 }
 
 // Connect to the server
-func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) (err os.Error) {
+func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) (err error) {
 	// Log connect
 	c.log(1, "=== Begin connect ===")
 	// Check not already connected
@@ -152,7 +152,7 @@ func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) 
 }
 
 // Close connection to server
-func (c *Client) Close() (err os.Error) {
+func (c *Client) Close() (err error) {
 	// Log close
 	c.log(1, "=== Begin close ===")
 	// Check connection
@@ -173,7 +173,7 @@ func (c *Client) Close() (err os.Error) {
 }
 
 // Change the current database
-func (c *Client) ChangeDb(dbname string) (err os.Error) {
+func (c *Client) ChangeDb(dbname string) (err error) {
 	// Auto reconnect
 	defer func() {
 		if err != nil && c.checkNet(err) && c.Reconnect {
@@ -205,7 +205,7 @@ func (c *Client) ChangeDb(dbname string) (err os.Error) {
 }
 
 // Send a query/queries to the server
-func (c *Client) Query(sql string) (err os.Error) {
+func (c *Client) Query(sql string) (err error) {
 	// Auto reconnect
 	defer func() {
 		if err != nil && c.checkNet(err) && c.Reconnect {
@@ -242,7 +242,7 @@ func (c *Client) Query(sql string) (err os.Error) {
 }
 
 // Fetch all rows for a result and store it, returning the result set
-func (c *Client) StoreResult() (result *Result, err os.Error) {
+func (c *Client) StoreResult() (result *Result, err error) {
 	// Auto reconnect
 	defer func() {
 		err = c.simpleReconnect(err)
@@ -269,7 +269,7 @@ func (c *Client) StoreResult() (result *Result, err os.Error) {
 }
 
 // Use a result set, does not store rows
-func (c *Client) UseResult() (result *Result, err os.Error) {
+func (c *Client) UseResult() (result *Result, err error) {
 	// Auto reconnect
 	defer func() {
 		err = c.simpleReconnect(err)
@@ -290,7 +290,7 @@ func (c *Client) UseResult() (result *Result, err os.Error) {
 }
 
 // Free the current result
-func (c *Client) FreeResult() (err os.Error) {
+func (c *Client) FreeResult() (err error) {
 	// Auto reconnect
 	defer func() {
 		err = c.simpleReconnect(err)
@@ -329,7 +329,7 @@ func (c *Client) MoreResults() bool {
 }
 
 // Move to the next available result
-func (c *Client) NextResult() (more bool, err os.Error) {
+func (c *Client) NextResult() (more bool, err error) {
 	// Auto reconnect
 	defer func() {
 		err = c.simpleReconnect(err)
@@ -354,7 +354,7 @@ func (c *Client) NextResult() (more bool, err os.Error) {
 }
 
 // Set autocommit
-func (c *Client) SetAutoCommit(state bool) (err os.Error) {
+func (c *Client) SetAutoCommit(state bool) (err error) {
 	// Log set autocommit
 	c.log(1, "=== Begin set autocommit ===")
 	// Use set autocommit query
@@ -368,7 +368,7 @@ func (c *Client) SetAutoCommit(state bool) (err os.Error) {
 }
 
 // Start a transaction
-func (c *Client) Start() (err os.Error) {
+func (c *Client) Start() (err error) {
 	// Log start transaction
 	c.log(1, "=== Begin start transaction ===")
 	// Use start transaction query
@@ -376,7 +376,7 @@ func (c *Client) Start() (err os.Error) {
 }
 
 // Commit a transaction
-func (c *Client) Commit() (err os.Error) {
+func (c *Client) Commit() (err error) {
 	// Log commit
 	c.log(1, "=== Begin commit ===")
 	// Use commit query
@@ -384,7 +384,7 @@ func (c *Client) Commit() (err os.Error) {
 }
 
 // Rollback a transaction
-func (c *Client) Rollback() (err os.Error) {
+func (c *Client) Rollback() (err error) {
 	// Log rollback
 	c.log(1, "=== Begin rollback ===")
 	// Use rollback query
@@ -412,7 +412,7 @@ func (c *Client) Escape(s string) (esc string) {
 }
 
 // Initialise a new statment
-func (c *Client) InitStmt() (stmt *Statement, err os.Error) {
+func (c *Client) InitStmt() (stmt *Statement, err error) {
 	// Check connection
 	if !c.checkConn() {
 		return nil, &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
@@ -424,7 +424,7 @@ func (c *Client) InitStmt() (stmt *Statement, err os.Error) {
 }
 
 // Initialise and prepare a new statement
-func (c *Client) Prepare(sql string) (stmt *Statement, err os.Error) {
+func (c *Client) Prepare(sql string) (stmt *Statement, err error) {
 	// Initialise a new statement
 	stmt, err = c.InitStmt()
 	if err != nil {
@@ -446,8 +446,8 @@ func (c *Client) reset() {
 }
 
 // Format errors
-func (c *Client) fmtError(str Error, args ...interface{}) Error {
-	return Error(fmt.Sprintf(string(str), args...))
+func (c *Client) fmtError(str Errstr, args ...interface{}) Errstr {
+	return Errstr(fmt.Sprintf(string(str), args...))
 }
 
 // Logging
@@ -530,7 +530,7 @@ func (c *Client) checkResult() bool {
 }
 
 // Check if a network error occurred
-func (c *Client) checkNet(err os.Error) bool {
+func (c *Client) checkNet(err error) bool {
 	if cErr, ok := err.(*ClientError); ok {
 		if cErr.Errno == CR_SERVER_GONE_ERROR || cErr.Errno == CR_SERVER_LOST {
 			return true
@@ -540,7 +540,7 @@ func (c *Client) checkNet(err os.Error) bool {
 }
 
 // Performs the actual connect
-func (c *Client) connect() (err os.Error) {
+func (c *Client) connect() (err error) {
 	// Connect to server
 	err = c.dial()
 	if err != nil {
@@ -582,7 +582,7 @@ func (c *Client) connect() (err os.Error) {
 }
 
 // Connect to server
-func (c *Client) dial() (err os.Error) {
+func (c *Client) dial() (err error) {
 	// Log connect
 	c.log(1, "Connecting to server via %s to %s", c.network, c.raddr)
 	// Connect to server
@@ -597,7 +597,7 @@ func (c *Client) dial() (err os.Error) {
 		}
 		// Log error
 		if cErr, ok := err.(*ClientError); ok {
-			c.log(1, string(cErr.Error))
+			c.log(1, string(cErr.Errstr))
 		}
 		return
 	}
@@ -612,7 +612,7 @@ func (c *Client) dial() (err os.Error) {
 }
 
 // Read initial packet from server
-func (c *Client) init() (err os.Error) {
+func (c *Client) init() (err error) {
 	// Log read packet
 	c.log(1, "Reading handshake initialization packet from server")
 	// Read packet
@@ -653,7 +653,7 @@ func (c *Client) init() (err os.Error) {
 }
 
 // Send auth packet to the server
-func (c *Client) auth() (err os.Error) {
+func (c *Client) auth() (err error) {
 	// Log write packet
 	c.log(1, "Sending authentication packet to server")
 	// Construct packet
@@ -699,7 +699,7 @@ func (c *Client) auth() (err os.Error) {
 }
 
 // Simple non-recovered reconnect
-func (c *Client) simpleReconnect(err os.Error) os.Error {
+func (c *Client) simpleReconnect(err error) error {
 	if err != nil && c.checkNet(err) && c.Reconnect {
 		c.log(1, "!!! Lost connection to server !!!")
 		c.connected = false
@@ -712,7 +712,7 @@ func (c *Client) simpleReconnect(err os.Error) os.Error {
 }
 
 // Perform reconnect if a network error occurs
-func (c *Client) reconnect() (err os.Error) {
+func (c *Client) reconnect() (err error) {
 	// Log auto reconnect
 	c.log(1, "=== Begin auto reconnect attempt ===")
 	// Reset the client
@@ -730,7 +730,7 @@ func (c *Client) reconnect() (err os.Error) {
 }
 
 // Send a command to the server
-func (c *Client) command(command command, args ...interface{}) (err os.Error) {
+func (c *Client) command(command command, args ...interface{}) (err error) {
 	// Log write packet
 	c.log(1, "Sending command packet to server")
 	// Simple validation, arg count
@@ -783,7 +783,7 @@ func (c *Client) command(command command, args ...interface{}) (err os.Error) {
 }
 
 // Get field packets for a result
-func (c *Client) getFields() (err os.Error) {
+func (c *Client) getFields() (error) {
 	// Check for a valid result
 	if c.result == nil {
 		return &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
@@ -793,17 +793,17 @@ func (c *Client) getFields() (err os.Error) {
 		c.sequence++
 		eof, err := c.getResult(PACKET_FIELD | PACKET_EOF)
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break
 		}
 	}
-	return
+	return nil
 }
 
 // Get next row for a result
-func (c *Client) getRow() (eof bool, err os.Error) {
+func (c *Client) getRow() (eof bool, err error) {
 	// Check for a valid result
 	if c.result == nil {
 		return false, &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
@@ -815,21 +815,21 @@ func (c *Client) getRow() (eof bool, err os.Error) {
 }
 
 // Get all rows for the result
-func (c *Client) getAllRows() (err os.Error) {
+func (c *Client) getAllRows() (error) {
 	for {
 		eof, err := c.getRow()
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break
 		}
 	}
-	return
+	return nil
 }
 
 // Get result
-func (c *Client) getResult(types packetType) (eof bool, err os.Error) {
+func (c *Client) getResult(types packetType) (eof bool, err error) {
 	// Log read result
 	c.log(1, "Reading result packet from server")
 	// Get result packet
@@ -860,7 +860,7 @@ func (c *Client) getResult(types packetType) (eof bool, err os.Error) {
 }
 
 // Sequence check
-func (c *Client) checkSequence(sequence uint8) (err os.Error) {
+func (c *Client) checkSequence(sequence uint8) (err error) {
 	if sequence != c.sequence {
 		c.log(1, "Sequence doesn't match - expected %d but got %d, commands out of sync", c.sequence, sequence)
 		return &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
