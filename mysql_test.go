@@ -181,8 +181,8 @@ func TestSimple(t *testing.T) {
 	
 	t.Logf("Validate inserted data")
 	for {
-		row := res.FetchRow()
-		if row == nil {
+		row, err := res.FetchRow()
+		if row == nil || err != nil {
 			break
 		}
 		id := row[0].(uint64)
@@ -230,8 +230,8 @@ func TestSimple(t *testing.T) {
 	
 	t.Logf("Validate updated data")
 	for {
-		row := res.FetchRow()
-		if row == nil {
+		row, err := res.FetchRow()
+		if row == nil || err != nil {
 			break
 		}
 		id := row[0].(uint64)

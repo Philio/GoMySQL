@@ -72,45 +72,45 @@ func (r *Result) RowCount() uint64 {
 }
 
 // Fetch a row
-func (r *Result) FetchRow() Row {
+func (r *Result) FetchRow() (row Row, e os.Error) {
 	// Stored result
 	if r.mode == RESULT_STORED {
 		// Check if all rows have been fetched
 		if r.rowPos < uint64(len(r.rows)) {
 			// Increment position and return current row
 			r.rowPos++
-			return r.rows[r.rowPos-1]
+			row = r.rows[r.rowPos-1]
 		}
 	}
 	// Used result
 	if r.mode == RESULT_USED {
 		if r.allRead == false {
 			eof, err := r.c.getRow()
-			if err != nil {
-				return nil
-			}
+			e = err
 			if eof {
 				r.allRead = true
 			} else {
-				return r.rows[0]
+				row = r.rows[0]
 			}
 		}
 	}
-	return nil
+	return
 }
 
 // Fetch a map
-func (r *Result) FetchMap() Map {
+func (r *Result) FetchMap() (m Map, err os.Error) {
 	// Fetch row
-	row := r.FetchRow()
+	row, err := r.FetchRow()
 	if row != nil {
 		rowMap := make(Map)
 		for key, val := range row {
 			rowMap[r.fields[key].Name] = val
 		}
-		return rowMap
+		m = rowMap
+	} else {
+		m = nil
 	}
-	return nil
+	return
 }
 
 // Fetch all rows
