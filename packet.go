@@ -602,8 +602,8 @@ func (p *packetRowData) read(data []byte) error {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
-                        // err := &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
-                        return
+			// err := &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
+			return
 		}
 	}()
 	// Position

@@ -45,7 +45,7 @@ type Statement struct {
 
 // Prepare new statement
 func (s *Statement) Prepare(sql string) error {
-        var err error
+	var err error
 	// Auto reconnect
 	defer func() {
 		if err != nil && s.c.checkNet(err) && s.c.Reconnect {

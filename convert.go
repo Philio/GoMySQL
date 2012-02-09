@@ -122,6 +122,7 @@ func ui32tob(n uint32) (b []byte) {
 	}
 	return
 }
+
 // bytes to int64
 func btoi64(b []byte) int64 {
 	return int64(btoui64(b))

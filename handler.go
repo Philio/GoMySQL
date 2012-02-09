@@ -204,7 +204,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) error {
 	// Log binary row result
 	c.log(1, "[%d] Received binary row packet", p.sequence)
 	// Check sequence
-        err := c.checkSequence(p.sequence)
+	err := c.checkSequence(p.sequence)
 	if err != nil {
 		return err
 	}
@@ -345,12 +345,18 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) error {
 			d.Month = p.data[pos+uint64(n)+2]
 			// Day 1 byte
 			d.Day = p.data[pos+uint64(n)+3]
-			// Hour 1 byte
-			d.Hour = p.data[pos+uint64(n)+4]
-			// Minute 1 byte
-			d.Minute = p.data[pos+uint64(n)+5]
-			// Second 1 byte
-			d.Second = p.data[pos+uint64(n)+6]
+                        if uint64(len(p.data)) >= pos+uint64(n)+4 {
+                                // Hour 1 byte
+                                d.Hour = p.data[pos+uint64(n)+4]
+                        }
+                        if uint64(len(p.data)) >= pos+uint64(n)+5 {
+                                // Minute 1 byte
+                                d.Minute = p.data[pos+uint64(n)+5]
+                        }
+                        if uint64(len(p.data)) >= pos+uint64(n)+6 {
+                                // Second 1 byte
+                                d.Second = p.data[pos+uint64(n)+6]
+                        }
 			field = d
 			pos += uint64(n) + num
 		}

@@ -142,7 +142,7 @@ func (c *Client) Connect(network, raddr, user, passwd string, dbname ...string) 
 		c.dbname = dbname[0]
 	}
 	// Call connect
-        err := c.connect()
+	err := c.connect()
 	if err != nil {
 		return err
 	}
