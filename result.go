@@ -5,8 +5,6 @@
 // license that can be found in the LICENSE file.
 package mysql
 
-import "os"
-
 // Result struct
 type Result struct {
 	// Pointer to the client
@@ -133,7 +131,7 @@ func (r *Result) FetchRows() []Row {
 }
 
 // Free the result
-func (r *Result) Free() (err os.Error) {
+func (r *Result) Free() (err error) {
 	if r.s != nil {
 		err = r.s.FreeResult()
 	} else {
