@@ -275,16 +275,16 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) error {
 		case FIELD_TYPE_BIT, FIELD_TYPE_DECIMAL, FIELD_TYPE_NEWDECIMAL, FIELD_TYPE_VARCHAR,
 			FIELD_TYPE_TINY_BLOB, FIELD_TYPE_MEDIUM_BLOB, FIELD_TYPE_LONG_BLOB, FIELD_TYPE_BLOB,
 			FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING, FIELD_TYPE_GEOMETRY:
-			num, n, err := btolcb(p.data[pos:])
-			if err != nil {
+			num, n, _err := btolcb(p.data[pos:])
+			if _err != nil {
 				return err
 			}
 			field = p.data[pos+uint64(n) : pos+uint64(n)+num]
 			pos += uint64(n) + num
 		// Date (From libmysql/libmysql.c read_binary_datetime)
 		case FIELD_TYPE_DATE:
-			num, n, err := btolcb(p.data[pos:])
-			if err != nil {
+			num, n, _err := btolcb(p.data[pos:])
+			if _err != nil {
 				return err
 			}
 			// New date
@@ -305,8 +305,8 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) error {
 			pos += uint64(n) + num
 		// Time  (From libmysql/libmysql.c read_binary_time)
 		case FIELD_TYPE_TIME:
-			num, n, err := btolcb(p.data[pos:])
-			if err != nil {
+			num, n, _err := btolcb(p.data[pos:])
+			if _err != nil {
 				return err
 			}
 			// New time
@@ -327,8 +327,8 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) error {
 			pos += uint64(n) + num
 		// Datetime/Timestamp (From libmysql/libmysql.c read_binary_datetime)
 		case FIELD_TYPE_TIMESTAMP, FIELD_TYPE_DATETIME:
-			num, n, err := btolcb(p.data[pos:])
-			if err != nil {
+			num, n, _err := btolcb(p.data[pos:])
+			if _err != nil {
 				return err
 			}
 			// New datetime

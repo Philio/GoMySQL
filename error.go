@@ -119,7 +119,7 @@ type ClientError struct {
 }
 
 // Convert to string
-func (e *ClientError) String() string {
+func (e *ClientError) Error() string {
 	return fmt.Sprintf("#%d %s", e.Errno, e.ErrorMsg)
 }
 
@@ -134,7 +134,7 @@ type ServerError struct {
 }
 
 // Convert to string
-func (e *ServerError) String() string {
+func (e *ServerError) Error() string {
 	return fmt.Sprintf("#%d %s", e.Errno, e.ErrorMsg)
 }
 

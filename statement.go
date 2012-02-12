@@ -6,9 +6,6 @@
 package mysql
 
 import (
-	//        "runtime/debug"
-	//        "fmt"
-
 	"reflect"
 	"strconv"
 )
@@ -80,8 +77,8 @@ func (s *Statement) Prepare(sql string) error {
 	if s.paramCount > 0 {
 		for {
 			s.c.sequence++
-			eof, err := s.getResult(PACKET_PARAM | PACKET_EOF)
-			if err != nil {
+			eof, _err := s.getResult(PACKET_PARAM | PACKET_EOF)
+			if _err != nil {
 				return err
 			}
 			if eof {
