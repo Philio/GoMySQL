@@ -480,7 +480,7 @@ func (s *Statement) Fetch() (eof bool, err error) {
 }
 
 // Use result
-func (s *Statement) UseResult() (*Result, os.Error) {
+func (s *Statement) UseResult() (*Result, error) {
 	// Log use result
 	s.c.log(1, "=== Begin use result ===")
 	// Check prepared

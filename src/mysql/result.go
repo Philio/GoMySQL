@@ -73,7 +73,7 @@ func (r *Result) RowCount() uint64 {
 	return 0
 }
 
-func (r *Result) getRow() (eof bool, err os.Error) {
+func (r *Result) getRow() (eof bool, err error) {
 	if r.s != nil {
 		return r.s.getRow()
 	}

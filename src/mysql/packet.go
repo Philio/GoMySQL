@@ -76,7 +76,7 @@ func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err er
 	return
 }
 
-func (p *packetBase) readLengthCodedBytes(data []byte) (b []byte, n int, err error) {
+func (p *packetBase) readLengthCodedBytes(data []byte) (b []byte, n int, null bool, err error) {
 	// Get string length
 	num, n, err := btolcb(data)
 	if err != nil {

@@ -132,16 +132,16 @@ func handleRow(p *packetRowData, c *Client, r *Result) (err error) {
 			// Signed/unsigned ints
 			case FIELD_TYPE_TINY, FIELD_TYPE_SHORT, FIELD_TYPE_YEAR, FIELD_TYPE_INT24, FIELD_TYPE_LONG, FIELD_TYPE_LONGLONG:
 				if f.Flags&FLAG_UNSIGNED > 0 {
-					field, err = strconv.ParseUint(string(p.row[i].([]byte)), 10, 64)
+					field, err = strconv.ParseUint(string(p.row[i].Data()), 10, 64)
 				} else {
-					field, err = strconv.ParseInt(string(p.row[i].([]byte)), 10, 64)
+					field, err = strconv.ParseInt(string(p.row[i].Data()), 10, 64)
 				}
 				if err != nil {
 					return
 				}
 			// Floats and doubles
 			case FIELD_TYPE_FLOAT, FIELD_TYPE_DOUBLE:
-				field, err = strconv.ParseFloat(string(p.row[i].([]byte)), 64)
+				field, err = strconv.ParseFloat(string(p.row[i].Data()), 64)
 				if err != nil {
 					return
 				}

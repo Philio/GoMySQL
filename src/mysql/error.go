@@ -123,10 +123,6 @@ func (e *ClientError) Error() string {
 	return fmt.Sprintf("#%d %s", e.Errno, e.ErrorMsg)
 }
 
-func (e *ClientError) Error() string {
-	return string(e.ErrorMsg)
-}
-
 // Server error struct
 type ServerError struct {
 	Errno    Errno
@@ -138,6 +134,4 @@ func (e *ServerError) Error() string {
 	return fmt.Sprintf("#%d %s", e.Errno, e.ErrorMsg)
 }
 
-func (e *ServerError) Error() string {
-	return string(e.ErrorMsg)
-}
+

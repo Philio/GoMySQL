@@ -446,7 +446,7 @@ func (c *Client) reset() {
 }
 
 // Format errors
-²func (c *Client) fmtError(str ErrorMsg, args ...interface{}) ErrorMsg {
+func (c *Client) fmtError(str ErrorMsg, args ...interface{}) ErrorMsg {
 	return ErrorMsg(fmt.Sprintf(string(str), args...))
 }
 
