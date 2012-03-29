@@ -5,8 +5,6 @@
 // license that can be found in the LICENSE file.
 package mysql
 
-import "os"
-
 // Result struct
 type Result struct {
 	// Pointer to the client
@@ -72,7 +70,7 @@ func (r *Result) RowCount() uint64 {
 }
 
 // Fetch a row
-func (r *Result) FetchRow() (row Row, e os.Error) {
+func (r *Result) FetchRow() (row Row, e error) {
 	// Stored result
 	if r.mode == RESULT_STORED {
 		// Check if all rows have been fetched
@@ -98,7 +96,7 @@ func (r *Result) FetchRow() (row Row, e os.Error) {
 }
 
 // Fetch a map
-func (r *Result) FetchMap() (m Map, err os.Error) {
+func (r *Result) FetchMap() (m Map, err error) {
 	// Fetch row
 	row, err := r.FetchRow()
 	if row != nil {
@@ -122,7 +120,7 @@ func (r *Result) FetchRows() []Row {
 }
 
 // Free the result
-func (r *Result) Free() (err os.Error) {
+func (r *Result) Free() (err error) {
 	err = r.c.FreeResult()
 	return
 }
