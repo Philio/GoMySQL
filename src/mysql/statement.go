@@ -6,7 +6,6 @@
 package mysql
 
 import (
-	"os"
 	"reflect"
 	"strconv"
 )
@@ -42,7 +41,8 @@ type Statement struct {
 }
 
 // Prepare new statement
-func (s *Statement) Prepare(sql string) (err os.Error) {
+func (s *Statement) Prepare(sql string) error {
+	var err error
 	// Auto reconnect
 	defer func() {
 		if err != nil && s.c.checkNet(err) && s.c.Reconnect {
@@ -65,21 +65,21 @@ func (s *Statement) Prepare(sql string) (err os.Error) {
 	// Send close command
 	err = s.c.command(COM_STMT_PREPARE, sql)
 	if err != nil {
-		return
+		return err
 	}
 	// Read result from server
 	s.c.sequence++
 	_, err = s.getResult(PACKET_PREPARE_OK | PACKET_ERROR)
 	if err != nil {
-		return
+		return err
 	}
 	// Read param packets
 	if s.paramCount > 0 {
 		for {
 			s.c.sequence++
-			eof, err := s.getResult(PACKET_PARAM | PACKET_EOF)
-			if err != nil {
-				return
+			eof, _err := s.getResult(PACKET_PARAM | PACKET_EOF)
+			if _err != nil {
+				return err
 			}
 			if eof {
 				break
@@ -90,13 +90,13 @@ func (s *Statement) Prepare(sql string) (err os.Error) {
 	if s.columnCount > 0 {
 		err = s.getFields()
 		if err != nil {
-			return
+			return err
 		}
 	}
 	// Statement is preapred
 	s.prepared = true
 	s.preparedSql = sql
-	return
+	return nil
 }
 
 // Get number of params
@@ -105,7 +105,7 @@ func (s *Statement) ParamCount() uint16 {
 }
 
 // Bind params
-func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
+func (s *Statement) BindParams(params ...interface{}) (err error) {
 	// Check prepared
 	if !s.prepared {
 		return &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
@@ -123,7 +123,7 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 		var t FieldType
 		var d []byte
 		// Switch on type
-		switch param.(type) {
+		switch p := param.(type) {
 		// Nil
 		case nil:
 			t = FIELD_TYPE_NULL
@@ -134,7 +134,7 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 			} else {
 				t = FIELD_TYPE_LONGLONG
 			}
-			d = itob(param.(int))
+			d = itob(p)
 		// Uint
 		case uint:
 			if strconv.IntSize == 32 {
@@ -142,57 +142,57 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 			} else {
 				t = FIELD_TYPE_LONGLONG
 			}
-			d = uitob(param.(uint))
+			d = uitob(p)
 		// Int8
 		case int8:
 			t = FIELD_TYPE_TINY
-			d = []byte{byte(param.(int8))}
+			d = []byte{byte(p)}
 		// Uint8
 		case uint8:
 			t = FIELD_TYPE_TINY
-			d = []byte{param.(uint8)}
+			d = []byte{p}
 		// Int16
 		case int16:
 			t = FIELD_TYPE_SHORT
-			d = i16tob(param.(int16))
+			d = i16tob(p)
 		// Uint16
 		case uint16:
 			t = FIELD_TYPE_SHORT
-			d = ui16tob(param.(uint16))
+			d = ui16tob(p)
 		// Int32
 		case int32:
 			t = FIELD_TYPE_LONG
-			d = i32tob(param.(int32))
+			d = i32tob(p)
 		// Uint32
 		case uint32:
 			t = FIELD_TYPE_LONG
-			d = ui32tob(param.(uint32))
+			d = ui32tob(p)
 		// Int64
 		case int64:
 			t = FIELD_TYPE_LONGLONG
-			d = i64tob(param.(int64))
+			d = i64tob(p)
 		// Uint64
 		case uint64:
 			t = FIELD_TYPE_LONGLONG
-			d = ui64tob(param.(uint64))
+			d = ui64tob(p)
 		// Float32
 		case float32:
 			t = FIELD_TYPE_FLOAT
-			d = f32tob(param.(float32))
+			d = f32tob(p)
 		// Float64
 		case float64:
 			t = FIELD_TYPE_DOUBLE
-			d = f64tob(param.(float64))
+			d = f64tob(p)
 		// String
 		case string:
 			t = FIELD_TYPE_STRING
-			d = lcbtob(uint64(len(param.(string))))
-			d = append(d, []byte(param.(string))...)
+			d = lcbtob(uint64(len(p)))
+			d = append(d, []byte(p)...)
 		// Byte array
 		case []byte:
 			t = FIELD_TYPE_BLOB
-			d = lcbtob(uint64(len(param.([]byte))))
-			d = append(d, param.([]byte)...)
+			d = lcbtob(uint64(len(p)))
+			d = append(d, p...)
 		// Other types
 		default:
 			return &ClientError{CR_UNSUPPORTED_PARAM_TYPE, s.c.fmtError(CR_UNSUPPORTED_PARAM_TYPE_STR, reflect.ValueOf(param).Type(), k)}
@@ -208,7 +208,7 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 }
 
 // Send long data
-func (s *Statement) SendLongData(num int, data []byte) (err os.Error) {
+func (s *Statement) SendLongData(num int, data []byte) (err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -264,7 +264,7 @@ func (s *Statement) SendLongData(num int, data []byte) (err os.Error) {
 }
 
 // Execute
-func (s *Statement) Execute() (err os.Error) {
+func (s *Statement) Execute() (err error) {
 	// Auto reconnect
 	defer func() {
 		if err != nil && s.c.checkNet(err) && s.c.Reconnect {
@@ -362,7 +362,7 @@ func (s *Statement) FetchColumns() []*Field {
 }
 
 // Bind result
-func (s *Statement) BindResult(params ...interface{}) (err os.Error) {
+func (s *Statement) BindResult(params ...interface{}) (err error) {
 	s.resultParams = params
 	return
 }
@@ -376,8 +376,8 @@ func (s *Statement) RowCount() uint64 {
 	return 0
 }
 
-// Fetch next row 
-func (s *Statement) Fetch() (eof bool, err os.Error) {
+// Fetch next row
+func (s *Statement) Fetch() (eof bool, err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -421,10 +421,13 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 	// Recover possible errors from type conversion
 	defer func() {
 		if e := recover(); e != nil {
+			// fmt.Printf("recovered error: %s\n", e)
+			// fmt.Printf("stack: %s\n", debug.Stack())
 			err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 			return
 		}
 	}()
+
 	// Iterate bound params and assign from row (partial set quicker this way)
 	for k, v := range s.resultParams {
 		switch t := v.(type) {
@@ -459,7 +462,11 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 			*t = row[k].([]byte)
 		// Strings
 		case *string:
-			*t = atos(row[k])
+			if row[k] == nil {
+				*t = ""
+			} else {
+				*t = atos(row[k])
+			}
 		// Date/time, assertion
 		case *Date:
 			*t = row[k].(Date)
@@ -472,8 +479,29 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 	return
 }
 
+// Use result
+func (s *Statement) UseResult() (*Result, error) {
+	// Log use result
+	s.c.log(1, "=== Begin use result ===")
+	// Check prepared
+	if !s.prepared {
+		return nil, &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
+	}
+	// Check result
+	if !s.checkResult() {
+		return nil, &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
+	}
+	// Check if result already used/stored
+	if s.result.mode != RESULT_UNUSED {
+		return nil, &ClientError{CR_COMMANDS_OUT_OF_SYNC, CR_COMMANDS_OUT_OF_SYNC_STR}
+	}
+	s.result.mode = RESULT_USED
+	s.result.s = s // tell the result that we own it
+	return s.result, nil
+}
+
 // Store result
-func (s *Statement) StoreResult() (err os.Error) {
+func (s *Statement) StoreResult() (err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -500,7 +528,7 @@ func (s *Statement) StoreResult() (err os.Error) {
 }
 
 // Free result
-func (s *Statement) FreeResult() (err os.Error) {
+func (s *Statement) FreeResult() (err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -526,7 +554,7 @@ func (s *Statement) MoreResults() bool {
 }
 
 // Next result
-func (s *Statement) NextResult() (more bool, err os.Error) {
+func (s *Statement) NextResult() (more bool, err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -558,7 +586,7 @@ func (s *Statement) NextResult() (more bool, err os.Error) {
 }
 
 // Reset statement
-func (s *Statement) Reset() (err os.Error) {
+func (s *Statement) Reset() (err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -591,7 +619,7 @@ func (s *Statement) Reset() (err os.Error) {
 }
 
 // Close statement
-func (s *Statement) Close() (err os.Error) {
+func (s *Statement) Close() (err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -609,7 +637,7 @@ func (s *Statement) Close() (err os.Error) {
 	// Reset client
 	s.reset()
 	// Send command
-	err = s.c.command(COM_STMT_CLOSE, s.statementId)
+	err = s.c.command(COM_STMT_RESET, s.statementId)
 	return
 }
 
@@ -648,23 +676,23 @@ func (s *Statement) getNullBitMap() (nbm []byte) {
 }
 
 // Get all result fields
-func (s *Statement) getFields() (err os.Error) {
+func (s *Statement) getFields() error {
 	// Loop till EOF
 	for {
 		s.c.sequence++
 		eof, err := s.getResult(PACKET_FIELD | PACKET_EOF)
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break
 		}
 	}
-	return
+	return nil
 }
 
 // Get next row for a result
-func (s *Statement) getRow() (eof bool, err os.Error) {
+func (s *Statement) getRow() (eof bool, err error) {
 	// Check for a valid result
 	if s.result == nil {
 		return false, &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
@@ -676,56 +704,56 @@ func (s *Statement) getRow() (eof bool, err os.Error) {
 }
 
 // Get all rows for the result
-func (s *Statement) getAllRows() (err os.Error) {
+func (s *Statement) getAllRows() error {
 	for {
 		eof, err := s.getRow()
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break
 		}
 	}
-	return
+	return nil
 }
 
 // Get result
-func (s *Statement) getResult(types packetType) (eof bool, err os.Error) {
+func (s *Statement) getResult(types packetType) (eof bool, err error) {
 	// Log read result
 	s.c.log(1, "Reading result packet from server")
 	// Get result packet
-	p, err := s.c.r.readPacket(types)
+	pr, err := s.c.r.readPacket(types)
 	if err != nil {
 		return
 	}
 	// Process result packet
-	switch p.(type) {
+	switch p := pr.(type) {
 	default:
 		err = &ClientError{CR_UNKNOWN_ERROR, CR_UNKNOWN_ERROR_STR}
 	case *packetOK:
-		err = handleOK(p.(*packetOK), s.c, &s.AffectedRows, &s.LastInsertId, &s.Warnings)
+		err = handleOK(p, s.c, &s.AffectedRows, &s.LastInsertId, &s.Warnings)
 	case *packetError:
-		err = handleError(p.(*packetError), s.c)
+		err = handleError(p, s.c)
 	case *packetEOF:
 		eof = true
-		err = handleEOF(p.(*packetEOF), s.c)
+		err = handleEOF(p, s.c)
 	case *packetPrepareOK:
-		err = handlePrepareOK(p.(*packetPrepareOK), s.c, s)
+		err = handlePrepareOK(p, s.c, s)
 	case *packetParameter:
-		err = handleParam(p.(*packetParameter), s.c)
+		err = handleParam(p, s.c)
 	case *packetField:
-		err = handleField(p.(*packetField), s.c, s.result)
+		err = handleField(p, s.c, s.result)
 	case *packetResultSet:
 		s.result = &Result{c: s.c}
-		err = handleResultSet(p.(*packetResultSet), s.c, s.result)
+		err = handleResultSet(p, s.c, s.result)
 	case *packetRowBinary:
-		err = handleBinaryRow(p.(*packetRowBinary), s.c, s.result)
+		err = handleBinaryRow(p, s.c, s.result)
 	}
 	return
 }
 
 // Free any result sets waiting to be read
-func (s *Statement) freeAll(next bool) (err os.Error) {
+func (s *Statement) freeAll(next bool) (err error) {
 	// Check for unread rows
 	if !s.result.allRead {
 		// Read all rows

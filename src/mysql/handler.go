@@ -5,13 +5,10 @@
 // license that can be found in the LICENSE file.
 package mysql
 
-import (
-	"os"
-	"strconv"
-)
+import "strconv"
 
 // OK packet handler
-func handleOK(p *packetOK, c *Client, a, i *uint64, w *uint16) (err os.Error) {
+func handleOK(p *packetOK, c *Client, a, i *uint64, w *uint16) (err error) {
 	// Log OK result
 	c.log(1, "[%d] Received OK packet", p.sequence)
 	// Check sequence
@@ -32,7 +29,7 @@ func handleOK(p *packetOK, c *Client, a, i *uint64, w *uint16) (err os.Error) {
 }
 
 // Error packet handler
-func handleError(p *packetError, c *Client) (err os.Error) {
+func handleError(p *packetError, c *Client) (err error) {
 	// Log error result
 	c.log(1, "[%d] Received error packet", p.sequence)
 	// Check sequence
@@ -46,11 +43,11 @@ func handleError(p *packetError, c *Client) (err os.Error) {
 		c.serverStatus ^= SERVER_MORE_RESULTS_EXISTS
 	}
 	// Return error
-	return &ServerError{Errno(p.errno), Error(p.error)}
+	return &ServerError{Errno(p.errno), ErrorMsg(p.error)}
 }
 
 // EOF packet handler
-func handleEOF(p *packetEOF, c *Client) (err os.Error) {
+func handleEOF(p *packetEOF, c *Client) (err error) {
 	// Log EOF result
 	c.log(1, "[%d] Received EOF packet", p.sequence)
 	// Check sequence
@@ -70,7 +67,7 @@ func handleEOF(p *packetEOF, c *Client) (err os.Error) {
 }
 
 // Result set packet handler
-func handleResultSet(p *packetResultSet, c *Client, r *Result) (err os.Error) {
+func handleResultSet(p *packetResultSet, c *Client, r *Result) (err error) {
 	// Log error result
 	c.log(1, "[%d] Received result set packet", p.sequence)
 	// Check sequence
@@ -84,7 +81,7 @@ func handleResultSet(p *packetResultSet, c *Client, r *Result) (err os.Error) {
 }
 
 // Field packet handler
-func handleField(p *packetField, c *Client, r *Result) (err os.Error) {
+func handleField(p *packetField, c *Client, r *Result) (err error) {
 	// Log field result
 	c.log(1, "[%d] Received field packet", p.sequence)
 	// Check sequence
@@ -110,7 +107,7 @@ func handleField(p *packetField, c *Client, r *Result) (err os.Error) {
 }
 
 // Row packet hander
-func handleRow(p *packetRowData, c *Client, r *Result) (err os.Error) {
+func handleRow(p *packetRowData, c *Client, r *Result) (err error) {
 	// Log field result
 	c.log(1, "[%d] Received row packet", p.sequence)
 	// Check sequence
@@ -128,32 +125,32 @@ func handleRow(p *packetRowData, c *Client, r *Result) (err os.Error) {
 	// Iterate fields to get types
 	for i, f := range r.fields {
 		// Check null
-		if len(p.row[i].([]byte)) ==0 {
+		if p.row[i].IsNull() {
 			field = nil
 		} else {
 			switch f.Type {
 			// Signed/unsigned ints
 			case FIELD_TYPE_TINY, FIELD_TYPE_SHORT, FIELD_TYPE_YEAR, FIELD_TYPE_INT24, FIELD_TYPE_LONG, FIELD_TYPE_LONGLONG:
 				if f.Flags&FLAG_UNSIGNED > 0 {
-					field, err = strconv.Atoui64(string(p.row[i].([]byte)))
+					field, err = strconv.ParseUint(string(p.row[i].Data()), 10, 64)
 				} else {
-					field, err = strconv.Atoi64(string(p.row[i].([]byte)))
+					field, err = strconv.ParseInt(string(p.row[i].Data()), 10, 64)
 				}
 				if err != nil {
 					return
 				}
 			// Floats and doubles
 			case FIELD_TYPE_FLOAT, FIELD_TYPE_DOUBLE:
-				field, err = strconv.Atof64(string(p.row[i].([]byte)))
+				field, err = strconv.ParseFloat(string(p.row[i].Data()), 64)
 				if err != nil {
 					return
 				}
 			// Strings
 			case FIELD_TYPE_DECIMAL, FIELD_TYPE_NEWDECIMAL, FIELD_TYPE_VARCHAR, FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING:
-				field = string(p.row[i].([]byte))
+				field = string(p.row[i].Data())
 			// Anything else
 			default:
-				field = p.row[i]
+				field = p.row[i].Data()
 			}
 		}
 		// Add to row
@@ -173,7 +170,7 @@ func handleRow(p *packetRowData, c *Client, r *Result) (err os.Error) {
 }
 
 // Prepare OK packet handler
-func handlePrepareOK(p *packetPrepareOK, c *Client, s *Statement) (err os.Error) {
+func handlePrepareOK(p *packetPrepareOK, c *Client, s *Statement) (err error) {
 	// Log result
 	c.log(1, "[%d] Received prepare OK packet", p.sequence)
 	// Check sequence
@@ -190,7 +187,7 @@ func handlePrepareOK(p *packetPrepareOK, c *Client, s *Statement) (err os.Error)
 }
 
 // Parameter packet handler
-func handleParam(p *packetParameter, c *Client) (err os.Error) {
+func handleParam(p *packetParameter, c *Client) (err error) {
 	// Log result
 	c.log(1, "[%d] Received parameter packet", p.sequence)
 	// Check sequence
@@ -203,17 +200,17 @@ func handleParam(p *packetParameter, c *Client) (err os.Error) {
 }
 
 // Binary row packet handler
-func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
+func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) error {
 	// Log binary row result
 	c.log(1, "[%d] Received binary row packet", p.sequence)
 	// Check sequence
-	err = c.checkSequence(p.sequence)
+	err := c.checkSequence(p.sequence)
 	if err != nil {
-		return
+		return err
 	}
 	// Check if there is a result set
 	if r == nil || r.mode == RESULT_FREE {
-		return
+		return nil
 	}
 	// Read data into fields
 	var row []interface{}
@@ -228,6 +225,8 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 		posBit := i - (posByte * 8) + 2
 		if nbm[posByte]&(1<<uint8(posBit)) != 0 {
 			field = nil
+			// PC:  this is necessary to add the field to the row slice
+			row = append(row, field)
 			continue
 		}
 		// Otherwise use field type
@@ -276,17 +275,17 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 		case FIELD_TYPE_BIT, FIELD_TYPE_DECIMAL, FIELD_TYPE_NEWDECIMAL, FIELD_TYPE_VARCHAR,
 			FIELD_TYPE_TINY_BLOB, FIELD_TYPE_MEDIUM_BLOB, FIELD_TYPE_LONG_BLOB, FIELD_TYPE_BLOB,
 			FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING, FIELD_TYPE_GEOMETRY:
-			num, n, err := btolcb(p.data[pos:])
-			if err != nil {
-				return
+			num, n, _err := btolcb(p.data[pos:])
+			if _err != nil {
+				return err
 			}
 			field = p.data[pos+uint64(n) : pos+uint64(n)+num]
 			pos += uint64(n) + num
 		// Date (From libmysql/libmysql.c read_binary_datetime)
 		case FIELD_TYPE_DATE:
-			num, n, err := btolcb(p.data[pos:])
-			if err != nil {
-				return
+			num, n, _err := btolcb(p.data[pos:])
+			if _err != nil {
+				return err
 			}
 			// New date
 			d := Date{}
@@ -306,9 +305,9 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 			pos += uint64(n) + num
 		// Time  (From libmysql/libmysql.c read_binary_time)
 		case FIELD_TYPE_TIME:
-			num, n, err := btolcb(p.data[pos:])
-			if err != nil {
-				return
+			num, n, _err := btolcb(p.data[pos:])
+			if _err != nil {
+				return err
 			}
 			// New time
 			t := Time{}
@@ -328,9 +327,9 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 			pos += uint64(n) + num
 		// Datetime/Timestamp (From libmysql/libmysql.c read_binary_datetime)
 		case FIELD_TYPE_TIMESTAMP, FIELD_TYPE_DATETIME:
-			num, n, err := btolcb(p.data[pos:])
-			if err != nil {
-				return
+			num, n, _err := btolcb(p.data[pos:])
+			if _err != nil {
+				return err
 			}
 			// New datetime
 			d := DateTime{}
@@ -346,12 +345,18 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 			d.Month = p.data[pos+uint64(n)+2]
 			// Day 1 byte
 			d.Day = p.data[pos+uint64(n)+3]
-			// Hour 1 byte
-			d.Hour = p.data[pos+uint64(n)+4]
-			// Minute 1 byte
-			d.Minute = p.data[pos+uint64(n)+5]
-			// Second 1 byte
-			d.Second = p.data[pos+uint64(n)+6]
+                        if uint64(len(p.data)) > pos+uint64(n)+4 {
+                                // Hour 1 byte
+                                d.Hour = p.data[pos+uint64(n)+4]
+                        }
+                        if uint64(len(p.data)) > pos+uint64(n)+5 {
+                                // Minute 1 byte
+                                d.Minute = p.data[pos+uint64(n)+5]
+                        }
+                        if uint64(len(p.data)) > pos+uint64(n)+6 {
+                                // Second 1 byte
+                                d.Second = p.data[pos+uint64(n)+6]
+                        }
 			field = d
 			pos += uint64(n) + num
 		}
@@ -368,5 +373,5 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err os.Error) {
 		// Only save 1 row, overwrite previous
 		r.rows = []Row{Row(row)}
 	}
-	return
+	return nil
 }

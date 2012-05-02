@@ -8,7 +8,6 @@ package mysql
 import (
 	"io"
 	"net"
-	"os"
 )
 
 // Packet writer struct
@@ -24,12 +23,12 @@ func newWriter(conn io.ReadWriteCloser) *writer {
 }
 
 // Write packet to the server
-func (w *writer) writePacket(p packetWritable) (err os.Error) {
+func (w *writer) writePacket(p packetWritable) (err error) {
 	// Deferred error processing
 	defer func() {
 		if err != nil {
 			// EOF errors
-			if err == os.EOF || err == io.ErrUnexpectedEOF {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
 				err = &ClientError{CR_SERVER_LOST, CR_SERVER_LOST_STR}
 			}
 			// OpError
