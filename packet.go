@@ -7,7 +7,7 @@ package mysql
 
 import (
 	"bytes"
-	"os"
+	"io"
 )
 
 // Packet type identifier
@@ -33,12 +33,12 @@ const (
 
 // Readable packet interface
 type packetReadable interface {
-	read(data []byte) (err os.Error)
+	read(data []byte) (err error)
 }
 
 // Writable packet interface
 type packetWritable interface {
-	write() (data []byte, err os.Error)
+	write() (data []byte, err error)
 }
 
 // Generic packet interface (read/writable)
@@ -54,19 +54,19 @@ type packetBase struct {
 }
 
 // Read a slice from the data
-func (p *packetBase) readSlice(data []byte, delim byte) (slice []byte, err os.Error) {
+func (p *packetBase) readSlice(data []byte, delim byte) (slice []byte, err error) {
 	pos := bytes.IndexByte(data, delim)
 	if pos > -1 {
 		slice = data[:pos]
 	} else {
 		slice = data
-		err = os.EOF
+		err = io.EOF
 	}
 	return
 }
 
 // Read length coded string
-func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err os.Error) {
+func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err error) {
 	// Read bytes and convert to string
 	b, n, err := p.readLengthCodedBytes(data)
 	if err != nil {
@@ -76,7 +76,7 @@ func (p *packetBase) readLengthCodedString(data []byte) (s string, n int, err os
 	return
 }
 
-func (p *packetBase) readLengthCodedBytes(data []byte) (b []byte, n int, err os.Error) {
+func (p *packetBase) readLengthCodedBytes(data []byte) (b []byte, n int, err error) {
 	// Get string length
 	num, n, err := btolcb(data)
 	if err != nil {
@@ -84,7 +84,7 @@ func (p *packetBase) readLengthCodedBytes(data []byte) (b []byte, n int, err os.
 	}
 	// Check data length
 	if len(data) < n+int(num) {
-		err = os.EOF
+		err = io.EOF
 		return
 	}
 	// Get bytes
@@ -101,7 +101,6 @@ func (p *packetBase) addHeader(data []byte) (pkt []byte) {
 	return
 }
 
-
 // Init packet
 type packetInit struct {
 	packetBase
@@ -115,7 +114,7 @@ type packetInit struct {
 }
 
 // Init packet reader
-func (p *packetInit) read(data []byte) (err os.Error) {
+func (p *packetInit) read(data []byte) (err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -169,7 +168,7 @@ type packetAuth struct {
 }
 
 // Auth packet writer
-func (p *packetAuth) write() (data []byte, err os.Error) {
+func (p *packetAuth) write() (data []byte, err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -238,7 +237,7 @@ type packetOK struct {
 }
 
 // OK packet reader
-func (p *packetOK) read(data []byte) (err os.Error) {
+func (p *packetOK) read(data []byte) (err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -285,7 +284,7 @@ type packetError struct {
 }
 
 // Error packet reader
-func (p *packetError) read(data []byte) (err os.Error) {
+func (p *packetError) read(data []byte) (err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -318,7 +317,7 @@ type packetEOF struct {
 }
 
 // EOF packet reader
-func (p *packetEOF) read(data []byte) (err os.Error) {
+func (p *packetEOF) read(data []byte) (err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -347,7 +346,7 @@ type packetPassword struct {
 }
 
 // Password packet writer
-func (p *packetPassword) write() (data []byte, err os.Error) {
+func (p *packetPassword) write() (data []byte, err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -371,7 +370,7 @@ type packetCommand struct {
 }
 
 // Command packet writer
-func (p *packetCommand) write() (data []byte, err os.Error) {
+func (p *packetCommand) write() (data []byte, err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -450,7 +449,7 @@ type packetResultSet struct {
 }
 
 // Result set packet reader
-func (p *packetResultSet) read(data []byte) (err os.Error) {
+func (p *packetResultSet) read(data []byte) (err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -493,7 +492,7 @@ type packetField struct {
 }
 
 // Field packet reader
-func (p *packetField) read(data []byte) (err os.Error) {
+func (p *packetField) read(data []byte) (err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -599,7 +598,7 @@ type packetRowData struct {
 }
 
 // Row data packet reader
-func (p *packetRowData) read(data []byte) (err os.Error) {
+func (p *packetRowData) read(data []byte) (err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -611,9 +610,9 @@ func (p *packetRowData) read(data []byte) (err os.Error) {
 	// Loop until end of packet
 	for {
 		// Read string
-		b, n, err := p.readLengthCodedBytes(data[pos:])
-		if err != nil {
-			return
+		b, n, _err := p.readLengthCodedBytes(data[pos:])
+		if _err != nil {
+			return _err
 		}
 		// Add to slice
 		p.row = append(p.row, b)
@@ -636,7 +635,7 @@ type packetPrepareOK struct {
 }
 
 // Prepare ok packet reader
-func (p *packetPrepareOK) read(data []byte) (err os.Error) {
+func (p *packetPrepareOK) read(data []byte) (err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -669,7 +668,7 @@ type packetParameter struct {
 }
 
 // Parameter packet reader
-func (p *packetParameter) read(data []byte) (err os.Error) {
+func (p *packetParameter) read(data []byte) (err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -690,7 +689,7 @@ type packetLongData struct {
 }
 
 // Long data packet writer
-func (p *packetLongData) write() (data []byte, err os.Error) {
+func (p *packetLongData) write() (data []byte, err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -724,7 +723,7 @@ type packetExecute struct {
 }
 
 // Execute packet writer
-func (p *packetExecute) write() (data []byte, err os.Error) {
+func (p *packetExecute) write() (data []byte, err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
@@ -769,7 +768,7 @@ type packetRowBinary struct {
 }
 
 // Row binary packet reader
-func (p *packetRowBinary) read(data []byte) (err os.Error) {
+func (p *packetRowBinary) read(data []byte) (err error) {
 	// Recover errors
 	defer func() {
 		if e := recover(); e != nil {
