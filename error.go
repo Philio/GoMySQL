@@ -133,3 +133,6 @@ type ServerError struct {
 func (e *ServerError) String() string {
 	return fmt.Sprintf("#%d %s", e.Errno, e.Error)
 }
+func (e *ServerError) Error() string {
+   return e.String()
+}
