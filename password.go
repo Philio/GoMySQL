@@ -92,17 +92,17 @@ func scramble41(message, password []byte) (result []byte) {
 	// SHA1 encode
 	crypt := sha1.New()
 	crypt.Write(password)
-	stg1Hash := crypt.Sum()
+	stg1Hash := crypt.Sum(nil)
 	// token = SHA1(SHA1(stage1_hash), scramble) XOR stage1_hash
 	// SHA1 encode again
 	crypt.Reset()
 	crypt.Write(stg1Hash)
-	stg2Hash := crypt.Sum()
+	stg2Hash := crypt.Sum(nil)
 	// SHA1 2nd hash and scramble
 	crypt.Reset()
 	crypt.Write(message)
 	crypt.Write(stg2Hash)
-	stg3Hash := crypt.Sum()
+	stg3Hash := crypt.Sum(nil)
 	// XOR with first hash
 	result = make([]byte, 20)
 	for i := range result {
