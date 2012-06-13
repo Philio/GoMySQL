@@ -78,7 +78,7 @@ func (s *Statement) Prepare(sql string) (err error) {
 			s.c.sequence++
 			eof, err := s.getResult(PACKET_PARAM | PACKET_EOF)
 			if err != nil {
-				return
+				return err
 			}
 			if eof {
 				break
@@ -653,13 +653,13 @@ func (s *Statement) getFields() (err error) {
 		s.c.sequence++
 		eof, err := s.getResult(PACKET_FIELD | PACKET_EOF)
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break
 		}
 	}
-	return
+	return nil
 }
 
 // Get next row for a result
@@ -679,7 +679,7 @@ func (s *Statement) getAllRows() (err error) {
 	for {
 		eof, err := s.getRow()
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break

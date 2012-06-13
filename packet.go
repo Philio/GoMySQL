@@ -612,7 +612,7 @@ func (p *packetRowData) read(data []byte) (err error) {
 		// Read string
 		b, n, err := p.readLengthCodedBytes(data[pos:])
 		if err != nil {
-			return
+			return err
 		}
 		// Add to slice
 		p.row = append(p.row, b)

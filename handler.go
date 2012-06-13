@@ -275,7 +275,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err error) {
 			FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING, FIELD_TYPE_GEOMETRY:
 			num, n, err := btolcb(p.data[pos:])
 			if err != nil {
-				return
+				return err
 			}
 			field = p.data[pos+uint64(n) : pos+uint64(n)+num]
 			pos += uint64(n) + num
@@ -283,7 +283,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err error) {
 		case FIELD_TYPE_DATE:
 			num, n, err := btolcb(p.data[pos:])
 			if err != nil {
-				return
+				return err
 			}
 			// New date
 			d := Date{}
@@ -305,7 +305,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err error) {
 		case FIELD_TYPE_TIME:
 			num, n, err := btolcb(p.data[pos:])
 			if err != nil {
-				return
+				return err
 			}
 			// New time
 			t := Time{}
@@ -327,7 +327,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err error) {
 		case FIELD_TYPE_TIMESTAMP, FIELD_TYPE_DATETIME:
 			num, n, err := btolcb(p.data[pos:])
 			if err != nil {
-				return
+				return err
 			}
 			// New datetime
 			d := DateTime{}
