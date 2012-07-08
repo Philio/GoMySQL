@@ -600,11 +600,11 @@ type packetRowData struct {
 // Row data packet reader
 func (p *packetRowData) read(data []byte) (err error) {
 	// Recover errors
-	defer func(err *error) {
+	defer func() {
 		if e := recover(); e != nil {
-			*err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
+			err = &ClientError{CR_MALFORMED_PACKET, CR_MALFORMED_PACKET_STR}
 		}
-	}(&err)
+	}()
 	// Position
 	pos := 0
 	// Loop until end of packet

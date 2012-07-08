@@ -43,16 +43,16 @@ type Statement struct {
 // Prepare new statement
 func (s *Statement) Prepare(sql string) (err error) {
 	// Auto reconnect
-	defer func(err *error) {
-		if *err != nil && s.c.checkNet(*err) && s.c.Reconnect {
+	defer func() {
+		if err != nil && s.c.checkNet(err) && s.c.Reconnect {
 			s.c.log(1, "!!! Lost connection to server !!!")
 			s.c.connected = false
-			*err = s.c.reconnect()
-			if *err == nil {
-				*err = s.Prepare(sql)
+			err = s.c.reconnect()
+			if err == nil {
+				err = s.Prepare(sql)
 			}
 		}
-	}(&err)
+	}()
 	// Log prepare
 	s.c.log(1, "=== Begin prepare '%s' ===", sql)
 	// Pre-run checks
