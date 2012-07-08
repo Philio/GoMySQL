@@ -204,7 +204,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) error {
 	// Log binary row result
 	c.log(1, "[%d] Received binary row packet", p.sequence)
 	// Check sequence
-	if err := c.checkSequence(p.sequence) ; err != nil {
+	if err := c.checkSequence(p.sequence); err != nil {
 		return err
 	}
 	// Check if there is a result set
