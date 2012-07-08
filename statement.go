@@ -6,7 +6,6 @@
 package mysql
 
 import (
-	"os"
 	"reflect"
 	"strconv"
 )
@@ -42,7 +41,7 @@ type Statement struct {
 }
 
 // Prepare new statement
-func (s *Statement) Prepare(sql string) (err os.Error) {
+func (s *Statement) Prepare(sql string) (err error) {
 	// Auto reconnect
 	defer func() {
 		if err != nil && s.c.checkNet(err) && s.c.Reconnect {
@@ -77,7 +76,8 @@ func (s *Statement) Prepare(sql string) (err os.Error) {
 	if s.paramCount > 0 {
 		for {
 			s.c.sequence++
-			eof, err := s.getResult(PACKET_PARAM | PACKET_EOF)
+			var eof bool
+			eof, err = s.getResult(PACKET_PARAM | PACKET_EOF)
 			if err != nil {
 				return
 			}
@@ -105,7 +105,7 @@ func (s *Statement) ParamCount() uint16 {
 }
 
 // Bind params
-func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
+func (s *Statement) BindParams(params ...interface{}) (err error) {
 	// Check prepared
 	if !s.prepared {
 		return &ClientError{CR_NO_PREPARE_STMT, CR_NO_PREPARE_STMT_STR}
@@ -208,7 +208,7 @@ func (s *Statement) BindParams(params ...interface{}) (err os.Error) {
 }
 
 // Send long data
-func (s *Statement) SendLongData(num int, data []byte) (err os.Error) {
+func (s *Statement) SendLongData(num int, data []byte) (err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -264,7 +264,7 @@ func (s *Statement) SendLongData(num int, data []byte) (err os.Error) {
 }
 
 // Execute
-func (s *Statement) Execute() (err os.Error) {
+func (s *Statement) Execute() (err error) {
 	// Auto reconnect
 	defer func() {
 		if err != nil && s.c.checkNet(err) && s.c.Reconnect {
@@ -362,7 +362,7 @@ func (s *Statement) FetchColumns() []*Field {
 }
 
 // Bind result
-func (s *Statement) BindResult(params ...interface{}) (err os.Error) {
+func (s *Statement) BindResult(params ...interface{}) (err error) {
 	s.resultParams = params
 	return
 }
@@ -377,7 +377,7 @@ func (s *Statement) RowCount() uint64 {
 }
 
 // Fetch next row 
-func (s *Statement) Fetch() (eof bool, err os.Error) {
+func (s *Statement) Fetch() (eof bool, err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -473,7 +473,7 @@ func (s *Statement) Fetch() (eof bool, err os.Error) {
 }
 
 // Store result
-func (s *Statement) StoreResult() (err os.Error) {
+func (s *Statement) StoreResult() (err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -500,7 +500,7 @@ func (s *Statement) StoreResult() (err os.Error) {
 }
 
 // Free result
-func (s *Statement) FreeResult() (err os.Error) {
+func (s *Statement) FreeResult() (err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -526,7 +526,7 @@ func (s *Statement) MoreResults() bool {
 }
 
 // Next result
-func (s *Statement) NextResult() (more bool, err os.Error) {
+func (s *Statement) NextResult() (more bool, err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -558,7 +558,7 @@ func (s *Statement) NextResult() (more bool, err os.Error) {
 }
 
 // Reset statement
-func (s *Statement) Reset() (err os.Error) {
+func (s *Statement) Reset() (err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -591,7 +591,7 @@ func (s *Statement) Reset() (err os.Error) {
 }
 
 // Close statement
-func (s *Statement) Close() (err os.Error) {
+func (s *Statement) Close() (err error) {
 	// Auto reconnect
 	defer func() {
 		err = s.c.simpleReconnect(err)
@@ -648,23 +648,23 @@ func (s *Statement) getNullBitMap() (nbm []byte) {
 }
 
 // Get all result fields
-func (s *Statement) getFields() (err os.Error) {
+func (s *Statement) getFields() error {
 	// Loop till EOF
 	for {
 		s.c.sequence++
 		eof, err := s.getResult(PACKET_FIELD | PACKET_EOF)
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break
 		}
 	}
-	return
+	return nil
 }
 
 // Get next row for a result
-func (s *Statement) getRow() (eof bool, err os.Error) {
+func (s *Statement) getRow() (eof bool, err error) {
 	// Check for a valid result
 	if s.result == nil {
 		return false, &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
@@ -676,21 +676,21 @@ func (s *Statement) getRow() (eof bool, err os.Error) {
 }
 
 // Get all rows for the result
-func (s *Statement) getAllRows() (err os.Error) {
+func (s *Statement) getAllRows() error {
 	for {
 		eof, err := s.getRow()
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break
 		}
 	}
-	return
+	return nil
 }
 
 // Get result
-func (s *Statement) getResult(types packetType) (eof bool, err os.Error) {
+func (s *Statement) getResult(types packetType) (eof bool, err error) {
 	// Log read result
 	s.c.log(1, "Reading result packet from server")
 	// Get result packet
@@ -725,7 +725,7 @@ func (s *Statement) getResult(types packetType) (eof bool, err os.Error) {
 }
 
 // Free any result sets waiting to be read
-func (s *Statement) freeAll(next bool) (err os.Error) {
+func (s *Statement) freeAll(next bool) (err error) {
 	// Check for unread rows
 	if !s.result.allRead {
 		// Read all rows
