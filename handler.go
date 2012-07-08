@@ -200,17 +200,16 @@ func handleParam(p *packetParameter, c *Client) (err error) {
 }
 
 // Binary row packet handler
-func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err error) {
+func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) error {
 	// Log binary row result
 	c.log(1, "[%d] Received binary row packet", p.sequence)
 	// Check sequence
-	err = c.checkSequence(p.sequence)
-	if err != nil {
-		return
+	if err := c.checkSequence(p.sequence) ; err != nil {
+		return err
 	}
 	// Check if there is a result set
 	if r == nil || r.mode == RESULT_FREE {
-		return
+		return nil
 	}
 	// Read data into fields
 	var row []interface{}
@@ -275,7 +274,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err error) {
 			FIELD_TYPE_VAR_STRING, FIELD_TYPE_STRING, FIELD_TYPE_GEOMETRY:
 			num, n, err := btolcb(p.data[pos:])
 			if err != nil {
-				return
+				return err
 			}
 			field = p.data[pos+uint64(n) : pos+uint64(n)+num]
 			pos += uint64(n) + num
@@ -283,7 +282,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err error) {
 		case FIELD_TYPE_DATE:
 			num, n, err := btolcb(p.data[pos:])
 			if err != nil {
-				return
+				return err
 			}
 			// New date
 			d := Date{}
@@ -305,7 +304,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err error) {
 		case FIELD_TYPE_TIME:
 			num, n, err := btolcb(p.data[pos:])
 			if err != nil {
-				return
+				return err
 			}
 			// New time
 			t := Time{}
@@ -327,7 +326,7 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err error) {
 		case FIELD_TYPE_TIMESTAMP, FIELD_TYPE_DATETIME:
 			num, n, err := btolcb(p.data[pos:])
 			if err != nil {
-				return
+				return err
 			}
 			// New datetime
 			d := DateTime{}
@@ -365,5 +364,5 @@ func handleBinaryRow(p *packetRowBinary, c *Client, r *Result) (err error) {
 		// Only save 1 row, overwrite previous
 		r.rows = []Row{Row(row)}
 	}
-	return
+	return nil
 }

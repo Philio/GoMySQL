@@ -597,7 +597,7 @@ func (c *Client) dial() (err error) {
 		}
 		// Log error
 		if cErr, ok := err.(*ClientError); ok {
-			c.log(1, string(cErr.Err))
+			c.log(1, cErr.Error())
 		}
 		return
 	}
@@ -783,7 +783,7 @@ func (c *Client) command(command command, args ...interface{}) (err error) {
 }
 
 // Get field packets for a result
-func (c *Client) getFields() (err error) {
+func (c *Client) getFields() error {
 	// Check for a valid result
 	if c.result == nil {
 		return &ClientError{CR_NO_RESULT_SET, CR_NO_RESULT_SET_STR}
@@ -793,13 +793,13 @@ func (c *Client) getFields() (err error) {
 		c.sequence++
 		eof, err := c.getResult(PACKET_FIELD | PACKET_EOF)
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break
 		}
 	}
-	return
+	return nil
 }
 
 // Get next row for a result
@@ -815,17 +815,17 @@ func (c *Client) getRow() (eof bool, err error) {
 }
 
 // Get all rows for the result
-func (c *Client) getAllRows() (err error) {
+func (c *Client) getAllRows() error {
 	for {
 		eof, err := c.getRow()
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break
 		}
 	}
-	return
+	return nil
 }
 
 // Get result

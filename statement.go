@@ -43,16 +43,16 @@ type Statement struct {
 // Prepare new statement
 func (s *Statement) Prepare(sql string) (err error) {
 	// Auto reconnect
-	defer func() {
-		if err != nil && s.c.checkNet(err) && s.c.Reconnect {
+	defer func(err *error) {
+		if *err != nil && s.c.checkNet(*err) && s.c.Reconnect {
 			s.c.log(1, "!!! Lost connection to server !!!")
 			s.c.connected = false
-			err = s.c.reconnect()
-			if err == nil {
-				err = s.Prepare(sql)
+			*err = s.c.reconnect()
+			if *err == nil {
+				*err = s.Prepare(sql)
 			}
 		}
-	}()
+	}(&err)
 	// Log prepare
 	s.c.log(1, "=== Begin prepare '%s' ===", sql)
 	// Pre-run checks
@@ -76,7 +76,8 @@ func (s *Statement) Prepare(sql string) (err error) {
 	if s.paramCount > 0 {
 		for {
 			s.c.sequence++
-			eof, err := s.getResult(PACKET_PARAM | PACKET_EOF)
+			var eof bool
+			eof, err = s.getResult(PACKET_PARAM | PACKET_EOF)
 			if err != nil {
 				return
 			}
@@ -647,19 +648,19 @@ func (s *Statement) getNullBitMap() (nbm []byte) {
 }
 
 // Get all result fields
-func (s *Statement) getFields() (err error) {
+func (s *Statement) getFields() error {
 	// Loop till EOF
 	for {
 		s.c.sequence++
 		eof, err := s.getResult(PACKET_FIELD | PACKET_EOF)
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break
 		}
 	}
-	return
+	return nil
 }
 
 // Get next row for a result
@@ -675,17 +676,17 @@ func (s *Statement) getRow() (eof bool, err error) {
 }
 
 // Get all rows for the result
-func (s *Statement) getAllRows() (err error) {
+func (s *Statement) getAllRows() error {
 	for {
 		eof, err := s.getRow()
 		if err != nil {
-			return
+			return err
 		}
 		if eof {
 			break
 		}
 	}
-	return
+	return nil
 }
 
 // Get result
