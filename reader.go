@@ -8,7 +8,6 @@ package mysql
 import (
 	"io"
 	"net"
-	"os"
 )
 
 // Packet reader struct
@@ -26,12 +25,12 @@ func newReader(conn io.ReadWriteCloser) *reader {
 }
 
 // Read the next packet
-func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
+func (r *reader) readPacket(types packetType) (p packetReadable, err error) {
 	// Deferred error processing
 	defer func() {
 		if err != nil {
 			// EOF errors
-			if err == os.EOF || err == io.ErrUnexpectedEOF {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
 				err = &ClientError{CR_SERVER_LOST, CR_SERVER_LOST_STR}
 			}
 			// OpError
@@ -127,7 +126,7 @@ func (r *reader) readPacket(types packetType) (p packetReadable, err os.Error) {
 }
 
 // Read n bytes long number
-func (r *reader) readNumber(n uint8) (num uint64, err os.Error) {
+func (r *reader) readNumber(n uint8) (num uint64, err error) {
 	// Read bytes into array
 	buf := make([]byte, n)
 	nr, err := io.ReadFull(r.conn, buf)
